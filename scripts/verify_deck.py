@@ -87,7 +87,7 @@ class DeckParser(HTMLParser):
             if value is None:
                 continue
             normalized = value.strip().lower()
-            if normalized.startswith(("http://", "https://")):
+            if normalized.startswith(("http://", "https://", "//")):
                 self.external_refs.append((tag, attr_name, value))
 
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
