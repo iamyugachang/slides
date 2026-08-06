@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LLM 能力演進：從文字接龍到可驗證成果</title>
+  <style>
+    :root{color-scheme:dark;--bg:#07111f;--panel:#101a26;--ink:#f4efe4;--muted:#9fb2c7;--cyan:#60d8f6;--amber:#f4b23d;--line:#2b3b4e;--rail:#172435}
+    *{box-sizing:border-box}html,body{height:100%;margin:0}body{display:grid;place-items:center;overflow:hidden;background:radial-gradient(circle at 18% 14%,#17324a 0,#07111f 38%,#050911 100%);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Noto Sans TC","Microsoft JhengHei",sans-serif;color:var(--ink)}
+    .viewport{position:relative;width:100vw;height:100vh;overflow:hidden}.stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform:translate(-50%,-50%) scale(calc(100vw / 1920px));transform-origin:center;background:linear-gradient(135deg,#081321,#0b1420 58%,#111827);box-shadow:0 0 0 1px #ffffff10,0 36px 120px #000b;overflow:hidden}@media (min-aspect-ratio:16/9){.stage{transform:translate(-50%,-50%) scale(calc(100vh / 1080px))}}
+    .slide{position:absolute;inset:0;display:grid;grid-template-rows:auto 1fr auto;padding:88px 108px 70px;opacity:0;pointer-events:none}.slide.is-active{opacity:1;pointer-events:auto}.slide::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 78% 18%,#f4b23d1d,transparent 30%),radial-gradient(circle at 16% 78%,#60d8f61a,transparent 34%);z-index:-1}.meta{display:flex;align-items:center;gap:22px;color:var(--muted);font-size:29px;letter-spacing:.08em;text-transform:uppercase}.num{color:var(--amber);font-weight:900}.term{color:var(--cyan);font-weight:800}.content{align-self:center;max-width:1350px}.kicker{font-size:34px;color:var(--amber);font-weight:900;letter-spacing:.08em;margin:0 0 24px}.title{font-size:104px;line-height:1.04;margin:0 0 34px;font-weight:950;letter-spacing:-.045em}.title strong,.bottleneck strong{color:var(--amber)}.subtitle{max-width:1120px;font-size:42px;line-height:1.38;color:var(--muted);margin:0}.bottleneck{font-size:76px;line-height:1.12;margin:0 0 36px;font-weight:930;letter-spacing:-.035em}.breakthrough{display:inline-flex;align-items:center;gap:18px;max-width:1180px;padding:22px 28px;border:1px solid #f4b23d55;border-radius:999px;background:#f4b23d12;color:#ffe0a3;font-size:35px;line-height:1.25}.breakthrough b{color:var(--amber)}.note{margin-top:34px;color:var(--muted);font-size:32px}.rail{display:grid;grid-template-columns:repeat(10,1fr);gap:10px;align-items:end}.rail span{min-width:0;padding:14px 10px 12px;border-top:5px solid var(--line);border-radius:10px 10px 0 0;background:var(--rail);color:#8aa0b8;font-size:19px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}.rail .active{border-color:var(--amber);background:linear-gradient(#493415,#1b2636);color:var(--ink);font-size:25px;box-shadow:0 -14px 36px #f4b23d22}.rail .past{border-color:#60d8f680;color:#c4eff8}.title-slide .content,.conclusion .content{text-align:left}.title-slide .title,.conclusion .title{font-size:116px}.title-slide .rail,.conclusion .rail{opacity:.46}.controls{position:absolute;right:42px;bottom:28px;display:flex;gap:12px;align-items:center;color:var(--muted);font-size:18px}.controls button{border:1px solid #ffffff28;background:#ffffff0e;color:var(--ink);border-radius:999px;padding:10px 14px;font:inherit}.counter{min-width:64px;text-align:center;color:var(--amber);font-weight:900}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+    @media print{html,body{height:auto;background:#07111f;overflow:visible}.viewport{width:auto;height:auto;overflow:visible}.stage{position:static;transform:none;width:1920px;height:auto;box-shadow:none}.slide{position:relative;opacity:1;pointer-events:auto;width:1920px;height:1080px;page-break-after:always;break-after:page}.controls{display:none}}
+  </style>
+</head>
+<body>
+  <main class="viewport" aria-label="LLM 能力演進簡報">
+    <div class="stage">
+      <section class="slide title-slide is-active" data-stage="title" aria-label="標題">
+        <div class="meta"><span class="num">00</span><span class="term">LLM Capability Evolution</span></div>
+        <div class="content"><p class="kicker">核心命題</p><h1 class="title">LLM 始終是<strong>文字接龍</strong></h1><p class="subtitle">能力的增長，來自一層層外部系統，把猜下一個字變成可完成任務的流程。</p></div>
+        <nav class="rail" aria-label="演進軌道"><span>Next-token</span><span>ICL</span><span>Prompt</span><span>Context</span><span>RAG</span><span>MCP</span><span>A2A</span><span>Harness</span><span>Skill</span><span>Loop</span></nav>
+      </section>
+
+      <section class="slide" data-stage="next-token" aria-label="Next-token prediction">
+        <div class="meta"><span class="num">01</span><span class="term">Next-token prediction</span></div>
+        <div class="content"><h2 class="bottleneck">能產生合理文字，卻沒有任務狀態。</h2><p class="breakthrough"><b>突破：</b>把行為教在當下輸入裡。</p></div>
+        <nav class="rail" aria-label="演進軌道"><span class="active">Next-token</span><span>ICL</span><span>Prompt</span><span>Context</span><span>RAG</span><span>MCP</span><span>A2A</span><span>Harness</span><span>Skill</span><span>Loop</span></nav>
+      </section>
+
+      <section class="slide" data-stage="in-context-learning" aria-label="In-context learning">
+        <div class="meta"><span class="num">02</span><span class="term">In-context learning</span></div>
+        <div class="content"><h2 class="bottleneck">範例能塑形行為，但很脆弱。</h2><p class="breakthrough"><b>突破：</b>用結構化方式設計指令、範例與輸出。</p></div>
+        <nav class="rail" aria-label="演進軌道"><span class="past">Next-token</span><span class="active">ICL</span><span>Prompt</span><span>Context</span><span>RAG</span><span>MCP</span><span>A2A</span><span>Harness</span><span>Skill</span><span>Loop</span></nav>
+      </section>
+
+      <section class="slide" data-stage="prompt-engineering" aria-label="Prompt engineering">
+        <div class="meta"><span class="num">03</span><span class="term">Prompt engineering</span></div>
+        <div class="content"><h2 class="bottleneck">Prompt engineering 讓輸入更有秩序；但措辭不足以管理全部情境。</h2><p class="breakthrough"><b>突破：</b>整理模型可見的完整狀態。</p></div>
+        <nav class="rail" aria-label="演進軌道"><span class="past">Next-token</span><span class="past">ICL</span><span class="active">Prompt</span><span>Context</span><span>RAG</span><span>MCP</span><span>A2A</span><span>Harness</span><span>Skill</span><span>Loop</span></nav>
+      </section>
+
+      <section class="slide" data-stage="context-engineering" aria-label="Context engineering">
+        <div class="meta"><span class="num">04</span><span class="term">Context engineering</span></div>
+        <div class="content"><h2 class="bottleneck">Context engineering 提供完整可見狀態；知識仍可能過舊或太大。</h2><p class="breakthrough"><b>突破：</b>需要時再取回相關知識。</p></div>
+        <nav class="rail" aria-label="演進軌道"><span class="past">Next-token</span><span class="past">ICL</span><span class="past">Prompt</span><span class="active">Context</span><span>RAG</span><span>MCP</span><span>A2A</span><span>Harness</span><span>Skill</span><span>Loop</span></nav>
+      </section>
+
+      <section class="slide" data-stage="rag" aria-label="RAG">
+        <div class="meta"><span class="num">05</span><span class="term">RAG</span></div>
+        <div class="content"><h2 class="bottleneck">RAG 能檢索外部知識；仍沒有標準方式行動。</h2><p class="breakthrough"><b>突破：</b>把工具與資源變成可發現、可呼叫的介面。</p></div>
+        <nav class="rail" aria-label="演進軌道"><span class="past">Next-token</span><span class="past">ICL</span><span class="past">Prompt</span><span class="past">Context</span><span class="active">RAG</span><span>MCP</span><span>A2A</span><span>Harness</span><span>Skill</span><span>Loop</span></nav>
+      </section>
+
+      <section class="slide" data-stage="mcp" aria-label="MCP">
+        <div class="meta"><span class="num">06</span><span class="term">MCP</span></div>
+        <div class="content"><h2 class="bottleneck">MCP 標準化工具；單一 agent 仍受上下文、專長與並行限制。</h2><p class="breakthrough"><b>突破：</b>讓 agents 透過明確介面協作。</p></div>
+        <nav class="rail" aria-label="演進軌道"><span class="past">Next-token</span><span class="past">ICL</span><span class="past">Prompt</span><span class="past">Context</span><span class="past">RAG</span><span class="active">MCP</span><span>A2A</span><span>Harness</span><span>Skill</span><span>Loop</span></nav>
+      </section>
+
+      <section class="slide" data-stage="a2a" aria-label="Agent-to-Agent">
+        <div class="meta"><span class="num">07</span><span class="term">Agent-to-Agent</span></div>
+        <div class="content"><h2 class="bottleneck">Agent-to-Agent 帶來分工；協作本身不保證可靠執行。</h2><p class="breakthrough"><b>突破：</b>用 runtime 管控工具、狀態、權限與復原。</p></div>
+        <nav class="rail" aria-label="演進軌道"><span class="past">Next-token</span><span class="past">ICL</span><span class="past">Prompt</span><span class="past">Context</span><span class="past">RAG</span><span class="past">MCP</span><span class="active">A2A</span><span>Harness</span><span>Skill</span><span>Loop</span></nav>
+      </section>
+
+      <section class="slide" data-stage="harness" aria-label="Harness">
+        <div class="meta"><span class="num">08</span><span class="term">Harness</span></div>
+        <div class="content"><h2 class="bottleneck">Harness 讓執行可觀測、可限制、可恢復；卻沒有領域程序。</h2><p class="breakthrough"><b>突破：</b>把成功做法封裝成可重用能力。</p></div>
+        <nav class="rail" aria-label="演進軌道"><span class="past">Next-token</span><span class="past">ICL</span><span class="past">Prompt</span><span class="past">Context</span><span class="past">RAG</span><span class="past">MCP</span><span class="past">A2A</span><span class="active">Harness</span><span>Skill</span><span>Loop</span></nav>
+      </section>
+
+      <section class="slide" data-stage="skill" aria-label="Skill">
+        <div class="meta"><span class="num">09</span><span class="term">Skill</span></div>
+        <div class="content"><h2 class="bottleneck">Skill 封裝程序、範例、腳本與驗證；單次執行仍脆弱。</h2><p class="breakthrough"><b>突破：</b>用觀察與評估驅動重試。</p></div>
+        <nav class="rail" aria-label="演進軌道"><span class="past">Next-token</span><span class="past">ICL</span><span class="past">Prompt</span><span class="past">Context</span><span class="past">RAG</span><span class="past">MCP</span><span class="past">A2A</span><span class="past">Harness</span><span class="active">Skill</span><span>Loop</span></nav>
+      </section>
+
+      <section class="slide" data-stage="loop-engineering" aria-label="Loop engineering">
+        <div class="meta"><span class="num">10</span><span class="term">Loop engineering</span></div>
+        <div class="content"><h2 class="bottleneck">Loop engineering 把脆弱單次生成，改成 plan → act → observe → evaluate → retry。</h2><p class="breakthrough"><b>突破：</b>以停止條件與驗證收斂到結果。</p></div>
+        <nav class="rail" aria-label="演進軌道"><span class="past">Next-token</span><span class="past">ICL</span><span class="past">Prompt</span><span class="past">Context</span><span class="past">RAG</span><span class="past">MCP</span><span class="past">A2A</span><span class="past">Harness</span><span class="past">Skill</span><span class="active">Loop</span></nav>
+      </section>
+
+      <section class="slide conclusion" data-stage="conclusion" aria-label="結論">
+        <div class="meta"><span class="num">11</span><span class="term">Verified outcomes</span></div>
+        <div class="content"><p class="kicker">結論</p><h2 class="title">從提示模型，到建構能驗證成果的系統。</h2><p class="subtitle">模型仍在預測下一個 token；系統讓它反覆抵達已驗證的 outcomes。</p></div>
+        <nav class="rail" aria-label="演進軌道"><span class="past">Next-token</span><span class="past">ICL</span><span class="past">Prompt</span><span class="past">Context</span><span class="past">RAG</span><span class="past">MCP</span><span class="past">A2A</span><span class="past">Harness</span><span class="past">Skill</span><span class="past">Loop</span></nav>
+      </section>
+
+      <div class="controls" aria-label="簡報控制">
+        <button type="button" aria-label="上一張">←</button>
+        <output class="counter" aria-live="polite" aria-label="目前投影片">1 / 12</output>
+        <button type="button" aria-label="下一張">→</button>
+        <span class="sr-only">可用鍵盤與觸控導覽；互動會在下一階段加入。</span>
+      </div>
+    </div>
+  </main>
+  <script>
+    (() => {
+      'use strict';
+
+      const STAGE_WIDTH = 1920;
+      const STAGE_HEIGHT = 1080;
+      const SWIPE_THRESHOLD = 45;
+
+      const stage = document.querySelector('.stage');
+      const slides = Array.from(document.querySelectorAll('.slide'));
+      const total = slides.length;
+      const controls = document.querySelector('.controls');
+      const counter = controls ? controls.querySelector('.counter') : document.querySelector('.counter');
+      const buttons = controls ? Array.from(controls.querySelectorAll('button')) : [];
+      const previousButton = buttons.find((button) => /上一|previous|prev|←/i.test(button.getAttribute('aria-label') || button.textContent || '')) || buttons[0];
+      const nextButton = buttons.find((button) => /下一|next|→/i.test(button.getAttribute('aria-label') || button.textContent || '')) || buttons[1];
+      let current = 0;
+      let touchStartX = null;
+      let touchStartY = null;
+
+      function scaleStage() {
+        if (!stage) return;
+        const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+        stage.style.transform = `translate(-50%, -50%) scale(${scale})`;
+      }
+
+      function clampIndex(value) {
+        if (!Number.isFinite(value)) return 0;
+        return Math.max(0, Math.min(total - 1, value));
+      }
+
+      function hashToIndex() {
+        const raw = location.hash.replace(/^#/, '');
+        const parsed = Number.parseInt(raw, 10);
+        return clampIndex(parsed - 1);
+      }
+
+      function writeHash(index) {
+        const nextHash = `#${index + 1}`;
+        if (location.hash !== nextHash) {
+          location.hash = nextHash;
+        }
+      }
+
+      function updateCounters(index) {
+        const text = `${index + 1} / ${total}`;
+        document.querySelectorAll('.counter,[aria-live="polite"]').forEach((element) => {
+          element.textContent = text;
+          if (element instanceof HTMLOutputElement) {
+            element.value = text;
+          }
+        });
+        if (counter && !counter.matches('.counter,[aria-live="polite"]')) {
+          counter.textContent = text;
+        }
+      }
+
+      function setActive(index, options = {}) {
+        if (!total) return;
+        const next = clampIndex(index);
+        current = next;
+        slides.forEach((slide, slideIndex) => {
+          const active = slideIndex === next;
+          slide.classList.toggle('is-active', active);
+          slide.setAttribute('aria-hidden', active ? 'false' : 'true');
+        });
+        updateCounters(next);
+        if (previousButton) previousButton.disabled = next === 0;
+        if (nextButton) nextButton.disabled = next === total - 1;
+        if (!options.fromHash) writeHash(next);
+      }
+
+      function goTo(index) {
+        setActive(index);
+      }
+
+      function nextSlide() {
+        goTo(current + 1);
+      }
+
+      function previousSlide() {
+        goTo(current - 1);
+      }
+
+      function handleKeydown(event) {
+        const target = event.target;
+        const isEditable = target && (target.isContentEditable || /^(input|textarea|select|button)$/i.test(target.tagName));
+        if (isEditable && event.key === ' ') return;
+
+        switch (event.key) {
+          case 'ArrowRight':
+          case 'PageDown':
+          case ' ':
+          case 'Spacebar':
+            event.preventDefault();
+            nextSlide();
+            break;
+          case 'ArrowLeft':
+          case 'PageUp':
+            event.preventDefault();
+            previousSlide();
+            break;
+          case 'Home':
+            event.preventDefault();
+            goTo(0);
+            break;
+          case 'End':
+            event.preventDefault();
+            goTo(total - 1);
+            break;
+          default:
+            break;
+        }
+      }
+
+      function handleTouchStart(event) {
+        const touch = event.changedTouches && event.changedTouches[0];
+        if (!touch) return;
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+      }
+
+      function handleTouchEnd(event) {
+        const touch = event.changedTouches && event.changedTouches[0];
+        if (!touch || touchStartX === null || touchStartY === null) return;
+        const deltaX = touch.clientX - touchStartX;
+        const deltaY = touch.clientY - touchStartY;
+        touchStartX = null;
+        touchStartY = null;
+        if (Math.abs(deltaX) < SWIPE_THRESHOLD || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+        if (deltaX < 0) nextSlide();
+        else previousSlide();
+      }
+
+      if (previousButton) previousButton.addEventListener('click', previousSlide);
+      if (nextButton) nextButton.addEventListener('click', nextSlide);
+      window.addEventListener('keydown', handleKeydown);
+      window.addEventListener('resize', scaleStage);
+      window.addEventListener('hashchange', () => setActive(hashToIndex()));
+      if (stage) {
+        stage.addEventListener('touchstart', handleTouchStart, { passive: true });
+        stage.addEventListener('touchend', handleTouchEnd, { passive: true });
+      }
+
+      scaleStage();
+      setActive(hashToIndex(), { fromHash: false });
+    })();
+  </script>
+</body>
+</html>
