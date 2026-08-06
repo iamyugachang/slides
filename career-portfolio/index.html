@@ -630,12 +630,27 @@
     }
 
     function hashIndex() {
-      const parsed = Number.parseInt(location.hash.slice(1), 10);
-      return Number.isFinite(parsed) ? parsed - 1 : 0;
+      const parsed = /^#\d+$/.test(location.hash) ? Number.parseInt(location.hash.slice(1), 10) : 1;
+      return Math.max(0, Math.min(slides.length - 1, parsed - 1));
+    }
+
+    function canonicalizeHash() {
+      const index = hashIndex();
+      const canonicalHash = `#${index + 1}`;
+      if (location.hash !== canonicalHash) history.replaceState(null, '', canonicalHash);
+      return index;
+    }
+
+    function eventTargetClosest(event, selector) {
+      return event.target instanceof Element ? event.target.closest(selector) : null;
     }
 
     function eventIsEditing(event) {
-      return isEditing || Boolean(event.target.closest('[contenteditable="true"]'));
+      return isEditing || Boolean(eventTargetClosest(event, '[contenteditable="true"]'));
+    }
+
+    function eventIsInteractiveControl(event) {
+      return Boolean(eventTargetClosest(event, 'button, a, input, textarea, select, [role="button"]'));
     }
 
     /* === INLINE EDITING AND EXPORT === */
@@ -650,6 +665,11 @@
     function downloadEditedDeck() {
       const clone = document.documentElement.cloneNode(true);
       clone.querySelectorAll('[contenteditable]').forEach((node) => node.setAttribute('contenteditable', 'false'));
+      const clonedEditToggle = clone.querySelector('#editToggle');
+      if (clonedEditToggle) {
+        clonedEditToggle.setAttribute('aria-pressed', 'false');
+        clonedEditToggle.textContent = 'Edit';
+      }
       const source = '<!doctype html>\n' + clone.outerHTML;
       const blob = new Blob([source], { type: 'text/html;charset=utf-8' });
       const objectUrl = URL.createObjectURL(blob);
@@ -678,6 +698,7 @@
         setEditing(false);
         return;
       }
+      if (eventIsInteractiveControl(event)) return;
       if ((event.key === 'e' || event.key === 'E') && !eventIsEditing(event)) {
         event.preventDefault();
         setEditing(!isEditing);
@@ -700,9 +721,12 @@
     }, { passive: true });
 
     window.addEventListener('resize', scaleStage);
-    window.addEventListener('hashchange', () => { if (!isEditing) goTo(hashIndex(), false); });
+    window.addEventListener('hashchange', () => {
+      const index = canonicalizeHash();
+      if (!isEditing) goTo(index, false);
+    });
     scaleStage();
-    goTo(hashIndex(), false);
+    goTo(canonicalizeHash(), false);
   </script>
 </body>
 </html>
