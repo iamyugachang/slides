@@ -16,7 +16,7 @@
       --bg: #0c1219;
       --bg-deep: #090d12;
       --ink: #f4f1e8;
-      --muted: #9db0bf;
+      --muted: #b7c6d0;
       --line: #355064;
       --line-soft: rgba(53, 80, 100, 0.42);
       --accent: #ff5b35;
@@ -333,9 +333,9 @@
     .playlist { margin-top: 42px; padding-top: 34px; border-top: 1px solid var(--line); color: var(--muted); font-size: 21px; line-height: 1.6; }
 
     /* === SLIDE 7: AI PLATFORM === */
-    .platform .content { display: grid; align-content: center; gap: 50px; }
-    .platform-layers { display: grid; gap: 12px; max-width: 1400px; }
-    .platform-layer { display: grid; grid-template-columns: 230px 1fr; align-items: center; min-height: 92px; border-left: 4px solid var(--line); background: linear-gradient(90deg, rgba(53,80,100,0.22), transparent 72%); }
+    .platform .content { display: grid; align-content: center; gap: 42px; }
+    .platform-layers { display: grid; gap: 10px; max-width: 1400px; }
+    .platform-layer { display: grid; grid-template-columns: 230px 1fr; align-items: center; min-height: 86px; border-left: 4px solid var(--line); background: linear-gradient(90deg, rgba(53,80,100,0.22), transparent 72%); }
     .platform-layer.active { border-left-color: var(--accent); background: linear-gradient(90deg, var(--accent-soft), transparent 76%); }
     .platform-layer b { padding-left: 28px; color: var(--accent); font-size: 18px; letter-spacing: 0.12em; text-transform: uppercase; }
     .platform-layer span { color: var(--ink); font-size: 23px; }
@@ -401,6 +401,12 @@
       font-size: 13px;
     }
     .edit-toggle[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+    @media (max-width: 600px) {
+      .controls { bottom: 18px; padding: 10px; gap: 12px; background: rgba(9,13,18,0.94); }
+      .controls button { min-width: 48px; min-height: 44px; }
+      .counter { min-width: 78px; color: var(--ink); font-size: 15px; }
+      .edit-toggle { min-height: 40px; background: rgba(9,13,18,0.94); }
+    }
 
     /* === PRINT: ONE FIXED SLIDE PER PAGE === */
     @media print {
