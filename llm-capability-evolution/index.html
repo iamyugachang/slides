@@ -92,7 +92,7 @@
         <button type="button" aria-label="上一張">←</button>
         <output class="counter" aria-live="polite" aria-label="目前投影片">1 / 12</output>
         <button type="button" aria-label="下一張">→</button>
-        <span class="sr-only">可用鍵盤與觸控導覽；互動會在下一階段加入。</span>
+        <span class="sr-only">可用鍵盤、滑動，或點按畫面左右側導覽。</span>
       </div>
     </div>
   </main>
@@ -103,6 +103,22 @@
       const STAGE_WIDTH = 1920;
       const STAGE_HEIGHT = 1080;
       const SWIPE_THRESHOLD = 45;
+      const LEFT_TAP_ZONE = 0.32;
+      const RIGHT_TAP_ZONE = 0.68;
+      const INTERACTIVE_SELECTOR = [
+        'a[href]',
+        'button',
+        'input',
+        'textarea',
+        'select',
+        'label',
+        'summary',
+        '[contenteditable="true"]',
+        '[role="button"]',
+        '[role="link"]',
+        '[role="menuitem"]',
+        '[tabindex]:not([tabindex="-1"])'
+      ].join(',');
 
       const stage = document.querySelector('.stage');
       const slides = Array.from(document.querySelectorAll('.slide'));
@@ -115,6 +131,7 @@
       let current = 0;
       let touchStartX = null;
       let touchStartY = null;
+      let suppressNextStageClick = false;
 
       function scaleStage() {
         if (!stage) return;
@@ -180,6 +197,26 @@
         goTo(current - 1);
       }
 
+      function isInteractiveTarget(target) {
+        if (!(target instanceof Element)) return false;
+        return Boolean(target.closest(INTERACTIVE_SELECTOR));
+      }
+
+      function handleStageClick(event) {
+        if (!stage || event.defaultPrevented || event.button !== 0) return;
+        if (suppressNextStageClick) {
+          suppressNextStageClick = false;
+          return;
+        }
+        if (isInteractiveTarget(event.target)) return;
+
+        const rect = stage.getBoundingClientRect();
+        if (!rect.width) return;
+        const relativeX = (event.clientX - rect.left) / rect.width;
+        if (relativeX <= LEFT_TAP_ZONE) previousSlide();
+        else if (relativeX >= RIGHT_TAP_ZONE) nextSlide();
+      }
+
       function handleKeydown(event) {
         const target = event.target;
         const isEditable = target && (target.isContentEditable || /^(input|textarea|select|button)$/i.test(target.tagName));
@@ -226,6 +263,10 @@
         touchStartX = null;
         touchStartY = null;
         if (Math.abs(deltaX) < SWIPE_THRESHOLD || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+        suppressNextStageClick = true;
+        window.setTimeout(() => {
+          suppressNextStageClick = false;
+        }, 400);
         if (deltaX < 0) nextSlide();
         else previousSlide();
       }
@@ -236,6 +277,7 @@
       window.addEventListener('resize', scaleStage);
       window.addEventListener('hashchange', () => setActive(hashToIndex()));
       if (stage) {
+        stage.addEventListener('click', handleStageClick);
         stage.addEventListener('touchstart', handleTouchStart, { passive: true });
         stage.addEventListener('touchend', handleTouchEnd, { passive: true });
       }
