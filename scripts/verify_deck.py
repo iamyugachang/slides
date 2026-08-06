@@ -12,36 +12,73 @@ import sys
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Iterable
+from urllib.parse import urlparse
 
 
 DECK_RELATIVE_PATH = Path("llm-capability-evolution/index.html")
 EXPECTED_STAGES = [
     "title",
-    "next-token",
+    "thesis",
+    "timeline",
+    "transformer",
+    "pretraining",
     "in-context-learning",
-    "prompt-engineering",
-    "context-engineering",
     "rag",
+    "instruction-alignment",
+    "reason-act",
+    "function-calling",
+    "long-context",
+    "agent-demo-gap",
+    "harness-aci",
     "mcp",
+    "not-linear",
+    "layer-stack",
     "a2a",
-    "harness",
-    "skill",
-    "loop-engineering",
+    "context-engineering",
+    "agent-skills",
+    "long-running-harness",
+    "evaluation-loop",
+    "enterprise-example",
+    "adoption-ladder",
+    "myths",
     "conclusion",
 ]
 REQUIRED_TERMS = [
     "文字接龍",
+    "Transformer",
     "Next-token prediction",
     "In-context learning",
-    "Prompt engineering",
-    "Context engineering",
     "RAG",
+    "Instruction tuning",
+    "RLHF",
+    "ReAct",
+    "Function calling",
+    "Long context",
     "MCP",
-    "Agent-to-Agent",
+    "A2A",
     "Harness",
-    "Skill",
-    "Loop engineering",
+    "Context engineering",
+    "Agent Skills",
+    "Evaluation",
 ]
+ALLOWED_CITATION_HOSTS = {
+    "agentskills.io",
+    "anthropic.com",
+    "arxiv.org",
+    "developers.googleblog.com",
+    "developers.openai.com",
+    "iclr.cc",
+    "linuxfoundation.org",
+    "modelcontextprotocol.io",
+    "openai.com",
+    "proceedings.iclr.cc",
+    "proceedings.neurips.cc",
+    "swe-agent.com",
+    "www.agentskills.io",
+    "www.anthropic.com",
+    "www.linuxfoundation.org",
+    "www.openai.com",
+}
 FORBIDDEN_PUBLIC_PATTERNS = [
     "/home/",
     "/mnt/",
@@ -51,7 +88,7 @@ FORBIDDEN_PUBLIC_PATTERNS = [
     "token=",
 ]
 SUCCESS_MESSAGE = (
-    "PASS: 12 slides; required stages, terms, metadata, and safety checks verified"
+    "PASS: 25 slides; history, layers, citations, metadata, and safety checks verified"
 )
 
 
@@ -140,11 +177,23 @@ def verify(raw_source: str) -> list[str]:
         if raw_requirement not in raw_source:
             errors.append(f"missing raw source requirement: {raw_requirement}")
 
-    if parser.external_refs:
+    unsafe_refs: list[tuple[str, str, str]] = []
+    citation_count = 0
+    for tag, attr, value in parser.external_refs:
+        host = (urlparse(value).hostname or "").lower()
+        if tag == "a" and attr == "href" and host in ALLOWED_CITATION_HOSTS:
+            citation_count += 1
+        else:
+            unsafe_refs.append((tag, attr, value))
+
+    if citation_count < 12:
+        errors.append(f"expected at least 12 official citation links; found {citation_count}")
+
+    if unsafe_refs:
         formatted_refs = ", ".join(
-            f"<{tag} {attr}={value!r}>" for tag, attr, value in parser.external_refs
+            f"<{tag} {attr}={value!r}>" for tag, attr, value in unsafe_refs
         )
-        errors.append("external http(s) src/href attributes are forbidden: " + formatted_refs)
+        errors.append("unsafe or unapproved external references: " + formatted_refs)
 
     lower_source = raw_source.lower()
     forbidden_hits = [

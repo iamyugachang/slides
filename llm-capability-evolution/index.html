@@ -5,92 +5,554 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LLM 能力演進：從文字接龍到可驗證成果</title>
   <style>
-    :root{color-scheme:dark;--bg:#07111f;--panel:#101a26;--ink:#f4efe4;--muted:#9fb2c7;--cyan:#60d8f6;--amber:#f4b23d;--line:#2b3b4e;--rail:#172435}
-    *{box-sizing:border-box}html,body{height:100%;margin:0}body{display:grid;place-items:center;overflow:hidden;background:radial-gradient(circle at 18% 14%,#17324a 0,#07111f 38%,#050911 100%);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Noto Sans TC","Microsoft JhengHei",sans-serif;color:var(--ink)}
-    .viewport{position:relative;width:100vw;height:100vh;overflow:hidden}.stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform:translate(-50%,-50%) scale(calc(100vw / 1920px));transform-origin:center;background:linear-gradient(135deg,#081321,#0b1420 58%,#111827);box-shadow:0 0 0 1px #ffffff10,0 36px 120px #000b;overflow:hidden}@media (min-aspect-ratio:16/9){.stage{transform:translate(-50%,-50%) scale(calc(100vh / 1080px))}}
-    .slide{position:absolute;inset:0;display:grid;grid-template-rows:auto 1fr auto;padding:88px 108px 70px;opacity:0;pointer-events:none}.slide.is-active{opacity:1;pointer-events:auto}.slide::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 78% 18%,#f4b23d1d,transparent 30%),radial-gradient(circle at 16% 78%,#60d8f61a,transparent 34%);z-index:-1}.meta{display:flex;align-items:center;gap:22px;color:var(--muted);font-size:29px;letter-spacing:.08em;text-transform:uppercase}.num{color:var(--amber);font-weight:900}.term{color:var(--cyan);font-weight:800}.content{align-self:center;max-width:1350px}.kicker{font-size:34px;color:var(--amber);font-weight:900;letter-spacing:.08em;margin:0 0 24px}.title{font-size:104px;line-height:1.04;margin:0 0 34px;font-weight:950;letter-spacing:-.045em}.title strong,.bottleneck strong{color:var(--amber)}.subtitle{max-width:1120px;font-size:42px;line-height:1.38;color:var(--muted);margin:0}.bottleneck{font-size:76px;line-height:1.12;margin:0 0 36px;font-weight:930;letter-spacing:-.035em}.breakthrough{display:inline-flex;align-items:center;gap:18px;max-width:1180px;padding:22px 28px;border:1px solid #f4b23d55;border-radius:999px;background:#f4b23d12;color:#ffe0a3;font-size:35px;line-height:1.25}.breakthrough b{color:var(--amber)}.note{margin-top:34px;color:var(--muted);font-size:32px}.rail{display:grid;grid-template-columns:repeat(10,1fr);gap:10px;align-items:end;transform:translateY(-18px)}.rail span{min-width:0;padding:14px 10px 12px;border-top:5px solid var(--line);border-radius:10px 10px 0 0;background:var(--rail);color:#a5b8cd;font-size:20px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}.rail .active{border-color:var(--amber);background:linear-gradient(#493415,#1b2636);color:var(--ink);font-size:25px;box-shadow:0 -14px 36px #f4b23d22}.rail .past{border-color:#60d8f680;color:#c4eff8}.title-slide .content,.conclusion .content{text-align:left}.title-slide .title,.conclusion .title{font-size:116px}.title-slide .rail,.conclusion .rail{opacity:.58}.controls{position:absolute;right:42px;bottom:46px;display:flex;gap:12px;align-items:center;color:var(--muted);font-size:18px}.controls button{border:1px solid #ffffff28;background:#ffffff0e;color:var(--ink);border-radius:999px;padding:10px 14px;font:inherit}.counter{min-width:64px;text-align:center;color:var(--amber);font-weight:900}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-    @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
-    @media print{html,body{height:auto;background:#07111f;overflow:visible}.viewport{width:auto;height:auto;overflow:visible}.stage{position:static;left:auto!important;top:auto!important;transform:none!important;width:1920px;height:auto;box-shadow:none}.slide{position:relative;opacity:1;pointer-events:auto;width:1920px;height:1080px;page-break-after:always;break-after:page}.controls{display:none}}
+    /* ===========================================
+       THEME TOKENS
+       =========================================== */
+    :root{
+      color-scheme:dark;
+      --bg:#07111f; --bg-deep:#050911; --panel:#101a26; --panel-strong:#152235;
+      --ink:#f4efe4; --muted:#9fb2c7; --cyan:#60d8f6; --amber:#f4b23d;
+      --line:#2b3b4e; --shadow:#000b;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0}
+    body{
+      display:grid;place-items:center;overflow:hidden;
+      background:
+        radial-gradient(circle at 18% 14%,#17324a 0,#07111f 38%,#050911 100%);
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Noto Sans TC","Microsoft JhengHei",sans-serif;
+      color:var(--ink);
+    }
+    a{color:var(--cyan);text-decoration:underline;text-underline-offset:3px}
+    a:hover{color:#ffe0a3}
+
+    /* ===========================================
+       FIXED 1920×1080 STAGE
+       =========================================== */
+    .viewport{position:relative;width:100vw;height:100vh;overflow:hidden}
+    .stage{
+      position:absolute;left:50%;top:50%;width:1920px;height:1080px;
+      transform:translate(-50%,-50%) scale(calc(100vw / 1920px));
+      transform-origin:center;
+      background:linear-gradient(135deg,#081321,#0b1420 58%,#111827);
+      box-shadow:0 0 0 1px #ffffff10,0 36px 120px var(--shadow);
+      overflow:hidden;
+    }
+    @media (min-aspect-ratio:16/9){
+      .stage{transform:translate(-50%,-50%) scale(calc(100vh / 1080px))}
+    }
+    .slide{
+      position:absolute;inset:0;display:flex;flex-direction:column;
+      padding:78px 104px 70px;
+      opacity:0;pointer-events:none;
+    }
+    .slide.is-active{opacity:1;pointer-events:auto}
+    .slide::before{
+      content:"";position:absolute;inset:0;
+      background:radial-gradient(circle at 78% 18%,#f4b23d1d,transparent 30%),
+                 radial-gradient(circle at 16% 78%,#60d8f61a,transparent 34%);
+      z-index:-1;
+    }
+
+    /* ===========================================
+       SHARED TYPE
+       =========================================== */
+    .meta{display:flex;align-items:center;gap:20px;color:var(--muted);font-size:25px;letter-spacing:.08em;text-transform:uppercase}
+    .num{color:var(--amber);font-weight:900}
+    .era{color:var(--cyan);font-weight:800}
+    .part{color:var(--muted);font-weight:700}
+    .kicker{font-size:29px;color:var(--amber);font-weight:900;letter-spacing:.08em;margin:0 0 20px}
+    .h2{font-size:58px;line-height:1.1;margin:0;font-weight:950;letter-spacing:-.03em;max-width:1500px}
+    .h2 strong,.bottleneck strong{color:var(--amber)}
+    .sub{max-width:1380px;font-size:31px;line-height:1.42;color:var(--muted);margin:22px 0 0}
+    .note{margin-top:26px;color:var(--muted);font-size:26px;line-height:1.5;max-width:1500px}
+    .note b{color:var(--ink)}
+
+    /* ===========================================
+       CARDS (history + lists)
+       =========================================== */
+    .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:32px}
+    .cards.cols2{grid-template-columns:repeat(2,1fr)}
+    .card{
+      background:var(--panel);border:1px solid var(--line);border-radius:18px;
+      padding:24px 28px;box-shadow:0 14px 40px #00000055;min-height:0;
+    }
+    .card.hl{border-color:#60d8f688;background:linear-gradient(160deg,#101f30,#101a26)}
+    .card.warn{border-color:#f4b23d66;background:linear-gradient(160deg,#241c10,#101a26)}
+    .card .tag{display:inline-block;font-size:20px;font-weight:900;letter-spacing:.06em;margin-bottom:10px}
+    .card .tag.t-solve{color:var(--cyan)}
+    .card .tag.t-gap{color:var(--amber)}
+    .card .tag.t-new{color:#8be0a8}
+    .card h3{font-size:27px;line-height:1.25;margin:0 0 10px;font-weight:900;color:var(--ink)}
+    .card p{font-size:24px;line-height:1.45;color:var(--muted);margin:0}
+    .card p b{color:var(--ink)}
+
+    /* ===========================================
+       CITATIONS
+       =========================================== */
+    .cite{margin-top:30px;font-size:20px;color:var(--muted);line-height:1.5}
+    .cite a{margin-right:22px;white-space:nowrap}
+
+    /* ===========================================
+       TITLE / CONCLUSION SLIDES
+       =========================================== */
+    .title-slide .content,.conclusion .content{align-self:center}
+    .title-slide .title{font-size:96px;line-height:1.05;margin:0 0 30px;font-weight:950;letter-spacing:-.045em;max-width:1600px}
+    .title-slide .title strong{color:var(--amber)}
+    .title-slide .subtitle{max-width:1280px;font-size:36px;line-height:1.42;color:var(--muted);margin:0}
+    .chips{display:flex;flex-wrap:wrap;gap:16px;margin-top:36px}
+    .chip{display:inline-flex;align-items:center;padding:14px 24px;border:1px solid #f4b23d55;border-radius:999px;background:#f4b23d12;color:#ffe0a3;font-size:24px;font-weight:800}
+    .conclusion .title{font-size:84px;line-height:1.06;margin:0 0 28px;font-weight:950;letter-spacing:-.04em;max-width:1560px}
+    .conclusion .title strong{color:var(--amber)}
+
+    /* ===========================================
+       TIMELINE (slide 03)
+       =========================================== */
+    .timeline{display:grid;grid-template-columns:repeat(8,1fr);gap:16px;margin-top:46px}
+    .tl{background:var(--panel);border-top:6px solid var(--cyan);border-radius:14px 14px 0 0;padding:22px 18px}
+    .tl .y{font-size:27px;font-weight:900;color:var(--cyan);margin:0 0 8px}
+    .tl .l{font-size:21px;line-height:1.35;color:var(--muted);margin:0}
+    .tl.hot{border-color:var(--amber)}
+    .tl.hot .y{color:var(--amber)}
+    .timeline-note{margin-top:34px;font-size:28px;color:var(--muted);line-height:1.5}
+    .timeline-note b{color:var(--ink)}
+
+    /* ===========================================
+       LAYER STACK (slides 16 / 22)
+       =========================================== */
+    .layers{display:grid;gap:14px;margin-top:34px}
+    .layer{
+      display:grid;grid-template-columns:90px 430px 1fr;align-items:center;gap:26px;
+      background:var(--panel);border:1px solid var(--line);border-left:8px solid var(--amber);
+      border-radius:14px;padding:18px 28px;min-height:100px;
+    }
+    .layer:nth-child(2){border-left-color:#f4b23d}
+    .layer:nth-child(3){border-left-color:#8be0a8}
+    .layer:nth-child(4){border-left-color:#60d8f6}
+    .layer:nth-child(5){border-left-color:#a78bfa}
+    .layer:nth-child(6){border-left-color:#f472b6}
+    .layer .ln{font-size:52px;font-weight:950;color:#ffffff18;letter-spacing:-.04em}
+    .layer .lname{font-size:30px;font-weight:900;color:var(--ink)}
+    .layer .lname small{display:block;font-size:20px;color:var(--cyan);font-weight:800;letter-spacing:.06em;margin-top:4px}
+    .layer .lq{font-size:24px;line-height:1.4;color:var(--muted)}
+    .layer .lq b{color:var(--ink)}
+
+    /* ===========================================
+       LADDER (slide 23)
+       =========================================== */
+    .ladder{display:grid;grid-template-columns:repeat(5,1fr);gap:18px;margin-top:38px}
+    .step{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px 22px;min-height:330px}
+    .step::after{content:"→";position:absolute;right:-20px;top:40px;font-size:28px;color:var(--amber);z-index:2}
+    .step:last-child::after{content:""}
+    .step .s{font-size:44px;font-weight:950;color:var(--amber);letter-spacing:-.04em}
+    .step h3{font-size:25px;margin:10px 0 10px;font-weight:900;line-height:1.25}
+    .step p{font-size:21px;line-height:1.45;color:var(--muted);margin:0}
+
+    /* ===========================================
+       MYTHS (slide 24)
+       =========================================== */
+    .myths{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:34px}
+    .myth{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px 26px}
+    .myth .m{font-size:23px;font-weight:900;color:#ff8d8d;margin:0 0 10px;line-height:1.35}
+    .myth p{font-size:22px;line-height:1.45;color:var(--muted);margin:0}
+    .myth p b{color:var(--ink)}
+
+    /* ===========================================
+       CONTROLS + ACCESSIBILITY
+       =========================================== */
+    .controls{
+      position:absolute;left:50%;bottom:18px;transform:translateX(-50%);
+      display:flex;align-items:center;gap:16px;z-index:50;
+    }
+    .controls button{
+      width:52px;height:52px;border-radius:999px;border:1px solid #ffffff22;
+      background:#101a26cc;color:var(--ink);font-size:24px;cursor:pointer;
+    }
+    .controls button:disabled{opacity:.35;cursor:default}
+    .controls button:focus-visible{outline:3px solid var(--cyan)}
+    .counter{min-width:96px;text-align:center;color:var(--muted);font-size:22px;font-weight:800;letter-spacing:.1em}
+    .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+    @media (prefers-reduced-motion:reduce){
+      *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+    }
+    @media print{
+      html,body{height:auto;background:#07111f;overflow:visible}
+      .viewport{width:auto;height:auto;overflow:visible}
+      .stage{position:static;left:auto!important;top:auto!important;transform:none!important;width:1920px;height:auto;box-shadow:none}
+      .slide{position:relative;opacity:1;pointer-events:auto;width:1920px;height:1080px;page-break-after:always;break-after:page}
+      .controls{display:none}
+    }
   </style>
 </head>
 <body>
   <main class="viewport" aria-label="LLM 能力演進簡報">
     <div class="stage">
+
+      <!-- ============ 00 標題 ============ -->
       <section class="slide title-slide is-active" data-stage="title" aria-label="標題">
-        <div class="meta"><span class="num">00</span><span class="term">LLM Capability Evolution</span></div>
-        <div class="content"><p class="kicker">核心命題</p><h1 class="title">LLM 始終是<strong>文字接龍</strong></h1><p class="subtitle">能力的增長，來自一層層外部系統，把猜下一個字變成可完成任務的流程。</p></div>
-        <nav class="rail" aria-label="演進軌道"><span>Next-token</span><span>ICL</span><span>Prompt</span><span>Context</span><span>RAG</span><span>MCP</span><span>A2A</span><span>Harness</span><span>Skill</span><span>Loop</span></nav>
+        <div class="meta"><span class="num">00</span><span class="part">內部技術科普 · 2026-08</span></div>
+        <div class="content">
+          <p class="kicker">LLM Capability Evolution</p>
+          <h1 class="title">LLM 能力演進<strong>：從文字接龍到可驗證成果</strong></h1>
+          <p class="subtitle">模型的底層從未改變——預測下一個 token。改變的，是包在它外面的一層層系統：上下文、工具、執行迴圈與評估。</p>
+          <div class="chips"><span class="chip">25 slides</span><span class="chip">2017 → 2026</span><span class="chip">歷史 × 架構 × 落地</span></div>
+        </div>
       </section>
 
-      <section class="slide" data-stage="next-token" aria-label="Next-token prediction">
-        <div class="meta"><span class="num">01</span><span class="term">Next-token prediction</span></div>
-        <div class="content"><h2 class="bottleneck">能產生合理文字，卻沒有任務狀態。</h2><p class="breakthrough"><b>突破：</b>把行為教在當下輸入裡。</p></div>
-        <nav class="rail" aria-label="演進軌道"><span class="active">Next-token</span><span>ICL</span><span>Prompt</span><span>Context</span><span>RAG</span><span>MCP</span><span>A2A</span><span>Harness</span><span>Skill</span><span>Loop</span></nav>
+      <!-- ============ 01 核心命題 ============ -->
+      <section class="slide" data-stage="thesis" aria-label="核心命題">
+        <div class="meta"><span class="num">01</span><span class="era">THESIS</span><span class="part">先講結論</span></div>
+        <div class="content">
+          <h2 class="h2">LLM 始終是<strong>文字接龍</strong>。能力的增長，來自外部系統把「猜下一個字」變成「可完成任務的流程」。</h2>
+          <p class="sub">能力 ≈ 模型能力 × 上下文工程 × 工具介面 × 執行迴圈 × 評估治理——每一層都在補前一層的洞。</p>
+          <div class="cards">
+            <div class="card"><span class="tag t-new">模型能力</span><h3>會做什麼</h3><p>推理、程式、長上下文、工具使用的基本盤；<b>決定天花板</b>。</p></div>
+            <div class="card"><span class="tag t-solve">工程封裝</span><h3>怎麼穩定做到</h3><p>上下文組織、工具連接、harness、skills；<b>決定達成率</b>。</p></div>
+            <div class="card warn"><span class="tag t-gap">評估治理</span><h3>怎麼知道真的變好</h3><p>eval、軌跡檢核、上線門檻；<b>決定能不能相信</b>。</p></div>
+          </div>
+          <p class="note">本 deck 分兩段：先講歷史怎麼走到這裡（2017–2024），再講現在的分層架構（2025–2026）。<b>後者不是線性歷史的延續，而是不同層同時成熟。</b></p>
+        </div>
+      </section>
+
+      <!-- ============ 02 時間軸總覽 ============ -->
+      <section class="slide" data-stage="timeline" aria-label="時間軸總覽">
+        <div class="meta"><span class="num">02</span><span class="era">2017–2026</span><span class="part">總覽</span></div>
+        <div class="content">
+          <h2 class="h2">八年，三條線匯流成今天的 Agent 系統</h2>
+          <div class="timeline">
+            <div class="tl"><p class="y">2017</p><p class="l">Transformer：大規模平行訓練成為可能</p></div>
+            <div class="tl"><p class="y">2018–20</p><p class="l">Next-token 預訓練 · GPT-3 In-context learning · RAG</p></div>
+            <div class="tl"><p class="y">2021–22</p><p class="l">Instruction tuning + RLHF · CoT · ReAct</p></div>
+            <div class="tl"><p class="y">2023</p><p class="l">Function calling 成 API 原生能力 · SWE-bench 評測</p></div>
+            <div class="tl hot"><p class="y">2024</p><p class="l">MCP 開放協議 · harness / ACI 成形</p></div>
+            <div class="tl"><p class="y">2025</p><p class="l">A2A · Agent Skills · Context engineering 學科化</p></div>
+            <div class="tl"><p class="y">2026</p><p class="l">Long-running harness · Evaluation loop 制度化</p></div>
+            <div class="tl"><p class="y">未來</p><p class="l">多 agent 協作 + 治理成為預設前提</p></div>
+          </div>
+          <p class="timeline-note"><b>三條匯流：</b>模型更強（推理/長上下文）、介面更標準（MCP/A2A）、執行更可觀測（harness/evals）。少了任何一條，agent 都只是 demo。</p>
+        </div>
+      </section>
+
+      <!-- ============ PART 1 ============ -->
+      <section class="slide" data-stage="transformer" aria-label="2017 Transformer">
+        <div class="meta"><span class="num">03</span><span class="era">2017</span><span class="part">PART 1 · 模型能力</span></div>
+        <div class="content">
+          <h2 class="h2">Transformer：讓「大規模訓練」變成可能</h2>
+          <div class="cards cols2">
+            <div class="card hl"><span class="tag t-new">新能力</span><h3>Self-attention 取代 RNN/CNN</h3><p>序列中任意兩個位置可直接互相注意，<b>可平行化</b>，長距離依賴不再靠逐步遞迴。</p></div>
+            <div class="card"><span class="tag t-solve">解決的瓶頸</span><h3>RNN 無法平行、長依賴訓練慢</h3><p>過去用 RNN 逐字處理，訓練慢且長距離梯度易衰減；Transformer 打開「更大模型 × 更大資料」的路。</p></div>
+            <div class="card warn"><span class="tag t-gap">仍沒解決</span><h3>不是通用智慧</h3><p>不保證事實正確、可控性、安全性或可驗證性——它只是更好的序列模型。</p></div>
+            <div class="card"><span class="tag t-new">例子</span><h3>機器翻譯</h3><p>翻譯一句話時，模型可以同時注意主詞、動詞與遠距修飾語，而不是按順序硬記。</p></div>
+          </div>
+          <p class="cite"><a href="https://arxiv.org/abs/1706.03762">Attention Is All You Need · arXiv:1706.03762</a></p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="pretraining" aria-label="Next-token prediction">
+        <div class="meta"><span class="num">04</span><span class="era">2018–2019</span><span class="part">PART 1 · 模型能力</span></div>
+        <div class="content">
+          <h2 class="h2">Next-token prediction：用「接龍」學到通用語言能力</h2>
+          <div class="cards cols2">
+            <div class="card hl"><span class="tag t-new">新能力</span><h3>生成式預訓練</h3><p>GPT / GPT-2 以「預測下一個 token」在巨量文字上預訓練，<b>同一模型</b>可遷移到分類、問答、摘要等任務。</p></div>
+            <div class="card"><span class="tag t-solve">解決的瓶頸</span><h3>每個任務都要重新標註訓練</h3><p>過去 NLP 是「每個任務一個專用模型」；預訓練讓語言能力先學好，任務再疊上去。</p></div>
+            <div class="card warn"><span class="tag t-gap">仍沒解決</span><h3>需要 prompt / fine-tune 才穩定</h3><p>模型會產出流暢但<b>可能虛構</b>的文字；事實錯誤、偏見、幻覺從這裡就存在。</p></div>
+            <div class="card"><span class="tag t-new">例子</span><h3>續寫文章</h3><p>給一段開頭，模型能接出語法流暢、風格一致的段落——但內容可能是編的。</p></div>
+          </div>
+          <p class="note">「Next-token prediction」是訓練目標的技術描述；「LLM 能力演進」是我們現在回頭整理的脈絡，不是單一歷史事件。</p>
+        </div>
       </section>
 
       <section class="slide" data-stage="in-context-learning" aria-label="In-context learning">
-        <div class="meta"><span class="num">02</span><span class="term">In-context learning</span></div>
-        <div class="content"><h2 class="bottleneck">範例能塑形行為，但很脆弱。</h2><p class="breakthrough"><b>突破：</b>用結構化方式設計指令、範例與輸出。</p></div>
-        <nav class="rail" aria-label="演進軌道"><span class="past">Next-token</span><span class="active">ICL</span><span>Prompt</span><span>Context</span><span>RAG</span><span>MCP</span><span>A2A</span><span>Harness</span><span>Skill</span><span>Loop</span></nav>
-      </section>
-
-      <section class="slide" data-stage="prompt-engineering" aria-label="Prompt engineering">
-        <div class="meta"><span class="num">03</span><span class="term">Prompt engineering</span></div>
-        <div class="content"><h2 class="bottleneck">Prompt engineering 讓輸入更有秩序；但措辭不足以管理全部情境。</h2><p class="breakthrough"><b>突破：</b>整理模型可見的完整狀態。</p></div>
-        <nav class="rail" aria-label="演進軌道"><span class="past">Next-token</span><span class="past">ICL</span><span class="active">Prompt</span><span>Context</span><span>RAG</span><span>MCP</span><span>A2A</span><span>Harness</span><span>Skill</span><span>Loop</span></nav>
-      </section>
-
-      <section class="slide" data-stage="context-engineering" aria-label="Context engineering">
-        <div class="meta"><span class="num">04</span><span class="term">Context engineering</span></div>
-        <div class="content"><h2 class="bottleneck">Context engineering 提供完整可見狀態；知識仍可能過舊或太大。</h2><p class="breakthrough"><b>突破：</b>需要時再取回相關知識。</p></div>
-        <nav class="rail" aria-label="演進軌道"><span class="past">Next-token</span><span class="past">ICL</span><span class="past">Prompt</span><span class="active">Context</span><span>RAG</span><span>MCP</span><span>A2A</span><span>Harness</span><span>Skill</span><span>Loop</span></nav>
+        <div class="meta"><span class="num">05</span><span class="era">2020</span><span class="part">PART 1 · 模型能力</span></div>
+        <div class="content">
+          <h2 class="h2">In-context learning：不用改權重，用範例教新任務</h2>
+          <div class="cards cols2">
+            <div class="card hl"><span class="tag t-new">新能力</span><h3>Few-shot / zero-shot 通用化</h3><p>GPT-3（175B）在 prompt 裡放任務說明與少量範例，模型即可模仿執行——<b>不必重新訓練</b>。</p></div>
+            <div class="card"><span class="tag t-solve">解決的瓶頸</span><h3>每個任務 fine-tune 的昂貴流程</h3><p>從「訓練一個模型」變成「寫一段 prompt」，成本下降幾個數量級。</p></div>
+            <div class="card warn"><span class="tag t-gap">仍沒解決</span><h3>對 prompt 極度敏感</h3><p>措辭、範例順序都會大幅改變結果；推理與事實性不穩，上下文長度有限。</p></div>
+            <div class="card"><span class="tag t-new">例子</span><h3>翻譯</h3><p>放幾組「英文句子 → 法文翻譯」範例，接著輸入新英文句子，模型直接照樣翻譯。</p></div>
+          </div>
+          <p class="cite"><a href="https://arxiv.org/abs/2005.14165">Language Models are Few-Shot Learners · arXiv:2005.14165</a></p>
+        </div>
       </section>
 
       <section class="slide" data-stage="rag" aria-label="RAG">
-        <div class="meta"><span class="num">05</span><span class="term">RAG</span></div>
-        <div class="content"><h2 class="bottleneck">RAG 能檢索外部知識；仍沒有標準方式行動。</h2><p class="breakthrough"><b>突破：</b>把工具與資源變成可發現、可呼叫的介面。</p></div>
-        <nav class="rail" aria-label="演進軌道"><span class="past">Next-token</span><span class="past">ICL</span><span class="past">Prompt</span><span class="past">Context</span><span class="active">RAG</span><span>MCP</span><span>A2A</span><span>Harness</span><span>Skill</span><span>Loop</span></nav>
+        <div class="meta"><span class="num">06</span><span class="era">2020</span><span class="part">PART 1 · 模型能力</span></div>
+        <div class="content">
+          <h2 class="h2">RAG：把「外部知識」接進生成流程</h2>
+          <div class="cards cols2">
+            <div class="card hl"><span class="tag t-new">新能力</span><h3>檢索 + 生成</h3><p>先從文件庫檢索相關段落，再讓模型據此生成答案——參數記憶與外部記憶<b>互補</b>。</p></div>
+            <div class="card"><span class="tag t-solve">解決的瓶頸</span><h3>參數記憶過時、冷門知識查不到、幻覺</h3><p>知識密集任務（問答、事實查核）不再只靠模型「背過」的資料。</p></div>
+            <div class="card warn"><span class="tag t-gap">仍沒解決</span><h3>檢索錯誤 → 答案錯誤</h3><p>模型仍可能曲解文件、編造引用、忽略證據；<b>不等於可驗證推理</b>。</p></div>
+            <div class="card"><span class="tag t-new">例子</span><h3>冷門歷史事件</h3><p>「某事件發生在哪一年？」系統先查文件庫，再依據檢索到的段落生成答案。</p></div>
+          </div>
+          <p class="cite"><a href="https://arxiv.org/abs/2005.11401">Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks · arXiv:2005.11401</a></p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="instruction-alignment" aria-label="Instruction tuning + RLHF">
+        <div class="meta"><span class="num">07</span><span class="era">2021–2022</span><span class="part">PART 1 · 模型能力</span></div>
+        <div class="content">
+          <h2 class="h2">Instruction tuning + RLHF：讓模型「照人類的話做事」</h2>
+          <div class="cards cols2">
+            <div class="card hl"><span class="tag t-new">新能力</span><h3>指令遵循 + 人類偏好</h3><p>FLAN 用多種指令任務 fine-tune；InstructGPT 以 SFT + reward model + PPO（RLHF）把「人類偏好」帶進訓練。</p></div>
+            <div class="card"><span class="tag t-solve">解決的瓶頸</span><h3>zero-shot 指令遵循不穩、輸出偏離意圖</h3><p>模型常寫出「合理但不照要求」的回答；對齊讓它更願意遵守「三點摘要、不要閒聊」這類約束。</p></div>
+            <div class="card warn"><span class="tag t-gap">仍沒解決</span><h3>RLHF 不是真實性保證</h3><p>模型仍會迎合使用者、幻覺、拒答不一致；對齊不等於事實正確。</p></div>
+            <div class="card"><span class="tag t-new">例子</span><h3>「用三點摘要這篇文章」</h3><p>InstructGPT 比原始 GPT-3 更可能遵守「三點」「摘要」「不要閒聊」。</p></div>
+          </div>
+          <p class="cite"><a href="https://arxiv.org/abs/2109.01652">FLAN · Finetuned Language Models Are Zero-Shot Learners</a><a href="https://arxiv.org/abs/2203.02155">InstructGPT · Training language models to follow instructions with human feedback</a></p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="reason-act" aria-label="CoT + ReAct">
+        <div class="meta"><span class="num">08</span><span class="era">2022</span><span class="part">PART 1 · 模型能力</span></div>
+        <div class="content">
+          <h2 class="h2">CoT + ReAct：從「直接回答」到「一步步想、一步步做」</h2>
+          <div class="cards cols2">
+            <div class="card hl"><span class="tag t-new">新能力</span><h3>推理軌跡與行動交錯</h3><p>Chain-of-Thought 要求先產生中間步驟再給結論；ReAct 讓模型交錯產生 <b>reasoning → action → observation</b>。</p></div>
+            <div class="card"><span class="tag t-solve">解決的瓶頸</span><h3>直接跳結論；純推理無法查資料或操作環境</h3><p>ReAct 讓模型可以主動呼叫搜尋、查頁面、觀察結果後再決定下一步。</p></div>
+            <div class="card warn"><span class="tag t-gap">仍沒解決</span><h3>推理鏈可能是事後合理化</h3><p>中間步驟不保證真實反映內部推理；工具可能選錯、觀察可能讀錯、行動可能有副作用。</p></div>
+            <div class="card"><span class="tag t-new">例子</span><h3>多跳問答</h3><p>「某演員的配偶出生在哪一年？」模型先推理需要查配偶，執行搜尋 action，讀 observation，再回答。</p></div>
+          </div>
+          <p class="cite"><a href="https://arxiv.org/abs/2201.11903">Chain-of-Thought Prompting Elicits Reasoning · arXiv:2201.11903</a><a href="https://arxiv.org/abs/2210.03629">ReAct: Synergizing Reasoning and Acting · arXiv:2210.03629</a></p>
+        </div>
+      </section>
+
+      <!-- ============ PART 2 ============ -->
+      <section class="slide" data-stage="function-calling" aria-label="Function calling">
+        <div class="meta"><span class="num">09</span><span class="era">2023–2024</span><span class="part">PART 2 · 工具與執行</span></div>
+        <div class="content">
+          <h2 class="h2">Function calling：工具呼叫變成 API 原生能力</h2>
+          <div class="cards cols2">
+            <div class="card hl"><span class="tag t-new">新能力</span><h3>結構化工具輸出</h3><p>2023-06 OpenAI 讓開發者用 JSON Schema 描述函式，模型輸出結構化參數；2024-08 Structured Outputs 強化 schema 保證（strict）。</p></div>
+            <div class="card"><span class="tag t-solve">解決的瓶頸</span><h3>靠 prompt 要求輸出 JSON 不穩</h3><p>格式不穩定、欄位亂掉是早期 tool use 的大痛點；原生 function calling 讓格式變契約。</p></div>
+            <div class="card warn"><span class="tag t-gap">仍沒解決</span><h3>執行仍是應用程式的事</h3><p>模型只「選擇函式 + 產生參數」；真正執行、錯誤處理、權限、prompt injection 防護都要自己寫。</p></div>
+            <div class="card"><span class="tag t-new">例子</span><h3>get_current_weather(location, unit)</h3><p>使用者問天氣，模型輸出函式名稱與 JSON 參數，由你的後端執行後把結果回傳。</p></div>
+          </div>
+          <p class="cite"><a href="https://openai.com/index/function-calling-and-other-api-updates/">OpenAI · Function calling and other API updates (2023-06)</a><a href="https://openai.com/index/introducing-structured-outputs-in-the-api/">OpenAI · Introducing Structured Outputs (2024-08)</a></p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="long-context" aria-label="Long context">
+        <div class="meta"><span class="num">10</span><span class="era">2023–2024</span><span class="part">PART 2 · 工具與執行</span></div>
+        <div class="content">
+          <h2 class="h2">Long context：把「更多任務狀態」一次放進上下文</h2>
+          <div class="cards cols2">
+            <div class="card hl"><span class="tag t-new">新能力</span><h3>128K → 200K → 1M</h3><p>GPT-4 Turbo 128K（2023-11）、Claude 2.1 200K（2023-11）、Gemini 1.5 Pro 1M（2024-02）：整本書、長影片、大型 repo 可一次放入。</p></div>
+            <div class="card"><span class="tag t-solve">解決的瓶頸</span><h3>長文件 / 長對話 / repo 分析需切片與 RAG</h3><p>過去要切 chunk、維護向量庫；長上下文讓「先讀完再想」成為可能。</p></div>
+            <div class="card warn"><span class="tag t-gap">仍沒解決</span><h3>長 ≠ 好</h3><p>lost-in-the-middle、成本、延遲；<b>內容選擇與組織仍是工程問題</b>，不是把全部丟進去就好。</p></div>
+            <div class="card"><span class="tag t-new">例子</span><h3>數百頁規格書找矛盾</h3><p>一次放入合約或規格全文，要求模型摘要或找出條款矛盾。</p></div>
+          </div>
+          <p class="cite"><a href="https://openai.com/index/new-models-and-developer-products-announced-at-devday/">OpenAI DevDay · GPT-4 Turbo 128K (2023-11)</a><a href="https://www.anthropic.com/news/claude-2-1">Anthropic · Claude 2.1 200K (2023-11)</a></p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="agent-demo-gap" aria-label="Agent demo gap">
+        <div class="meta"><span class="num">11</span><span class="era">2023</span><span class="part">PART 2 · 工具與執行</span></div>
+        <div class="content">
+          <h2 class="h2">Demo 很多，落地很少：agent 的評測缺口</h2>
+          <div class="cards cols2">
+            <div class="card hl"><span class="tag t-new">新能力</span><h3>Autonomous harness 普及</h3><p>AutoGPT 等把「目標 → 拆解 → 工具 → 觀察 → 迭代」變成可執行程式，agent 從 prompt demo 走向程式。</p></div>
+            <div class="card"><span class="tag t-solve">解決的瓶頸</span><h3>把 agent 概念產品化</h3><p>讓「自主」看得見、跑得起來，引爆一整年的實驗與討論。</p></div>
+            <div class="card warn"><span class="tag t-gap">仍沒解決</span><h3>可靠性差、容易循環、成本高</h3><p>無權限控管、無停止條件、無驗證；很多任務「看似自主」但實際失敗率高。</p></div>
+            <div class="card"><span class="tag t-new">評測</span><h3>SWE-bench</h3><p>2023-10 推出：拿真實 GitHub issue 要求模型改多檔案程式並通過測試——第一次把 coding agent 拉到<b>可評測</b>的標準。</p></div>
+          </div>
+          <p class="cite"><a href="https://arxiv.org/abs/2310.06770">SWE-bench: Can Language Models Resolve Real-World GitHub Issues? · arXiv:2310.06770</a></p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="harness-aci" aria-label="Harness 與 ACI">
+        <div class="meta"><span class="num">12</span><span class="era">2024</span><span class="part">PART 2 · 工具與執行</span></div>
+        <div class="content">
+          <h2 class="h2">Harness 與 ACI：把 agent loop 變成工程</h2>
+          <div class="cards cols2">
+            <div class="card hl"><span class="tag t-new">新能力</span><h3>為 LLM 設計介面（ACI）</h3><p>SWE-agent 提出 Agent-Computer Interface：為模型設計搜尋、開檔、編輯、跑測試的<b>專屬命令介面</b>；LangGraph 把 stateful / cyclic 流程圖形化。</p></div>
+            <div class="card"><span class="tag t-solve">解決的瓶頸</span><h3>直接給 shell / editor 容易迷路；線性 chain 無法重試</h3><p>模型需要「對的介面」而不是「完整的電腦」；迴圈、分支、human-in-the-loop 需要顯式 runtime。</p></div>
+            <div class="card warn"><span class="tag t-gap">仍沒解決</span><h3>patch 仍會錯</h3><p>工具選擇、權限、安全、錯誤恢復仍是應用責任；框架不保證推理正確。</p></div>
+            <div class="card"><span class="tag t-new">例子</span><h3>修 repo 的迴圈</h3><p>讀 issue → 搜尋相關檔案 → 編輯 → 跑測試 → 依錯誤訊息修正 → 輸出 patch。</p></div>
+          </div>
+          <p class="cite"><a href="https://arxiv.org/abs/2405.15793">SWE-agent: Agent-Computer Interfaces · arXiv:2405.15793</a><a href="https://swe-agent.com/latest/background/">SWE-agent docs · Background</a></p>
+        </div>
       </section>
 
       <section class="slide" data-stage="mcp" aria-label="MCP">
-        <div class="meta"><span class="num">06</span><span class="term">MCP</span></div>
-        <div class="content"><h2 class="bottleneck">MCP 標準化工具；單一 agent 仍受上下文、專長與並行限制。</h2><p class="breakthrough"><b>突破：</b>讓 agents 透過明確介面協作。</p></div>
-        <nav class="rail" aria-label="演進軌道"><span class="past">Next-token</span><span class="past">ICL</span><span class="past">Prompt</span><span class="past">Context</span><span class="past">RAG</span><span class="active">MCP</span><span>A2A</span><span>Harness</span><span>Skill</span><span>Loop</span></nav>
+        <div class="meta"><span class="num">13</span><span class="era">2024-11-25</span><span class="part">PART 2 · 工具與執行</span></div>
+        <div class="content">
+          <h2 class="h2">MCP：工具與資料的「標準插座」</h2>
+          <div class="cards cols2">
+            <div class="card hl"><span class="tag t-new">新能力</span><h3>開放協議：Model Context Protocol</h3><p>Anthropic 開源 MCP，統一 AI 應用與工具、資料、工作流的連接方式；2025-06 規格加入 HTTP transport 與授權流程。</p></div>
+            <div class="card"><span class="tag t-solve">解決的瓶頸</span><h3>M×N 整合問題</h3><p>每個 app × 每個資料源都要寫客製 integration；MCP 讓「一個 server 接所有 client」。</p></div>
+            <div class="card warn"><span class="tag t-gap">仍沒解決</span><h3>協議不保證安全</h3><p>權限最小化、工具行為安全、prompt injection 防護、企業治理仍要自己設計。</p></div>
+            <div class="card"><span class="tag t-new">例子</span><h3>Claude Desktop 接 MCP server</h3><p>透過 MCP 連到本機檔案、GitHub、Slack 或資料庫，而不是每個 client 各自寫 plugin。</p></div>
+          </div>
+          <p class="cite"><a href="https://www.anthropic.com/news/model-context-protocol">Anthropic · Introducing the Model Context Protocol</a><a href="https://modelcontextprotocol.io/">MCP Specification · modelcontextprotocol.io</a></p>
+        </div>
       </section>
 
-      <section class="slide" data-stage="a2a" aria-label="Agent-to-Agent">
-        <div class="meta"><span class="num">07</span><span class="term">Agent-to-Agent</span></div>
-        <div class="content"><h2 class="bottleneck">Agent-to-Agent 帶來分工；協作本身不保證可靠執行。</h2><p class="breakthrough"><b>突破：</b>用 runtime 管控工具、狀態、權限與復原。</p></div>
-        <nav class="rail" aria-label="演進軌道"><span class="past">Next-token</span><span class="past">ICL</span><span class="past">Prompt</span><span class="past">Context</span><span class="past">RAG</span><span class="past">MCP</span><span class="active">A2A</span><span>Harness</span><span>Skill</span><span>Loop</span></nav>
+      <!-- ============ PART 3 ============ -->
+      <section class="slide" data-stage="not-linear" aria-label="不是線性歷史">
+        <div class="meta"><span class="num">14</span><span class="era">釐清</span><span class="part">PART 3 · 分層架構</span></div>
+        <div class="content">
+          <h2 class="h2">別把這些當成一條線：MCP → A2A → Harness → Skill 不是取代關係</h2>
+          <div class="cards">
+            <div class="card"><span class="tag t-solve">MCP</span><h3>Agent ↔ 工具 / 資料</h3><p>連「外部的東西」：檔案、DB、API、工作流。</p></div>
+            <div class="card"><span class="tag t-solve">A2A</span><h3>Agent ↔ Agent</h3><p>跨系統的發現、溝通、任務委派——不是 MCP 的下一代，是旁邊的一層。</p></div>
+            <div class="card"><span class="tag t-solve">Harness</span><h3>執行與狀態</h3><p>planning、loop、state、sandbox、checkpoint。2024 前就存在的實務，2025–26 走向 production。</p></div>
+            <div class="card"><span class="tag t-solve">Skill</span><h3>程序知識封裝</h3><p>可被 harness 載入、可經 MCP 用工具、可被多 agent 共享——是 packaging layer，不是時間上的下一階段。</p></div>
+            <div class="card warn"><span class="tag t-gap">真正的基本型態</span><h3>Loop 不是最終章節</h3><p>Anthropic 2024-12 定義：agents = “LLMs autonomously using tools in a loop”。Loop 是起點；進步在於讓 loop 可觀測、可評估、可恢復。</p></div>
+            <div class="card"><span class="tag t-new">正確認知</span><h3>同時成熟</h3><p>不是「A 取代 B」，而是每一層在各自的位置上變強、變標準、變可管理。</p></div>
+          </div>
+          <p class="cite"><a href="https://www.anthropic.com/engineering/building-effective-agents">Anthropic Engineering · Building Effective Agents (2024-12)</a></p>
+        </div>
       </section>
 
-      <section class="slide" data-stage="harness" aria-label="Harness">
-        <div class="meta"><span class="num">08</span><span class="term">Harness</span></div>
-        <div class="content"><h2 class="bottleneck">Harness 讓執行可觀測、可限制、可恢復；卻沒有領域程序。</h2><p class="breakthrough"><b>突破：</b>把成功做法封裝成可重用能力。</p></div>
-        <nav class="rail" aria-label="演進軌道"><span class="past">Next-token</span><span class="past">ICL</span><span class="past">Prompt</span><span class="past">Context</span><span class="past">RAG</span><span class="past">MCP</span><span class="past">A2A</span><span class="active">Harness</span><span>Skill</span><span>Loop</span></nav>
+      <section class="slide" data-stage="layer-stack" aria-label="六層架構">
+        <div class="meta"><span class="num">15</span><span class="era">架構</span><span class="part">PART 3 · 分層架構</span></div>
+        <div class="content">
+          <h2 class="h2">六層架構：今天的 agent 系統長這樣</h2>
+          <div class="layers">
+            <div class="layer"><span class="ln">L1</span><span class="lname">模型能力<small>MODEL</small></span><span class="lq">模型會不會做、會不會亂做——推理、工具使用、程式理解、長上下文。</span></div>
+            <div class="layer"><span class="ln">L2</span><span class="lname">上下文與工具連接<small>MCP · CONNECTORS · RETRIEVAL</small></span><span class="lq">能不能安全取得正確資料與工具？</span></div>
+            <div class="layer"><span class="ln">L3</span><span class="lname">Runtime 與 Harness<small>LOOP · STATE · SANDBOX</small></span><span class="lq">能不能把多步任務穩定跑完、失敗重試、隨時接手？</span></div>
+            <div class="layer"><span class="ln">L4</span><span class="lname">能力封裝<small>AGENT SKILLS · AGENTS.md</small></span><span class="lq">可重複流程能不能變成可版本化、可分享、可測試的能力？</span></div>
+            <div class="layer"><span class="ln">L5</span><span class="lname">Agent 互通<small>A2A · TASK DELEGATION</small></span><span class="lq">不同 vendor / framework / 團隊的 agent 能不能協作？</span></div>
+            <div class="layer"><span class="ln">L6</span><span class="lname">評估與治理<small>EVALS · RELEASE GATES</small></span><span class="lq">我們怎麼知道 agent 真的變好了，而不是 demo 看起來變好了？</span></div>
+          </div>
+        </div>
       </section>
 
-      <section class="slide" data-stage="skill" aria-label="Skill">
-        <div class="meta"><span class="num">09</span><span class="term">Skill</span></div>
-        <div class="content"><h2 class="bottleneck">Skill 封裝程序、範例、腳本與驗證；單次執行仍脆弱。</h2><p class="breakthrough"><b>突破：</b>用觀察與評估驅動重試。</p></div>
-        <nav class="rail" aria-label="演進軌道"><span class="past">Next-token</span><span class="past">ICL</span><span class="past">Prompt</span><span class="past">Context</span><span class="past">RAG</span><span class="past">MCP</span><span class="past">A2A</span><span class="past">Harness</span><span class="active">Skill</span><span>Loop</span></nav>
+      <section class="slide" data-stage="a2a" aria-label="A2A">
+        <div class="meta"><span class="num">16</span><span class="era">2025-04-09</span><span class="part">PART 3 · 分層架構</span></div>
+        <div class="content">
+          <h2 class="h2">A2A：agent 與 agent 之間的開放協議</h2>
+          <div class="cards cols2">
+            <div class="card hl"><span class="tag t-new">新能力</span><h3>Agent2Agent（A2A）</h3><p>Google 發布跨供應商、跨框架的 agent 發現、溝通、委派協議；2025-06-23 捐給 <b>Linux Foundation</b>，AWS、Microsoft、Salesforce、SAP 等加入。</p></div>
+            <div class="card"><span class="tag t-solve">解決的瓶頸</span><h3>agent 被綁在單一 orchestrator / 產品內</h3><p>不同系統的 agent 無法互相發現與委派；A2A 讓「分工」跨出單一平台。</p></div>
+            <div class="card warn"><span class="tag t-gap">仍沒解決</span><h3>互通 ≠ 可靠</h3><p>任務分解品質、長程記憶、權限控管、結果驗證、商業責任歸屬都還要自己設計。</p></div>
+            <div class="card"><span class="tag t-new">例子</span><h3>企業 HR agent</h3><p>HR agent 透過 A2A 查詢另一個負責招募排程的 agent，不必把所有功能塞進同一個 agent。</p></div>
+          </div>
+          <p class="cite"><a href="https://developers.googleblog.com/en/a2a-a-new-era-of-agent-interoperability/">Google Developers Blog · Announcing the Agent2Agent Protocol (2025-04)</a><a href="https://www.linuxfoundation.org/press/linux-foundation-launches-the-agent2agent-protocol-project-to-enable-secure-intelligent-communication-between-ai-agents">Linux Foundation · A2A Project Launch (2025-06)</a></p>
+        </div>
       </section>
 
-      <section class="slide" data-stage="loop-engineering" aria-label="Loop engineering">
-        <div class="meta"><span class="num">10</span><span class="term">Loop engineering</span></div>
-        <div class="content"><h2 class="bottleneck">Loop engineering 把脆弱單次生成，改成 plan → act → observe → evaluate → retry。</h2><p class="breakthrough"><b>突破：</b>以停止條件與驗證收斂到結果。</p></div>
-        <nav class="rail" aria-label="演進軌道"><span class="past">Next-token</span><span class="past">ICL</span><span class="past">Prompt</span><span class="past">Context</span><span class="past">RAG</span><span class="past">MCP</span><span class="past">A2A</span><span class="past">Harness</span><span class="past">Skill</span><span class="active">Loop</span></nav>
+      <section class="slide" data-stage="context-engineering" aria-label="Context engineering">
+        <div class="meta"><span class="num">17</span><span class="era">2025-09-29</span><span class="part">PART 3 · 分層架構</span></div>
+        <div class="content">
+          <h2 class="h2">Context engineering：給「對的上下文」，比給「長上下文」重要</h2>
+          <div class="cards cols2">
+            <div class="card hl"><span class="tag t-new">新能力</span><h3>上下文成為一門工程</h3><p>Anthropic 定義 agents = “LLMs autonomously using tools in a loop”，並把成敗關鍵指向：<b>每一步給模型什麼</b>。</p></div>
+            <div class="card"><span class="tag t-solve">解決的瓶頸</span><h3>長上下文 ≠ 好上下文</h3><p>repo 結構、測試輸出、錯誤回饋、歷史壓縮、失敗原因——組織這些比「塞更多」有效。</p></div>
+            <div class="card warn"><span class="tag t-gap">仍沒解決</span><h3>高度依賴任務與環境</h3><p>沒有萬用配方；錯誤上下文會放大錯誤決策，需要持續量測與調整。</p></div>
+            <div class="card"><span class="tag t-new">例子</span><h3>Coding agent 需要什麼</h3><p>不只 prompt，還有最近修改、失敗原因、任務 checklist、下一步計畫——人類工程師 onboarding 的資訊，模型同樣需要。</p></div>
+          </div>
+          <p class="cite"><a href="https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents">Anthropic Engineering · Effective context engineering for AI agents (2025-09)</a></p>
+        </div>
       </section>
 
+      <section class="slide" data-stage="agent-skills" aria-label="Agent Skills">
+        <div class="meta"><span class="num">18</span><span class="era">2025-10-16</span><span class="part">PART 3 · 分層架構</span></div>
+        <div class="content">
+          <h2 class="h2">Agent Skills：把程序知識變成可分享、可測試的資產</h2>
+          <div class="cards cols2">
+            <div class="card hl"><span class="tag t-new">新能力</span><h3>SKILL.md + 指令 / 腳本 / 資源</h3><p>Anthropic 發布 Agent Skills（資料夾格式）；2025-12-18 成為跨平台可攜的 <b>open standard</b>（agentskills.io）。</p></div>
+            <div class="card"><span class="tag t-solve">解決的瓶頸</span><h3>SOP 塞進超長 system prompt 難以維護</h3><p>skills 把可重用程序知識包裝成可版本化、可分享、可測試的單位。</p></div>
+            <div class="card warn"><span class="tag t-gap">仍沒解決</span><h3>Skill 不是能力保證</h3><p>品質取決於說明清楚度、範例、測試、權限與「是否在正確時機載入」。</p></div>
+            <div class="card"><span class="tag t-new">例子</span><h3>PDF 表單處理 skill</h3><p>包含「如何抽取欄位」的說明、Python 腳本、範例檔案與驗證步驟——agent 遇到 PDF 任務時按程序執行。</p></div>
+          </div>
+          <p class="cite"><a href="https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills">Anthropic Engineering · Equipping agents for the real world with Agent Skills</a><a href="https://agentskills.io/specification">Agent Skills Specification · agentskills.io</a></p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="long-running-harness" aria-label="Long-running harness">
+        <div class="meta"><span class="num">19</span><span class="era">2025–2026</span><span class="part">PART 3 · 分層架構</span></div>
+        <div class="content">
+          <h2 class="h2">Long-running harness：從 single-shot 到可跑 25 小時的同事</h2>
+          <div class="cards cols2">
+            <div class="card hl"><span class="tag t-new">新能力</span><h3>跨 context window 的長任務</h3><p>Effective harnesses（2025-11）；OpenAI Shell + Skills + Compaction（2026-02）把可執行環境、程序知識、伺服器端壓縮變成長跑 agent 的基礎原語；Codex 展示 25 小時任務。</p></div>
+            <div class="card"><span class="tag t-solve">解決的瓶頸</span><h3>單次 prompt 撐不起真實工作</h3><p>讀 repo → 改碼 → 跑測試 → 保存 artifact → 隔天繼續：需要 checkpoint、壓縮、可接手狀態。</p></div>
+            <div class="card warn"><span class="tag t-gap">仍沒解決</span><h3>長時間累積錯誤</h3><p>checkpoint、人工 steering、權限隔離、成本控制、測試與 rollback 都要設計；「跑得久」不自動等於「跑得好」。</p></div>
+            <div class="card"><span class="tag t-new">例子</span><h3>25-hour Codex run</h3><p>agent 讀 repo、修改程式、跑測試、保存中間 artifact；人類在 milestone 介入審查，而不是逐行指揮。</p></div>
+          </div>
+          <p class="cite"><a href="https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents">Anthropic Engineering · Effective harnesses for long-running agents (2025-11)</a><a href="https://developers.openai.com/blog/skills-shell-tips">OpenAI Developers · Shell + Skills + Compaction (2026-02)</a></p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="evaluation-loop" aria-label="Evaluation loop">
+        <div class="meta"><span class="num">20</span><span class="era">2026</span><span class="part">PART 3 · 分層架構</span></div>
+        <div class="content">
+          <h2 class="h2">Evaluation loop：怎麼知道 agent「真的變好」</h2>
+          <div class="cards cols2">
+            <div class="card hl"><span class="tag t-new">新能力</span><h3>Agent evals 成為開發迴圈</h3><p>Anthropic《Demystifying evals for AI agents》（2026-01）：不只測最終答案，也測<b>軌跡、工具選擇、失敗處理、邊界案例</b>；OpenAI 把 skills 也納入 eval regression。</p></div>
+            <div class="card"><span class="tag t-solve">解決的瓶頸</span><h3>多步、非決定性、環境依賴的行為難以驗證</h3><p>只看最終答案不夠；需要把 expected behavior 明確編碼成測試。</p></div>
+            <div class="card warn"><span class="tag t-gap">仍沒解決</span><h3>測資污染、覆蓋不足、judge 偏誤</h3><p>LLM-as-judge 需要校準與抽樣人工審核；eval 設計錯誤會得到「假的可靠性」。</p></div>
+            <div class="card"><span class="tag t-new">例子</span><h3>採購 agent</h3><p>不只檢查有無生成採購單，也檢查是否查過合約、是否遵守金額門檻、缺批准時是否停止。</p></div>
+          </div>
+          <p class="cite"><a href="https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents">Anthropic Engineering · Demystifying evals for AI agents (2026-01)</a><a href="https://developers.openai.com/blog/eval-skills">OpenAI Developers · Testing Agent Skills Systematically with Evals (2026-01)</a></p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="enterprise-example" aria-label="綜合例子">
+        <div class="meta"><span class="num">21</span><span class="era">綜合</span><span class="part">PART 3 · 分層架構</span></div>
+        <div class="content">
+          <h2 class="h2">把它們疊起來：一個內部系統的六層拆解</h2>
+          <p class="note">以「企業客服 / 內部知識 agent」為例，每一層的典型選擇：</p>
+          <div class="layers">
+            <div class="layer"><span class="ln">L1</span><span class="lname">模型能力<small>MODEL</small></span><span class="lq">選<b>原生支援工具呼叫</b>的模型；先量測 baseline 再談優化。</span></div>
+            <div class="layer"><span class="ln">L2</span><span class="lname">上下文與工具連接<small>MCP</small></span><span class="lq">MCP server 接 CRM、知識庫、工單系統；統一權限與審計。</span></div>
+            <div class="layer"><span class="ln">L3</span><span class="lname">Runtime 與 Harness<small>LOOP</small></span><span class="lq">狀態、重試、human-in-the-loop 審批、沙箱執行。</span></div>
+            <div class="layer"><span class="ln">L4</span><span class="lname">能力封裝<small>SKILLS</small></span><span class="lq">退貨政策、開單 SOP 封裝成 skill，附測試。</span></div>
+            <div class="layer"><span class="ln">L5</span><span class="lname">Agent 互通<small>A2A</small></span><span class="lq">客服 agent 委派給排程 / 庫存 agent。</span></div>
+            <div class="layer"><span class="ln">L6</span><span class="lname">評估與治理<small>EVALS</small></span><span class="lq">回歸測試、抽樣人工審核、上線門檻、錯誤追蹤。</span></div>
+          </div>
+          <p class="cite"><a href="https://www.anthropic.com/engineering/multi-agent-research-system">Anthropic Engineering · How we built our multi-agent research system (2025-06)</a></p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="adoption-ladder" aria-label="導入階梯">
+        <div class="meta"><span class="num">22</span><span class="era">導入</span><span class="part">PART 3 · 分層架構</span></div>
+        <div class="content">
+          <h2 class="h2">內部導入階梯：從最便宜的一步開始</h2>
+          <div class="ladder">
+            <div class="step"><span class="s">0</span><h3>單次 Prompt</h3><p>先量化問題：錯在哪？是模型不會，還是缺資料/缺工具？</p></div>
+            <div class="step"><span class="s">1</span><h3>RAG / 工具呼叫</h3><p>接上資料與動作。先有正確輸入，再談自主。</p></div>
+            <div class="step"><span class="s">2</span><h3>單一 Agent + Harness</h3><p>狀態、重試、紀錄、停止條件。能跑完、能解釋。</p></div>
+            <div class="step"><span class="s">3</span><h3>Skills 標準化</h3><p>把成功做法封裝成可測試的 skill，開始累積資產。</p></div>
+            <div class="step"><span class="s">4</span><h3>多 Agent + 評估治理</h3><p>擴張前先有 eval 與上線門檻；沒有驗證，不要放大。</p></div>
+          </div>
+          <p class="timeline-note"><b>常見失敗：</b>跳級。沒有 L2 的資料正確性就做 L4 的自動化；沒有 L6 的評估就上多 agent——最後都在補課。</p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="myths" aria-label="常見迷思">
+        <div class="meta"><span class="num">23</span><span class="era">迷思</span><span class="part">PART 3 · 分層架構</span></div>
+        <div class="content">
+          <h2 class="h2">五個常見迷思</h2>
+          <div class="myths">
+            <div class="myth"><p class="m">「A2A 是 MCP 的下一代」</p><p>錯。<b>不同層</b>：MCP 連工具與資料，A2A 連 agent 與 agent。</p></div>
+            <div class="myth"><p class="m">「Skills 是咒語，加了就變強」</p><p>錯。沒有清楚說明、範例、測試與正確載入時機，skill 只是文件。</p></div>
+            <div class="myth"><p class="m">「Loop 是 2026 的新功能」</p><p>錯。Loop 是 agent 的<b>基本型態</b>；進步在於可觀測、可評估、可恢復。</p></div>
+            <div class="myth"><p class="m">「上下文越長越好」</p><p>錯。選擇與組織才是重點；長上下文會稀釋注意力、放大成本。</p></div>
+            <div class="myth"><p class="m">「Eval 只是刷 benchmark」</p><p>錯。Eval 是開發迴圈與 release gate；設計不好會得到假的可靠性。</p></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 24 結論 ============ -->
       <section class="slide conclusion" data-stage="conclusion" aria-label="結論">
-        <div class="meta"><span class="num">11</span><span class="term">Verified outcomes</span></div>
-        <div class="content"><p class="kicker">結論</p><h2 class="title">從提示模型，到建構能驗證成果的系統。</h2><p class="subtitle">模型仍在預測下一個 token；系統讓它反覆抵達已驗證的 outcomes。</p></div>
-        <nav class="rail" aria-label="演進軌道"><span class="past">Next-token</span><span class="past">ICL</span><span class="past">Prompt</span><span class="past">Context</span><span class="past">RAG</span><span class="past">MCP</span><span class="past">A2A</span><span class="past">Harness</span><span class="past">Skill</span><span class="past">Loop</span></nav>
+        <div class="meta"><span class="num">24</span><span class="era">CONCLUSION</span><span class="part">Verified outcomes</span></div>
+        <div class="content">
+          <p class="kicker">結論</p>
+          <h2 class="title">從「提示模型」，到「建構能<strong>驗證成果</strong>的系統」。</h2>
+          <p class="subtitle">模型仍在預測下一個 token；系統讓它反覆抵達已驗證的 outcomes。歷史是堆疊不是取代——每一層都要設計，評估是最後一哩。</p>
+          <div class="chips"><span class="chip">模型 × 上下文 × 工具 × 迴圈 × 評估</span><span class="chip">沒有驗證，不要放大</span><span class="chip">先接資料，再談自主</span></div>
+        </div>
       </section>
 
+      <!-- ============ CONTROLS ============ -->
       <div class="controls" role="group" aria-label="簡報控制">
         <button type="button" aria-label="上一張">←</button>
-        <output class="counter" aria-live="polite" aria-label="目前投影片">1 / 12</output>
+        <output class="counter" aria-live="polite" aria-label="目前投影片">1 / 25</output>
         <button type="button" aria-label="下一張">→</button>
         <span class="sr-only">可用鍵盤、滑動，或點按畫面左右側導覽。</span>
       </div>
@@ -116,7 +578,6 @@
         '[contenteditable="true"]',
         '[role="button"]',
         '[role="link"]',
-        '[role="menuitem"]',
         '[tabindex]:not([tabindex="-1"])'
       ].join(',');
 
@@ -135,7 +596,7 @@
 
       function scaleStage() {
         if (!stage) return;
-        const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+        const scale = Math.min(window.innerWidth / STAGE_WIDTH, window.innerHeight / STAGE_HEIGHT);
         stage.style.transform = `translate(-50%, -50%) scale(${scale})`;
       }
 
