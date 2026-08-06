@@ -129,7 +129,7 @@
     .slide-no {
       position: absolute;
       left: 84px;
-      bottom: 54px;
+      bottom: 72px;
       color: var(--muted);
       font-size: 17px;
       letter-spacing: 0.12em;
@@ -661,8 +661,8 @@
     }
 
     /* === INPUT HANDLERS === */
-    document.getElementById('prevButton').addEventListener('click', () => goTo(current - 1));
-    document.getElementById('nextButton').addEventListener('click', () => goTo(current + 1));
+    document.getElementById('prevButton').addEventListener('click', () => { if (!isEditing) goTo(current - 1); });
+    document.getElementById('nextButton').addEventListener('click', () => { if (!isEditing) goTo(current + 1); });
     document.getElementById('tapPrev').addEventListener('click', () => { if (!isEditing) goTo(current - 1); });
     document.getElementById('tapNext').addEventListener('click', () => { if (!isEditing) goTo(current + 1); });
     editToggle.addEventListener('click', () => setEditing(!isEditing));
@@ -700,7 +700,7 @@
     }, { passive: true });
 
     window.addEventListener('resize', scaleStage);
-    window.addEventListener('hashchange', () => goTo(hashIndex(), false));
+    window.addEventListener('hashchange', () => { if (!isEditing) goTo(hashIndex(), false); });
     scaleStage();
     goTo(hashIndex(), false);
   </script>
