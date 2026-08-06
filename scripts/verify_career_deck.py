@@ -8,6 +8,8 @@ exists for the project.
 
 from __future__ import annotations
 
+import html
+import re
 import sys
 from html.parser import HTMLParser
 from pathlib import Path
@@ -66,6 +68,7 @@ ALLOWED_EXTERNAL_REFS = {
     "https://fonts.gstatic.com",
     "https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;500;600&display=swap",
 }
+RAW_EXTERNAL_URL_RE = re.compile(r"(?:https?:)?//[^\s\"'<>)}]+")
 SUCCESS_MESSAGE = (
     "PASS: 9-slide career portfolio; content, interaction, index, and public-safety checks verified"
 )
@@ -80,6 +83,9 @@ class DeckParser(HTMLParser):
         self.has_viewport_meta = False
         self.slide_stages: list[str | None] = []
         self.external_refs: list[tuple[str, str, str]] = []
+        self.has_contenteditable_attr = False
+        self._hidden_text_depth = 0
+        self._visible_text_chunks: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attr_map = {name.lower(): value for name, value in attrs}
@@ -92,11 +98,17 @@ class DeckParser(HTMLParser):
             if name is not None and name.lower() == "viewport":
                 self.has_viewport_meta = True
 
+        if tag in {"script", "style"}:
+            self._hidden_text_depth += 1
+
         if tag == "section":
             class_value = attr_map.get("class") or ""
             class_tokens = class_value.split()
             if "slide" in class_tokens:
                 self.slide_stages.append(attr_map.get("data-stage"))
+
+        if "contenteditable" in attr_map:
+            self.has_contenteditable_attr = True
 
         for attr_name in ("src", "href"):
             value = attr_map.get(attr_name)
@@ -108,6 +120,20 @@ class DeckParser(HTMLParser):
 
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         self.handle_starttag(tag, attrs)
+        if tag in {"script", "style"} and self._hidden_text_depth > 0:
+            self._hidden_text_depth -= 1
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in {"script", "style"} and self._hidden_text_depth > 0:
+            self._hidden_text_depth -= 1
+
+    def handle_data(self, data: str) -> None:
+        if self._hidden_text_depth == 0:
+            self._visible_text_chunks.append(data)
+
+    @property
+    def visible_text(self) -> str:
+        return " ".join(" ".join(self._visible_text_chunks).split())
 
 
 class IndexParser(HTMLParser):
@@ -140,6 +166,17 @@ def missing_items(required: Iterable[str], source: str) -> list[str]:
     return [item for item in required if item not in source]
 
 
+def normalize_external_ref(value: str) -> str:
+    return html.unescape(value.strip())
+
+
+def discover_raw_external_urls(raw_source: str) -> list[str]:
+    return [
+        normalize_external_ref(match.group(0))
+        for match in RAW_EXTERNAL_URL_RE.finditer(raw_source)
+    ]
+
+
 def verify_index(raw_source: str) -> list[str]:
     parser = IndexParser()
     parser.feed(raw_source)
@@ -169,7 +206,7 @@ def verify(raw_source: str, index_source: str) -> list[str]:
             f"expected {EXPECTED_STAGES}; found {parser.slide_stages}"
         )
 
-    missing_terms = missing_items(REQUIRED_TERMS, raw_source)
+    missing_terms = missing_items(REQUIRED_TERMS, parser.visible_text)
     if missing_terms:
         errors.append("missing required terms: " + ", ".join(missing_terms))
 
@@ -183,7 +220,10 @@ def verify(raw_source: str, index_source: str) -> list[str]:
     if missing_markers:
         errors.append("missing raw source requirements: " + ", ".join(missing_markers))
 
-    external_ref_values = {value.strip() for _, _, value in parser.external_refs}
+    if not parser.has_contenteditable_attr:
+        errors.append("missing parsed contenteditable attribute")
+
+    external_ref_values = {normalize_external_ref(value) for _, _, value in parser.external_refs}
     missing_allowed_refs = sorted(ALLOWED_EXTERNAL_REFS - external_ref_values)
     if missing_allowed_refs:
         errors.append("missing required external references: " + ", ".join(missing_allowed_refs))
@@ -191,13 +231,18 @@ def verify(raw_source: str, index_source: str) -> list[str]:
     unexpected_refs = [
         (tag, attr, value)
         for tag, attr, value in parser.external_refs
-        if value.strip() not in ALLOWED_EXTERNAL_REFS
+        if normalize_external_ref(value) not in ALLOWED_EXTERNAL_REFS
     ]
     if unexpected_refs:
         formatted_refs = ", ".join(
             f"<{tag} {attr}={value!r}>" for tag, attr, value in unexpected_refs
         )
         errors.append("unexpected external http(s) src/href attributes: " + formatted_refs)
+
+    raw_external_urls = discover_raw_external_urls(raw_source)
+    unexpected_raw_urls = [url for url in raw_external_urls if url not in ALLOWED_EXTERNAL_REFS]
+    if unexpected_raw_urls:
+        errors.append("unexpected external URLs in raw source: " + ", ".join(unexpected_raw_urls))
 
     lower_source = raw_source.lower()
     forbidden_hits = [
@@ -219,6 +264,9 @@ def main() -> int:
 
     if not deck_path.is_file():
         print(f"missing deck: {DECK_RELATIVE_PATH.as_posix()}", file=sys.stderr)
+        return 1
+    if not index_path.is_file():
+        print(f"missing root index: {INDEX_RELATIVE_PATH.as_posix()}", file=sys.stderr)
         return 1
 
     raw_source = deck_path.read_text(encoding="utf-8")
