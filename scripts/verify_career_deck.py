@@ -171,9 +171,10 @@ def normalize_external_ref(value: str) -> str:
 
 
 def discover_raw_external_urls(raw_source: str) -> list[str]:
+    decoded_source = html.unescape(raw_source)
     return [
         normalize_external_ref(match.group(0))
-        for match in RAW_EXTERNAL_URL_RE.finditer(raw_source)
+        for match in RAW_EXTERNAL_URL_RE.finditer(decoded_source)
     ]
 
 
