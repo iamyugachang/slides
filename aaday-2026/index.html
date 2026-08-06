@@ -1,0 +1,812 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AADay 2026 — Agentic Automation Day 筆記</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg:#07111f; --bg-deep:#050911; --panel:#101a26; --panel-strong:#152235;
+  --ink:#f4efe4; --muted:#9fb2c7; --cyan:#60d8f6; --amber:#f4b23d; --line:#2b3b4e;
+  --green:#4ade80; --red:#f87171;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:
+    radial-gradient(circle at 16% 12%, #17324a 0, transparent 36%),
+    radial-gradient(circle at 84% 18%, #f4b23d1a 0, transparent 30%),
+    linear-gradient(135deg, var(--bg), var(--bg-deep) 66%, #03060d);
+  color:var(--ink); font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Noto Sans TC","Microsoft JhengHei",sans-serif; line-height:1.75;
+}
+.wrap{width:min(100%,980px);margin:0 auto;padding:56px 22px 120px}
+header.hero{margin-bottom:40px}
+.eyebrow{color:var(--amber);font-size:.85rem;font-weight:900;letter-spacing:.16em;text-transform:uppercase;margin:0 0 14px}
+h1{font-size:clamp(1.9rem,5vw,3rem);line-height:1.15;letter-spacing:-.03em;margin:0 0 10px}
+.sub{color:var(--muted);font-size:1.02rem;margin:0 0 6px}
+.meta{color:var(--muted);font-size:.86rem;margin:0}
+h2{
+  margin:56px 0 18px; padding:14px 18px; border-left:4px solid var(--cyan);
+  background:linear-gradient(90deg,#60d8f61a,transparent); border-radius:0 10px 10px 0;
+  font-size:1.35rem; line-height:1.4; scroll-margin-top:20px;
+}
+h2 .sec-no{color:var(--amber);margin-right:8px}
+h3{margin:30px 0 12px;font-size:1.08rem;color:var(--cyan)}
+h4{margin:22px 0 10px;font-size:.98rem;color:var(--amber)}
+p{margin:10px 0}
+strong{color:#fff}
+a{color:var(--cyan);text-decoration:none;border-bottom:1px solid #60d8f655}
+a:hover{color:#ffe0a3;border-color:#ffe0a3}
+ul{margin:10px 0;padding-left:1.4em}
+li{margin:6px 0}
+li::marker{color:var(--cyan)}
+blockquote{margin:16px 0;padding:14px 18px;background:#0d1a2b;border-left:3px solid var(--amber);border-radius:0 10px 10px 0;color:#e8ddc8}
+blockquote p{margin:6px 0}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.92rem;background:#0b1522;border-radius:10px;overflow:hidden}
+td{border:1px solid var(--line);padding:9px 12px;vertical-align:top}
+tr:first-child td{background:#152235;color:#fff;font-weight:700}
+code{background:#152235;color:#7dd3fc;padding:1px 7px;border-radius:5px;font-size:.88em}
+pre.codefence{background:#0b1522;border:1px solid var(--line);border-radius:10px;padding:16px 18px;overflow-x:auto;font-size:.85rem}
+pre.codefence code{background:none;padding:0;color:#a5d8ff}
+figure.slide-fig{margin:22px 0}
+figure.slide-fig img{width:100%;height:auto;border:1px solid var(--line);border-radius:12px;background:#fff;display:block}
+hr{border:none;border-top:1px solid var(--line);margin:34px 0}
+.num-item{margin:6px 0}
+.num-item .num{color:var(--cyan);margin-right:6px}
+.toc{margin:26px 0 8px;padding:18px 20px;background:#0d1a2b;border:1px solid var(--line);border-radius:12px}
+.toc-title{color:var(--amber);font-weight:900;letter-spacing:.1em;font-size:.8rem;text-transform:uppercase;margin:0 0 12px}
+.toc a{display:block;padding:5px 0;color:var(--muted);border:none}
+.toc a:hover{color:var(--cyan)}
+.toc .toc-main{color:var(--ink);font-weight:700}
+.back-top{position:fixed;right:20px;bottom:20px;background:#152235;border:1px solid var(--line);color:var(--cyan);border-radius:50%;width:44px;height:44px;display:grid;place-items:center;text-decoration:none;font-size:1.2rem;opacity:.85;z-index:9}
+.back-top:hover{opacity:1;color:#ffe0a3}
+footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:.85rem;display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.todo-check{display:inline-block;width:1.05em;height:1.05em;border:2px solid var(--green);border-radius:4px;margin-right:8px;vertical-align:-2px}
+@media (max-width:640px){
+  .wrap{padding:36px 14px 90px}
+  h2{font-size:1.15rem}
+  td{padding:7px 8px;font-size:.82rem}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <p class="eyebrow">Notes · Agentic Automation Day 2026</p>
+  <h1>AADay 2026 — Agentic Automation Day 筆記</h1>
+  <p class="sub">企業自動化 × Agent：AI Agent 時代 ─ 從工具走向自主協作，企業自動化正在被重新定義</p>
+  <p class="meta">2026 / 8 / 6（四）· 公務人力發展學院 · 12 場議程 · 29 張圖表</p>
+</header>
+<nav class="toc" aria-label="目錄">
+  <p class="toc-title">議程總覽 · 目錄</p>
+  <a class="toc-main" href="#議程總覽">議程總覽</a>
+  <a href="#當-ai-自己醒來工作github-copilot-agentic-workflow-與-automations-實戰-duran-hsieh">2 · Copilot Agentic Workflow（Duran Hsieh）</a>
+  <a href="#從一張票到一個-pr用-sdd-把後端團隊的-ai-開發自動化-楊騏-ci">3 · SDD 自動化（楊騏 Ci）</a>
+  <a href="#ai-can-generate-tests-for-you-now-what-maya-shavin">4 · AI 測試策略（Maya Shavin）</a>
+  <a href="#從-poc-到生產企業-agentic-automation-落地的-5-個架構陷阱與紅藍對抗-fngi">5 · 架構陷阱與紅藍對抗（Fngi）</a>
+  <a href="#雲端退場評估自動化利用-agent-打造開源儲存架構的診斷探測器-eric-ho">6 · Cloud Exit 診斷（Eric Ho）</a>
+  <a href="#讓-ai-agent-好好幹活的-harness-工程-高見龍">7 · Harness 工程（高見龍）</a>
+  <a href="#規章辦法搜尋平台的自動化維運-侯詩彥-james">8 · iSearch 維運（侯詩彥）</a>
+  <a href="#ai-agent-上線的最後一哩路金融業-agentops-與權限治理設計-neo">9 · GAIA 2.0（Neo）</a>
+  <a href="#agent-跑起來之後才是問題的開始agent-governance-的工程實踐-hazel">10 · Agent Governance（Hazel）</a>
+  <a href="#讓-ai-不只回答更能完成工作企業-ai-工作流程的落地實務-tony-chung">11 · Work Agent（Tony Chung）</a>
+  <a href="#從-cio-大調查看企業-ai-自動化現況與挑戰-王宏仁">12 · CIO 大調查（王宏仁）</a>
+  <a href="#會後心得-行動清單">會後心得 · 行動清單</a>
+</nav>
+<p># AADay 2026 — Agentic Automation Day 筆記</p>
+<blockquote>
+<p>活動：Agentic Automation Day「企業自動化 × Agent」</p>
+<p>日期：2026 / 8 / 6（四）</p>
+<p>地點：公務人力發展學院</p>
+<p>主題：AI Agent 時代 ─ 從工具走向自主協作，企業自動化正在被重新定義</p>
+</blockquote>
+<h2 id="議程總覽">議程總覽</h2>
+<p class="num-item"><span class="num">•</span>Opening Remarks — 吳其勳（iThome 總編輯）</p>
+<p class="num-item"><span class="num">•</span>當 AI 自己醒來工作：GitHub Copilot Agentic Workflow 與 Automations 實戰 — 謝政廷 Duran Hsieh（TSMC Section Manager / GitHub Star）</p>
+<p class="num-item"><span class="num">•</span>從一張票到一個 PR：用 SDD 把後端團隊的 AI 開發自動化 — 楊騏 Ci（Senior Full Stack Engineer）</p>
+<p class="num-item"><span class="num">•</span>AI can generate tests for you, now what? — Maya Shavin（Salesforce Staff Software Engineer）</p>
+<p class="num-item"><span class="num">•</span>從 POC 到生產：企業 Agentic Automation 落地的 5 個架構陷阱與紅藍對抗 — 徐方繹 Fngi（APMIC.ai CISO）</p>
+<p class="num-item"><span class="num">•</span>雲端退場評估自動化：利用 Agent 打造開源儲存架構的診斷探測器 — 何家全 Eric Ho（國泰金控 資深架構師）</p>
+<p class="num-item"><span class="num">•</span>讓 AI Agent 好好幹活的 Harness 工程 — 高見龍（五倍學院 負責人）</p>
+<p class="num-item"><span class="num">•</span>規章辦法搜尋平台的自動化維運 — 侯詩彥 James（中國醫藥大學附設醫院 研發工程師）</p>
+<p class="num-item"><span class="num">•</span>AI Agent 上線的最後一哩路：金融業 AgentOps 與權限治理設計 — 林高弘 Neo（國泰世華銀行 技術PM）</p>
+<p class="num-item"><span class="num">•</span>Agent 跑起來之後才是問題的開始：Agent Governance 的工程實踐 — 沈涵羚 Hazel（Red Hat 技術客戶經理）</p>
+<p class="num-item"><span class="num">•</span>讓 AI 不只回答，更能完成工作：企業 AI 工作流程的落地實務 — 鍾俊芳 Tony Chung（華電聯網 經理）</p>
+<p class="num-item"><span class="num">•</span>從 CIO 大調查看企業 AI 自動化現況與挑戰 — 王宏仁（iThome 副總編輯）</p>
+<hr>
+<h2 id="1-opening-remarks-吳其勳">1. Opening Remarks — 吳其勳</h2>
+<p><em>開場（現場未記錄細節）</em></p>
+<ul>
+<li>iThome 總編輯開場：AI Agent 時代 ─ 從工具走向自主協作，企業自動化正在被重新定義</li>
+</ul>
+<h2 id="2-當-ai-自己醒來工作-github-copilot-agentic-workflow-與-automations-實戰-duran-hsieh">2. 當 AI 自己醒來工作：GitHub Copilot Agentic Workflow 與 Automations 實戰 — Duran Hsieh</h2>
+<p><em>09:00–09:30</em></p>
+<ul>
+<li>演進路徑：<strong>agent mode → cloud agent → automation</strong></li>
+<li>案例：假設某個 pipeline 掛了，平常沒人會去修；但有了 automation 之後，agent 會自己去維修</li>
+</ul>
+<p><strong>DEMO ② Cloud Agent：丟一個 Issue，收一個 PR</strong></p>
+<ul>
+<li>流程：開 Issue 指派 → 雲端非同步執行 → 自動開 PR → 你 review 合併</li>
+<li>賣點：</li>
+<li>你可以去做別的事——甚至下班</li>
+<li><strong>PR 是唯一入口，天然的把關點</strong></li>
+<li>適合規格明確的開發任務</li>
+<li>觀察重點：<strong>人從駕駛座退到 review 席</strong></li>
+</ul>
+<figure class="slide-fig"><img src="assets/s2-demo2.svg" alt="s2-demo2" loading="lazy"></figure>
+<p><strong>ROADMAP 三階自動化之路</strong></p>
+<ul>
+<li>① Agent Mode：互動式 — 你一步步引導，即時對話、逐步確認</li>
+<li>② Cloud Agent：委派式 — 丟一個 Issue，它非同步開好 PR</li>
+<li>③ Automations：自主式 — 排程與事件觸發，<strong>沒有人按下開始鍵</strong></li>
+<li>金句：<strong>自主程度越高，事前設計就要越重</strong></li>
+</ul>
+<figure class="slide-fig"><img src="assets/s2-roadmap.svg" alt="s2-roadmap" loading="lazy"></figure>
+<p><strong>COMPARISON 三階地圖：自主程度怎麼看</strong></p>
+<table><tbody>
+<tr><td></td><td>① Agent Mode</td><td>② Cloud Agent</td><td>③ Automation</td></tr>
+<tr><td>觸發點</td><td>你，即時對話</td><td>你，開 Issue</td><td>排程／事件，沒有人</td></tr>
+<tr><td>人在迴圈</td><td>全程盯盤</td><td>收 PR 時把關</td><td>事後審核</td></tr>
+<tr><td>回饋週期</td><td>秒級、逐步引導</td><td>分鐘～小時，非同步</td><td>你要規劃它定期</td></tr>
+<tr><td>適合任務</td><td>探索、增量重構</td><td>規格明確的開發任務</td><td>例行性、規則明確</td></tr>
+<tr><td>風險等級</td><td>低（隨時可控）</td><td>中（PR gate）</td><td>高（需監控治理）</td></tr>
+</tbody></table>
+<ul>
+<li>總結：<strong>選擇取決於：什麼任務放哪一階</strong></li>
+</ul>
+<figure class="slide-fig"><img src="assets/s2-comparison.svg" alt="s2-comparison" loading="lazy"></figure>
+<p><strong>CONCEPT 給 Agent 自主權，但限制影響範圍</strong></p>
+<ul>
+<li>✗ 每一步都要人工核准 → <strong>核准疲勞</strong>：第 1 次仔細看完才按 → 第 20 次瞄一眼就按 → 第 100 次一路 Approve → 審核形同虛設</li>
+<li>✓ 隔離環境內，放手讓它做：Codespaces / Dev Container / 沙箱；環境內自主執行不必逐步核准；<strong>影響半徑被圈住，出不了沙箱</strong>；人力留給真正的關口 PR review</li>
+<li>重點不是禁止 Agent 動手 — 是<strong>「足夠的自主權 × 受控的影響範圍」</strong></li>
+<li>放飛自我的慘案，問題都不在自主，而在<strong>沒有邊界</strong></li>
+</ul>
+<figure class="slide-fig"><img src="assets/s2-concept.svg" alt="s2-concept" loading="lazy"></figure>
+<p><strong>講者背景（LinkedIn 截圖）</strong></p>
+<ul>
+<li>現職：TSMC Senior Software Engineer（2025.8 至今）— Big Data Platform 私有雲 PaaS、data lakehouse（Trino/Iceberg/dbt/Airflow）、Kafka + Spark Streaming、K8s</li>
+<li>前職 KKBOX 3y9m：</li>
+<li>Data Scientist（2023.4–2025.8）— 音樂推薦系統（DSSM、協同過濾、模型蒸餾、AWS SageMaker/Personalize）、RAG AI Playlist（fine-tuned LLM + music embeddings，兼做 cold start）、A/B testing（NDCG@k / MAP / MRR@k）</li>
+<li>Analytics Engineer（2021.12–2023.4）— ETL/CDC pipelines（Spark/Kafka/Airflow、AWS &amp; GCP）、Athena DW/Mart/Cube、Flutter + FastAPI 音樂 App</li>
+<li>更早：Infortrend CV 研究工程師（GAN、YOLOv4、TensorRT/OpenVINO）、Ford 實習（YOLOv3+LSTM 駕駛行為偵測，78.65%→95.47%）</li>
+<li>學歷：國立中興大學 CS 碩士（2018–2020）</li>
+</ul>
+<p><strong>心得（Yuga）</strong></p>
+<ul>
+<li>封閉環境很重要：企業落地一定要在封閉環境開發驗證完，最後<strong>只有可交付的東西可以進 production</strong></li>
+<li>GitHub Actions / Workflow 現在可以把 <strong>YAML 和自然語言寫在一起</strong></li>
+<li>反思：什麼都自動化了，人還要做什麼？→ 不是只 review spec，而是三端：事前（決定自動化什麼、畫邊界、定義驗收標準）、事中（例外升級路徑）、事後（審核=檢查失敗後果是否可控＋問責）。真正的瓶頸轉移：spec 以前可以含糊，現在 agent 會照做 →「寫得出 agent 不會誤解的 spec」變成稀缺技能</li>
+<li>反思：把<strong>專案金三角</strong>套用在 mode 選擇 — 高品質 / 高度依賴 domain knowledge 的任務 → 用 agent mode 來回；例行型任務 → automation / agentic workflow。成本角可以獨立調整：<strong>cache、換便宜模型、簡單判斷用小型 local 模型</strong>跑就好</li>
+<li>反思：可觀測性的關鍵問題 — agent 的 session / 執行記錄存在<strong>執行者自己的電腦</strong>（local），發生事情時<strong>大家需要知道發生什麼</strong> → 需要事件主動外送（異常報告書、告警），不能等別人去翻那台機器</li>
+</ul>
+<p><strong>SCALE 三者都能參與 SDLC，能常駐的只有一種</strong></p>
+<ul>
+<li>SDLC 六階段：規格 → 開發 → 測試 → 建置 → 部署 → 維運</li>
+<li>Agent Mode：上限 = <strong>你的注意力</strong>；點 — 召喚一次做一件事，做完就結束</li>
+<li>Coding Agent：上限 = <strong>你開 issue 的速度</strong>；多點平行 — 一次多張 issue，但每點仍要人發起</li>
+<li>Agentic Workflow：上限 = <strong>你的預算</strong>；線 — 專家 Agent 常駐每個環節，事件與排程喚醒</li>
+<li>類比：手動 build → build server → CI/CD 常駐 ⇒ <strong>這就是 Continuous AI：AI 任務的 CI/CD</strong></li>
+</ul>
+<figure class="slide-fig"><img src="assets/s2-scale.svg" alt="s2-scale" loading="lazy"></figure>
+<p><strong>GOVERNANCE 上線前，最該在意的四件事</strong></p>
+<ul>
+<li>🔒 最小權限：獨立身分，限縮 scope；<strong>每人一准 PR</strong>（每次核准只授權一個 PR）</li>
+<li>🛡️ Prompt injection 防護：外部輸入視為不可信；限制讀取來源與權限</li>
+<li>👤 人類把關：匯出經 review 才合併；高風險操作設 approval gate</li>
+<li>👁️ 可觀測性：每次執行可追溯；異常觸發報告書</li>
+<li>主軸：<strong>事前防 → 事中控 → 事後查</strong></li>
+</ul>
+<figure class="slide-fig"><img src="assets/s2-governance.svg" alt="s2-governance" loading="lazy"></figure>
+<h2 id="3-從一張票到一個-pr-用-sdd-把後端團隊的-ai-開發自動化-楊騏-ci">3. 從一張票到一個 PR：用 SDD 把後端團隊的 AI 開發自動化 — 楊騏 Ci</h2>
+<p><em>09:45–10:15</em></p>
+<p><strong>背景（官網摘要）</strong></p>
+<ul>
+<li>問題：多數團隊用 AI 寫 code 停在「IDE 補一段」— AI 很會補，但接不了「一張票進來 → 一個 PR 出去」整條工作</li>
+<li>解法：作者自製 <strong>SDD（Spec-Driven Development）工具 prospec</strong> — 一張票進來 → 長出規格 → 拆計畫 → 實作 → review，每一步都有明確產出和驗收</li>
+<li>落地：前一份工作的後端團隊完整跑數個月，接 GitHub Action 自動化 — AI 自己從 Jira 領票、跑完整條 SDD、交回結果，無人值守</li>
+<li>三個 takeaways：① SDD 是關鍵（不是 prompt 寫得好，是流程切成有明確產出/驗收的步驟）② 無人值守管線（GitHub Action + Jira）怎麼設計、失敗怎麼接住 ③ 哪些環節放心交給 Agent、哪些留人把關</li>
+<li>適聽：工程師、研發主管、平台團隊</li>
+</ul>
+<p><strong>現場筆記</strong></p>
+<ul>
+<li>文件要先寫好；spec 要<strong>可迭代</strong></li>
+<li>產品規格隨時可能變動 → 技術規格也要跟著迭代，後續 harness 才能準確執行寫好程式</li>
+<li>建立<strong>專案知識庫（llm-wiki）</strong> — 讓 agent 執行時有專案脈絡（架構、慣例）可參考</li>
+</ul>
+<h2 id="4-ai-can-generate-tests-for-you-now-what-maya-shavin">4. AI can generate tests for you, now what? — Maya Shavin</h2>
+<p><em>10:30–11:00</em></p>
+<p><strong>背景（官網摘要）</strong></p>
+<ul>
+<li>現況：Playwright MCP / Claude Code 可以幫你生成測試；Cursor 幾秒內給出合理的測試建議 — testing 從沒這麼簡單過</li>
+<li>問題來了：直到你需要一套 full-scale、無縫的測試策略 — 生成出來的測試真的符合你的標準嗎？看起來再好也要質疑</li>
+<li>作為 lead engineer：怎麼在 testing quadrants 之間平衡？怎麼設計 scalable 的測試架構？</li>
+<li>重點：<strong>combine AI tools 架出 scalable AI-driven testing workflow，同時仍然 fully own 團隊的 code quality</strong></li>
+</ul>
+<p><strong>現場筆記</strong></p>
+<ul>
+<li>測試陷阱：<strong>更多的測試 ≠ 信心</strong>（More Tests !== Better Confidence）</li>
+<li>信心公式：<strong>Confidence = knowing WHICH risks, HOW to verify &amp; WHEN verification should run</strong></li>
+<li>AI 很會產生測試 → 其實沒太多幫助（因為缺的是風險判斷，不是測試數量）</li>
+</ul>
+<figure class="slide-fig"><img src="assets/s4-confidence.svg" alt="s4-confidence" loading="lazy"></figure>
+<p><strong>Potential Validations（先列驗證點，再決定放哪）</strong></p>
+<ul>
+<li>範例（search feature）：Filters posts by title/tag；Clears when query is empty；No results state；Keyboard navigation works；Search stays responsive；Screen reader announces updates；Typo/fuzzy search behavior</li>
+</ul>
+<p><strong>Agile Testing Quadrants（2×2）</strong></p>
+<ul>
+<li>縱軸：Business Facing ↑ / Technology Facing ↓；橫軸：Supporting the Team ← / Critique the Product →</li>
+<li>Q1 Unit/Component — Automated</li>
+<li>Q2 Acceptance — Automated &amp; Manual</li>
+<li>Q3 Exploratory — Manual</li>
+<li>Q4 Quality — Tools（效能、非功能）</li>
+</ul>
+<figure class="slide-fig"><img src="assets/s4-quadrants.svg" alt="s4-quadrants" loading="lazy"></figure>
+<p><strong>心得（Yuga）</strong></p>
+<ul>
+<li>講者簡報很有自己的風格：雖然也是 AI 生出來的，但<strong>很有識別度</strong> — 水彩風＋手寫字＋固定角色元素（robot、plant、mug、paper plane）＋簽名式 @mayashavin，像一套品牌系統</li>
+<li>反思：<strong>AI implement + AI generate test 很容易「球員兼裁判」</strong> — 測試驗證的是實作自己的假設；所以驗證策略（WHICH/HOW/WHEN）必須由人定義，才有獨立性</li>
+</ul>
+<p><strong>AI Test 五步工作流</strong></p>
+<p class="num-item"><span class="num">•</span><strong>Feature</strong> — FEATURE DOC：Product requirements / Context / Constraints</p>
+<p class="num-item"><span class="num">•</span><strong>AI suggests</strong> — 生成 Scenarios / Possible quadrants / Validation ideas</p>
+<p class="num-item"><span class="num">•</span><strong>Engineers decide</strong> — What matters / Priorities / Validation strategy / <strong>What not to automate</strong></p>
+<p class="num-item"><span class="num">•</span><strong>AI implements</strong> — Tests / Checks / Automation / Monitoring</p>
+<p class="num-item"><span class="num">•</span><strong>Continuous validation &amp; feedback</strong> — CI gates / Monitoring / Learnings</p>
+<figure class="slide-fig"><img src="assets/s4-aitest.svg" alt="s4-aitest" loading="lazy"></figure>
+<p><strong>Scaling the Testing Model Workflow（Team Level，由下往上堆疊）</strong></p>
+<p class="num-item"><span class="num">•</span><strong>Shared strategy template</strong> — 團隊共用一份測試策略範本</p>
+<p class="num-item"><span class="num">•</span><strong>AI-assisted execution</strong> — 工程師在既定策略內用 AI 生成/執行測試</p>
+<p class="num-item"><span class="num">•</span><strong>Repo testing rules</strong> — repo 規則確保一致性、對齊標準</p>
+<p class="num-item"><span class="num">•</span><strong>Review checklist</strong> — 合併前 checklist 確保 review 完整</p>
+<p class="num-item"><span class="num">•</span><strong>CI gates</strong> — merge 前自動把關品質</p>
+<p class="num-item"><span class="num">•</span><strong>Metrics + learning loop</strong> — 指標驅動可見性與持續學習</p>
+<figure class="slide-fig"><img src="assets/s4-scaling.svg" alt="s4-scaling" loading="lazy"></figure>
+<p><strong>總結句</strong></p>
+<ul>
+<li><strong>Better confidence comes from strategy, not just more tests</strong> — 用 AI 寫 scenarios 可以，但策略才是信心來源</li>
+</ul>
+<figure class="slide-fig"><img src="assets/s4-summary.svg" alt="s4-summary" loading="lazy"></figure>
+<h2 id="5-從-poc-到生產-企業-agentic-automation-落地的-5-個架構陷阱與紅藍對抗-fngi">5. 從 POC 到生產：企業 Agentic Automation 落地的 5 個架構陷阱與紅藍對抗 — Fngi</h2>
+<p><em>11:15–11:45</em></p>
+<p><strong>背景（官網摘要）</strong></p>
+<ul>
+<li>鴻溝：<strong>「能 demo」與「能上線」差很遠</strong>；多數團隊只做到「把 LLM 串到 API」</li>
+<li>Agent 一旦有自主決策權、工具調用權、跨系統協作權 → 傳統應用安全、資料治理、Ops 監控思維<strong>幾乎全部失效</strong></li>
+<li>內容：不講 LLM 基礎 / Prompt 工程；以金融、製造業企業客戶部署的第一手顧問經驗，揭露 <strong>5 個 POC 看不見、上線後造成事故的架構陷阱</strong></li>
+<li>附：可帶回組織的<strong>「企業 Agentic 風險自評清單」</strong></li>
+</ul>
+<p><strong>框架：三個「權」，擊垮三套舊思維</strong></p>
+<ul>
+<li><strong>自主決策權</strong> → Ops 監控失效（每次執行軌跡都不同）</li>
+<li><strong>工具調用權</strong> → 應用安全失效（讓進來的內容驅動行動）</li>
+<li><strong>跨系統協作權</strong> → 資料治理失效（身分與記憶跨邊界）</li>
+<li>五個陷阱一一對上這三權三失效；<strong>POC 都看不見，因為 POC 天生繞過它們</strong></li>
+</ul>
+<figure class="slide-fig"><img src="assets/s5-threepowers.svg" alt="s5-threepowers" loading="lazy"></figure>
+<p><strong>解剖對象：OpenClaw（真實開源 Agent 框架）</strong></p>
+<ul>
+<li>為什麼選它：① 架構跟大多數企業自己搭的 Agent stack 幾乎一樣 ② 學術界已對它做了一整批攻擊研究 — 紅隊是<strong>有人真的打穿過的</strong></li>
+<li>今天不講：LLM 基礎、prompt 工程（model 層）；今天講：<strong>架構層</strong></li>
+</ul>
+<figure class="slide-fig"><img src="assets/s5-openclaw.svg" alt="s5-openclaw" loading="lazy"></figure>
+<p><strong>現場筆記</strong></p>
+<ul>
+<li>主軸：各自使用/開發的 <strong>harness 在架構面上的 security</strong> — 風險集中在 harness（框架層），不是 model 層</li>
+<li>攻擊手法：email 裡可能塞<strong>白色的字</strong>（HTML 白字白底／隱形文字）隱含攻擊指令 — 人看不見，但 agent 解析 raw content 時會讀到</li>
+<li>觀點：<strong>prompt injection 擋不完</strong>（input 層無法根絕）→ 應該在 <strong>agent 裡擋</strong>（架構層防禦：sandbox、最小權限、untrusted content 標記、敏感動作需人確認）</li>
+<li>問題：<strong>沒設定目標 → agent 可能無限跑下去</strong> — production 環境能否<strong>馬上停掉</strong>？（runaway agent：需終止條件 / max iterations / budget caps / kill switch）</li>
+</ul>
+<h2 id="6-雲端退場評估自動化-利用-agent-打造開源儲存架構的診斷探測器-eric-ho">6. 雲端退場評估自動化：利用 Agent 打造開源儲存架構的診斷探測器 — Eric Ho</h2>
+<p><em>12:00–12:30</em></p>
+<p><strong>背景（官網摘要）</strong></p>
+<ul>
+<li>動機：雲端稅壓力 → Cloud Exit；最痛的不是數據搬遷，是預判藏在動態 API 調用與資產依賴中的<strong>「架構鴻溝」</strong></li>
+<li>新範式：<strong>「架構反序列化」</strong> — 具自主驗證能力的 AI Agent 對企業儲存日誌做高維度分解；不靠過時文件，用 RAG 串最新開源社群動態，<strong>自動映射 AWS S3 ↔ 地端開源儲存方案的相容性矩陣</strong></li>
+<li>診斷重點：「生命週期管理」與「冷熱儲存轉換」在異質架構下的效能偏移與成本陷阱；用模擬容器動態驗證，遷移前揭露隱性風險（例：<strong>Glacier 轉換策略在地端硬體規劃的錯位</strong>）</li>
+<li>應用：自動化評估 S3 Policy 合規性、預警事件驅動管線搬遷後失效風險；目標「基礎設施中立」、數據主權回歸</li>
+<li>三大收穫：① Cloud Exit 隱形成本與 ROI 陷阱（避免百萬級預算浪費）② 架構反序列化健檢方法論（API 日誌 → Agent 自動梳理真實依賴）③ 兩個月可落地的 PoC 藍圖（輕量 RAG + 相容性知識庫、prompt 護欄防幻覺、產出硬體配置與轉移風險報告）</li>
+</ul>
+<p><strong>方法論：把專家的調查方法變成可重複的工程系統</strong></p>
+<ul>
+<li>過去依靠資深專家反覆調查 → <strong>不取代專家，而是把專家的調查方法工程化</strong></li>
+<li>六步流程：訪談（目標）→ 盤點（設定）→ 觀察（紀錄）→ 查證（文件）→ 實驗（沙盒）→ 判斷（建議）</li>
+<li>回饋迴圈：「新證據！」→ 補資料、換方向、重新測試（從判斷回捲到盤點）</li>
+</ul>
+<figure class="slide-fig"><img src="assets/s6-method.svg" alt="s6-method" loading="lazy"></figure>
+<p><strong>背景篇：S3 退場風險，經常在搬完後才出現</strong></p>
+<ul>
+<li>金句：<strong>資料搬得走，不代表架構退得出去</strong></li>
+<li>AWS S3 → S3 替代方案，資料搬出後的<strong>衍生問題</strong>：功能失效／效能退化／硬體錯配／ROI 高估</li>
+</ul>
+<figure class="slide-fig"><img src="assets/s6-s3risk.svg" alt="s6-s3risk" loading="lazy"></figure>
+<p><strong>Cloud Exit 必須拆解整套雲端相依關係</strong></p>
+<ul>
+<li>雲環境 = 維運／運算／資料／整合／安全 五層；S3 是核心但被四周隱性依賴包圍</li>
+<li>重點：<strong>從 Evidence（日誌）找出隱性雲端依賴</strong> — 高影響、高耦合、高驗證！</li>
+</ul>
+<p><strong>方法篇：三代流程圖 — 是誰控制下一步</strong></p>
+<ul>
+<li>副標：<strong>Agentic Investigation + Deterministic Facts + Human Decision</strong>（agentic 調查、確定性事實、人做決策）</li>
+</ul>
+<table><tbody>
+<tr><td></td><td>Deterministic</td><td>Non-Agentic</td><td>Agentic</td></tr>
+<tr><td>流程下一步</td><td>程式碼</td><td>程式碼</td><td><strong>Agent + Guardrails</strong>*</td></tr>
+<tr><td>未知情境處理性</td><td>低</td><td>中</td><td>高</td></tr>
+<tr><td>可重現性</td><td>高</td><td>中高</td><td>依賴檢查稽核</td></tr>
+<tr><td>代價缺陷</td><td>覆蓋不足</td><td>路徑固定</td><td>不確定性高</td></tr>
+</tbody></table>
+<ul>
+<li>圖例：藍 = 固定執行單元；黃 = LLM 相關執行單元（Agentic 有分支決策）</li>
+</ul>
+<figure class="slide-fig"><img src="assets/s6-threegen.svg" alt="s6-threegen" loading="lazy"></figure>
+<p><strong>方法論篇：ExitLens 是 Agent 與 Human 的持續決策循環</strong></p>
+<ul>
+<li><strong>Evidence 與 Decision 讓兩個責任環閉合</strong></li>
+<li>無限迴圈（∞）雙環：</li>
+<li>Agentic Investigation（綠）：Plan → Act → Observe → Evaluate</li>
+<li>Human Decision（藍）：Review → Decide → Adjust → Feedback</li>
+<li>Agent 產出 Evidence 餵給人；人的 Decision 餵回 Agent — 兩環互鎖，持續迭代</li>
+</ul>
+<figure class="slide-fig"><img src="assets/s6-exitlens.svg" alt="s6-exitlens" loading="lazy"></figure>
+<p><strong>方法論篇：Agent 協助決策者，然後呢？</strong></p>
+<ul>
+<li>Evaluate 決定下一步：繼續調查、等待 Human、或結束診斷</li>
+<li>流程：01 Goal（S3選出）→ 02 Plan（依照證據規劃）→ 03 Act（選擇工具執行）→ 04 Observe（觀察紀錄發現）→ 05 Evaluate（評估證據結果）</li>
+<li>Evaluate 三分支：</li>
+<li><strong>I Re-plan</strong> — 繼續調查證據（回捲 Plan）</li>
+<li><strong>II Human Act</strong> — 回饋恢復流程（等/交給人）</li>
+<li><strong>III Complete</strong> — 輸出對應報告</li>
+</ul>
+<pre class="codefence"><code>flowchart LR
+    A[01 Goal&lt;br/&gt;S3 選出] --&gt; B[02 Plan&lt;br/&gt;依照證據規劃]
+    B --&gt; C[03 Act&lt;br/&gt;選擇工具執行]
+    C --&gt; D[04 Observe&lt;br/&gt;觀察紀錄發現]
+    D --&gt; E[05 Evaluate&lt;br/&gt;評估證據結果]
+    E --&gt;|I Re-plan| B
+    E --&gt;|II Human Act| F[人介入]
+    E --&gt;|III Complete| G[輸出報告]</code></pre>
+<figure class="slide-fig"><img src="assets/s6-agentloop.svg" alt="s6-agentloop" loading="lazy"></figure>
+<h2 id="7-讓-ai-agent-好好幹活的-harness-工程-高見龍">7. 讓 AI Agent 好好幹活的 Harness 工程 — 高見龍</h2>
+<p><em>13:20–13:50</em></p>
+<p><strong>背景（官網摘要）</strong></p>
+<ul>
+<li>問題：多數人把 Claude Code、Codex 當<strong>黑盒子</strong>用 — 下了 prompt 不知道裡面怎麼運作，用久了發現它<strong>常常改錯地方</strong></li>
+<li>論點：問題往往不是模型不夠力，而是驅動它的那層 <strong>Harness</strong> 沒被認真看待 → 把 Agent 當成可以動手的工程對象</li>
+<li>內容：</li>
+<li>理解 Harness 是怎麼回事</li>
+<li>作者自製 SDD 工具 <strong>Spectra</strong> — 把工作拆成有結構、可追溯的 spec 與 change</li>
+<li>寫了<strong>終端機把 CLI 包起來</strong> — Agent 在跑什麼、該不該停都看得見、管得住</li>
+<li>讓 Agent 產出可信成果的方法論；執行過程看得見也管得住</li>
+</ul>
+<p><strong>討論：AI 產的 code 敢用嗎？你多久沒有看 AI 的 code？</strong></p>
+<ul>
+<li>講者的反問：很多人用 AI 寫 code 一陣子後就停止 review — <strong>信任漂移</strong>：第一天看每一行，第 N 天直接 merge（= Session 2 核准疲勞的 code review 版）</li>
+<li>「敢用」的條件不是 code 品質，是<strong>有沒有能力驗證</strong>：測試、diff review、可回滾 — 敢用 = 有 safety net，不是盲目信任</li>
+<li>Harness 的責任：把 change 縮小到<strong>人 review 得完的顆粒度</strong>（Spectra/prospec 拆成 spec + change 的目的）</li>
+</ul>
+<p><strong>心得（Yuga）</strong></p>
+<ul>
+<li>AI Agent 其實就在做<strong>原本軟體開發週期本來就會做的事情</strong> — 沒有發明新流程，是把既有 SDLC 步驟（spec→開發→測試→部署→維運）自動化＋結構化；所以 harness 的目標不是新東西，是把舊流程變看得見、管得住</li>
+<li>反思：<strong>人常常連話都講不清楚，AI 只是在猜你的意圖</strong> — 當執行 fidelity 提高，瓶頸回到人：把意圖講清楚本來就是最難的 engineering；以前 code review 會兜住含糊，現在 agent 照字面執行，含糊直接變 bug</li>
+<li>觀點：講者不想靠框架，<strong>只靠 45 line prompt 定義「提案 → 實作 → 歸檔」流程其實也可以做</strong> — 真正要解決的問題不變：框架只是載體，流程結構化才是重點</li>
+</ul>
+<p><strong>講者的工具：Spectra（github.com/kaochenlong/spectra-app，680★）</strong></p>
+<ul>
+<li>SDD 桌面 App，相容 <strong>OpenSpec</strong>（Fission-AI）資料格式 — 完整生命週期：提案 change → 寫 spec → 追蹤 tasks → 歸檔</li>
+<li>Claude Code 整合 skills：/spectra-discuss、/spectra-propose、/spectra-apply、/spectra-ingest、/spectra-archive、/spectra-debug（<strong>max 3 attempts</strong> 系統性除錯）、/spectra-ask（RAG 查 spec）</li>
+<li>特色：⌘D Compact Mode 浮動視窗監看進度；<strong>Park 機制</strong>暫存 WIP 不污染 git；<strong>Git Worktree</strong> 每個 change 獨立目錄（spx/&lt;name&gt;）；[P] 任務並行（Claude Code subagents，實驗性）</li>
+<li>RAG 全文/自然語言搜尋：支援繁中，需 Apple Silicon 或 Windows</li>
+</ul>
+<p><strong>使用 Spectra 前後的差別（流程對照）</strong></p>
+<ul>
+<li>目標：Spectra 介入原本流程，<strong>讓 Plan、實作與規格保持一致</strong></li>
+<li>一般流程：Plan Mode → 建立 Plan → 執行 → 完成（直線，無中間檢查）</li>
+<li>Spectra 流程：Plan Mode → 建立 Plan → /spectra-discuss 討論需求 → /spectra-propose 提案 → parked 審閱 → /spectra-apply 執行 → <strong>調整？</strong>（無 → /spectra-archive 歸檔 → 完成；有 → /spectra-ingest 同步規格 → 回捲）</li>
+<li>關鍵：多出來的環節都是<strong>同步點</strong> — 討論、提案、審閱、調整回捲（ingest 把實作變更同步回 spec），確保規格不跟現實脫節</li>
+</ul>
+<p><strong>心得（Yuga）</strong></p>
+<ul>
+<li>講者是<strong>真的把 SDD tune 好，然後自己開發產品拿去賣</strong> — Spectra 就是用 SDD 流程 dogfood 出來的產品：不是賣概念的顧問，是賣自己流程產物的 maker — 最強的可信度證明</li>
+<li><strong>啟發：感覺我也可以走一樣的方式</strong> — 把 agent 開發流程 tune 順手 → 用它做出產品 → 拿去賣（自己的 GSD/Hermes 流程資產就是起點）</li>
+</ul>
+<h2 id="8-規章辦法搜尋平台的自動化維運-侯詩彥-james">8. 規章辦法搜尋平台的自動化維運 — 侯詩彥 James</h2>
+<p><em>14:05–14:35</em></p>
+<p><strong>背景（官網摘要）</strong></p>
+<ul>
+<li>案例：中國醫藥大學附設醫院 <strong>iSearch</strong> 院內規章搜尋平台 — 串接內部文件庫、向量資料庫，LLM 生成回覆</li>
+<li>核心觀點：真正的挑戰不是上線，是<strong>上線後的持續維運</strong> — 資料定期更新、品質持續監控、異常即時察覺</li>
+<li>自動化維運框架涵蓋：向量資料庫自動同步、月統計報告自動產出、每日異常監控、自動部署、自動化評估、<strong>自動排查與修復錯誤</strong></li>
+<li>技術分類：Autonomous Agents / Agentic Workflows / Agentic Engineering</li>
+<li>現場未記錄（與 Session 11 知識中樞概念互補：iSearch = L1 Knowledge Foundation 的醫院實例；Session 11「可查/可驗/可控」三要求正好對應 iSearch 的維運重點）</li>
+</ul>
+<h2 id="9-ai-agent-上線的最後一哩路-金融業-agentops-與權限治理設計-neo">9. AI Agent 上線的最後一哩路：金融業 AgentOps 與權限治理設計 — Neo</h2>
+<p><em>14:50–15:20</em></p>
+<p><strong>背景（官網摘要）</strong></p>
+<ul>
+<li>案例：國泰銀行 <strong>GAIA 2.0</strong> 企業級 Agent 管理平台 — 目標不是做單一 Agent，是讓多個團隊安全開發、部署、申請使用、維運、下架 Agent 的<strong>共通平台能力</strong></li>
+<li>三個核心問題：</li>
+</ul>
+<p class="num-item"><span class="num">•</span><strong>AgentOps 生命週期</strong>：上架 → 申請使用 → 更版 → 停用 → 下架；整合既有 CI/CD、行政申請、資安審核、維運責任（不是單純部署自動化）</p>
+<p class="num-item"><span class="num">•</span><strong>權限與安全邊界</strong>：區分 <strong>Agent 自身權限</strong>（系統角色，固定任務）vs <strong>使用者委派權限</strong>（代表使用者執行 → 依使用者權限，避免權限放大）</p>
+<p class="num-item"><span class="num">•</span><strong>Agent Gateway 治理中樞</strong>：集中權限檢查、路由、執行紀錄 — 避免多 Agent 點對點串接的權限分散/稽核困難</p>
+<ul>
+<li>平台三核心：<strong>Workspace</strong>（團隊隔離邊界）／<strong>Marketplace</strong>（工具、MCP Server、Agent 能力重用）／<strong>Gateway</strong>（治理中樞）</li>
+<li>三大挑戰：上線流程分散難追蹤、權限邊界難定義、工具整合變點對點災難</li>
+<li>金融業落地關鍵：能安全上線、正確授權、持續監控、異常或停用時能下架</li>
+</ul>
+<p><strong>現場筆記：當規模放大 — 多團隊並進的企業級災難</strong></p>
+<ul>
+<li>想像金融業：客服要做 Agent、法遵要做、理專也要做 — 每個團隊都自己硬刻會發生什麼？</li>
+</ul>
+<p class="num-item"><span class="num">•</span><strong>點對點串接災難</strong>：重複造輪子、網路變蜘蛛網、無法統一管理</p>
+<p class="num-item"><span class="num">•</span><strong>權限與稽核標準不一</strong>：A 團隊嚴格、B 團隊有漏洞 → 資安破口</p>
+<p class="num-item"><span class="num">•</span><strong>上線與維運混亂</strong>：缺乏統一發布機制、故障時難釐清責任</p>
+<ul>
+<li>結論：企業導入 AI Agent 的真正瓶頸，<strong>從來不是 PoC 做不出來，而是「多團隊規模化 (Scale up)」時的失控</strong></li>
+</ul>
+<p><strong>這就是為什麼我們需要 GAIA 2.0</strong></p>
+<ul>
+<li>金融業場景中，Agent 一旦開始呼叫工具或存取企業資料，<strong>就必須被收斂至具備合規、稽核與風險控管的標準化治理框架</strong></li>
+</ul>
+<p><strong>心得（Yuga）</strong></p>
+<ul>
+<li><strong>TSMC 應該也需要這個</strong> — 多 BU、多團隊、半導體資安規範，跟金融業一樣會遇到「多團隊規模化失控」；Duran 講的 Copilot 導入（工具層）正好需要 GAIA 這種平台層治理來兜底</li>
+</ul>
+<p><strong>設計企業級 Agent 管理的三大挑戰</strong></p>
+<p class="num-item"><span class="num">•</span><strong>上線流程分散</strong>：多層次的 <strong>Agent Mesh</strong> 帶來相依性災難 → 必須將 Agent 視為資產，導入 AgentOps 生命週期</p>
+<p class="num-item"><span class="num">•</span><strong>權限邊界模糊</strong>：越權存取與身份混淆 → 必須明確區分 Agent 自身權限 與 使用者委派權限</p>
+<p class="num-item"><span class="num">•</span><strong>點對點整合災難</strong>：網路拓撲與稽核混亂 → 必須透過 <strong>Agent Gateway</strong> 統一集中治理路徑</p>
+<p><strong>挑戰一展開：多層次 Agent 系統的相依性災難</strong></p>
+<p class="num-item"><span class="num">•</span><strong>網狀依賴</strong>：Agentic System 是多層「多對多」網狀架構（Agent Mesh）</p>
+<p class="num-item"><span class="num">•</span><strong>向下呼叫</strong>：Parent Agent 執行任務時常呼叫多個 Sub-Agent 或 MCP</p>
+<p class="num-item"><span class="num">•</span><strong>重用風險</strong>：一個好用的 Sub-Agent（例：客戶 KYC 查詢小助手）可能被多個部門同時依賴</p>
+<p class="num-item"><span class="num">•</span><strong>連鎖癱瘓</strong>：共用節點更版／API 廢棄被迫下架時，無完善管理機制 → 連鎖反應，上游 Agent 瞬間停擺</p>
+<p><strong>AgentOps 解法：Agent 與 MCP 的「資產化」生命週期</strong></p>
+<ul>
+<li>為解決相依性災難，GAIA 2.0 把 Agent 與 MCP 視為<strong>獨立資產 (Asset)</strong>，導入<strong>訂閱制</strong>生命週期：</li>
+</ul>
+<p class="num-item"><span class="num">•</span><strong>上架發布 (Publish)</strong>：能力規格＋權限要求註冊進內部 Marketplace，供全行檢索</p>
+<p class="num-item"><span class="num">•</span><strong>申請授權 (Subscribe)</strong>：其他 Agent <strong>不得私下串接</strong>，必須透過平台發起訂閱與權限審批</p>
+<p class="num-item"><span class="num">•</span><strong>版本控管 (Versioning)</strong>：多版本並存，更新不強制覆蓋，給呼叫端測試遷移緩衝期</p>
+<p class="num-item"><span class="num">•</span><strong>安全下架 (Deprecation)</strong>：下架前平台<strong>主動分析依賴關係</strong>、強制通知與依賴解除，平滑下線</p>
+<p><strong>金融業職責分離：明確的權責邊界（SoD）</strong></p>
+<ul>
+<li>配合生命週期，金融業嚴格落實職責分離 — GAIA 2.0 中三種角色清晰邊界：</li>
+</ul>
+<p class="num-item"><span class="num">•</span><strong>提供方 Provider（開發與維護者）</strong>：實作 Sub-Agent/MCP、維護版本更新、決定是否同意存取申請、承擔服務品質與乘載量</p>
+<p class="num-item"><span class="num">•</span><strong>需求方 Consumer（代理與使用者）</strong>：Marketplace 找工具發起訂閱；提供方發新版時<strong>主動升級 Parent Agent 依賴版本並做回歸測試</strong></p>
+<p class="num-item"><span class="num">•</span><strong>平台方 Governance（合規與監控者）</strong>：上架前資安掃描＋規格合規審核、監控全域流量與相依性拓撲、異常時迅速釐清責任歸屬</p>
+<p><strong>心得（Yuga）</strong></p>
+<ul>
+<li>GAIA 2.0 看起來就是 <strong>agent / skill / MCP 的 marketplace，執行在雲端</strong> — 架構上跟自己家的 Hermes 生態（skills＋MCP＋cron＋profiles）同構，差別在 GAIA 是多團隊＋SoD 治理，個人版不需要</li>
+</ul>
+<p><strong>挑戰二：釐清 Agent 的雙重身份與越權風險</strong></p>
+<ul>
+<li><strong>系統自身權限 (M2M)</strong>：Agent 作為系統角色的基礎權限 — 可呼叫哪些工具、連接哪些服務、執行哪些固定自動化任務；適用明確、與使用者登入身份無關的後台任務（例：定時爬取市場新聞）</li>
+<li><strong>使用者委派權限 (User Delegation)</strong>：Agent 代表「當下操作的使用者」執行 — 嚴格依使用者本身權限決定可看的機敏資料與操作；<strong>核心防護：使用者不能做的交易，Agent 絕對不能代做，避免權限放大</strong></li>
+<li>治理的<strong>五個靈魂拷問</strong>：<strong>代表誰？呼叫誰？看什麼？誰審核？如何防越權？</strong></li>
+</ul>
+<p><strong>挑戰二（技術面）：落實節點間的 Zero Trust 檢核</strong></p>
+<ul>
+<li>不能只在「大門口（使用者登入）」檢查一次 — <strong>每一段呼叫 (Every Hop) 都要卡控</strong>：User → Agent → Sub-Agent → MCP，每個箭頭都強制權限卡控與身份傳遞</li>
+<li><strong>身份憑證傳遞</strong>：準確傳遞原始使用者 Token 與 Agent 身份，後端才能辨識「是誰在要求資料」</li>
+<li><strong>Gateway 核心價值</strong>：即使不用 GAIA 企業也必須自建；GAIA Gateway 集中攔截節點間請求，<strong>避免各團隊漏寫權限驗證</strong></li>
+</ul>
+<p><strong>挑戰二（行政面）：Marketplace 分級權限審查</strong></p>
+<ul>
+<li>誰有資格「點頭同意」Agent 串接工具？→ 依據<strong>操作行為 × 資料機敏度</strong>雙維度矩陣，避免一刀切死胡同：</li>
+</ul>
+<table><tbody>
+<tr><td>操作\資料</td><td>公開 Public</td><td>內部 Internal</td><td>機敏 PII/財務</td></tr>
+<tr><td>Read（查詢）</td><td>系統自動授權</td><td>L1 單位主管簽核（業務關聯性）</td><td>L2 資安＋法遵雙核（控資料流向）</td></tr>
+<tr><td>Write/Execute（寫入/執行）</td><td>L1 主管簽核（執行範圍）</td><td>L2 高階簽核＋風險評估</td><td><strong>最高權限簽核＋強制 Human-In-the-Loop</strong></td></tr>
+</tbody></table>
+<p><strong>挑戰三（痛點）：企業內部的 Full Mesh 點對點災難</strong></p>
+<ul>
+<li>數十個開發單位散在不同部門，都要互相呼叫彼此的 Agent/MCP → 開發者噩夢：</li>
+</ul>
+<p class="num-item"><span class="num">•</span><strong>找不到 (Service Discovery)</strong>：不知道別部門有好工具，重複造輪子</p>
+<p class="num-item"><span class="num">•</span><strong>連不到 (Network &amp; Routing)</strong>：各自提網路單、開防火牆，規則變一團亂麻</p>
+<p class="num-item"><span class="num">•</span><strong>接不起來 (Auth &amp; Security)</strong>：Token/憑證規格不統一，對接邏輯全靠硬刻</p>
+<ul>
+<li><strong>四大災難</strong>：權限分散、路由混亂、稽核困難、維運成本上升</li>
+</ul>
+<p><strong>挑戰三（解法）：Marketplace 與 Gateway 樞紐化治理</strong></p>
+<ul>
+<li>GAIA 2.0 把混亂的 Full Mesh 轉成 <strong>Hub-and-Spoke（樞紐與分支）</strong>：</li>
+<li><strong>Marketplace 解決「發現與重用」</strong>：內部市集讓各部門搜尋、申請訂閱既有工具，打破資訊孤島、消滅重複造輪子</li>
+<li><strong>Gateway 解決「連線與權控」</strong>：不再點對點連線，所有請求統一打進 Gateway — 單一網路設定、統一權控與憑證機制</li>
+<li>核心價值：<strong>Gateway 絕對不是單純轉發流量！</strong> 是權限檢查、路由管理、紀錄的控制點 — <strong>把合規成本留在平台層，把開發速度還給業務團隊</strong></li>
+</ul>
+<p><strong>不只是 API Gateway：Agent 獨有的架構挑戰</strong></p>
+<ul>
+<li>路由與權限控管看似微服務的常規問題，但 Agentic System 要求 Gateway 有<strong>更深層的認知與管控能力</strong>：</li>
+</ul>
+<p class="num-item"><span class="num">•</span><strong>動態與非確定性路由</strong>：傳統 API 路徑固定；Agent 動態選工具、執行路徑無法預測、可能多層呼叫</p>
+<p class="num-item"><span class="num">•</span><strong>複雜的身份委派機制</strong>：呼叫可能代表系統自身或不同使用者 — Gateway 必須<strong>動態解析並切換權限邊界</strong></p>
+<p class="num-item"><span class="num">•</span><strong>深度的 Context 治理</strong>：傳統檢查 Header；Agent Gateway 必須防堵<strong>對話上下文中的機敏資料外洩與 Prompt Injection</strong></p>
+<p class="num-item"><span class="num">•</span><strong>決策行為的稽核與追蹤</strong>：金融合規不能只留 Request/Response，必須完整記錄 <strong>Agent 的意圖分析與決策過程</strong>供事後追溯</p>
+<p><strong>完善金融治理的其他關鍵議題</strong></p>
+<p class="num-item"><span class="num">•</span><strong>狀態監控與預警</strong>：Agent 執行狀態監控＋異常行為自動化預警機制</p>
+<p class="num-item"><span class="num">•</span><strong>資源配額管控</strong>：Token 用量追蹤＋各開發團隊資源配額管控策略</p>
+<p class="num-item"><span class="num">•</span><strong>安全性檢核</strong>：輸出內容安全性檢核＋Prompt Injection 防禦設計</p>
+<p class="num-item"><span class="num">•</span><strong>Human-in-the-Loop</strong>：金融關鍵任務的人工覆核審核流程與設計</p>
+<p class="num-item"><span class="num">•</span><strong>模型持續優化 Pipeline</strong>：Agent 表現回饋迴圈＋模型持續演進架構</p>
+<p><strong>心得（Yuga）：GAIA 概念套用到 lakehouse platform</strong></p>
+<ul>
+<li>資產對應：Agent/MCP → <strong>資料資產</strong>（Iceberg table / pipeline / data product）</li>
+<li>Publish → 目錄化＋metadata＋owner/SLA 註冊（HMS/Iceberg catalog）</li>
+<li>Subscribe → 不能亂連，透過權限中心申請審批（Ranger 層）</li>
+<li>Versioning → <strong>Iceberg snapshot/time travel 天生多版本</strong>，schema evolution 不強制覆蓋</li>
+<li>Deprecation → 下架前 lineage 依賴分析＋強制通知＋平滑下線</li>
+<li>Gateway → <strong>Trino 就是天然 Gateway</strong>（統一查詢入口＝集中權限/路由/稽核）</li>
+<li>Marketplace → 資料目錄（DataHub/OpenMetadata）</li>
+<li>雙重身份 → M2M（pipeline service account）vs User Delegation（使用者查詢）</li>
+<li>Zero Trust per hop → Trino → HMS → MinIO 每層驗證</li>
+<li>現況：Iceberg 版本管理＋Trino 統一入口已經「半個 GAIA」；缺的是訂閱審批流程、deprecation 依賴分析、嚴格雙重身份</li>
+</ul>
+<h2 id="10-agent-跑起來之後才是問題的開始-agent-governance-的工程實踐-hazel">10. Agent 跑起來之後才是問題的開始：Agent Governance 的工程實踐 — Hazel</h2>
+<p><em>15:35–16:05</em></p>
+<p><strong>背景（官網摘要）</strong></p>
+<ul>
+<li>問題：AI Agent 有 tool use 之後，使用者輸入可能讓 Agent 打內網 API、執行 SQL、讀取並輸出敏感資訊 — <strong>傳統輸入驗證與權限控管全部失效</strong></li>
+<li>市場討論幾乎停在「怎麼建 Agent」，少有人講清楚「<strong>建好之後怎麼控管 Agent 的行為</strong>」</li>
+<li>Platform Engineer 視角：<strong>Policy as Code</strong> 建立行為邊界、防護效果<strong>可觀測</strong>、安全驗證<strong>納入開發流程</strong>而不是事後補救</li>
+<li>內容延伸自實際做過的 LLMOps 專案：輸入到輸出的<strong>端到端防護</strong>；開源工具、不依賴商業平台，附可執行程式碼與實測結果</li>
+</ul>
+<p><strong>現場筆記：API 常見的防護方法在 Agent 場景可能不夠</strong></p>
+<table><tbody>
+<tr><td>機制</td><td>假設</td><td>在 agent 場景仍存在的缺口</td></tr>
+<tr><td>請求驗證</td><td>已知攻擊 pattern（header、payload 特徵）</td><td>自然語言看似正常，但 Agent 可能把它轉成後續尚無法驗證的動作</td></tr>
+<tr><td>IAM / RBAC</td><td>身份與權限事先綁定</td><td>有讀取權限，不代表可以把資料做二次加工或其他用途</td></tr>
+<tr><td>API Policy</td><td>endpoint、method、service account 權限控制</td><td>不一定理解 Agent 的任務意圖與上下文，動作鏈串接困難</td></tr>
+</tbody></table>
+<p><strong>End-to-End Governance Map（端到端治理地圖）</strong></p>
+<ul>
+<li>流程：Input → Tool exec → Retrieval / Data Access → Output，每階段都有對應風險：</li>
+<li><strong>Input</strong> → Prompt Injection</li>
+<li><strong>Tool exec</strong> → Unauthorized call</li>
+<li><strong>Retrieval / Data Access</strong> → ACL missing / Over-fetch</li>
+<li><strong>Output</strong> → PII / Credential Leak</li>
+<li>橫切面：<strong>No logs / tests / metrics</strong></li>
+<li>Reference：NIST AI RMF Core</li>
+</ul>
+<figure class="slide-fig"><img src="assets/s10-govmap.svg" alt="s10-govmap" loading="lazy"></figure>
+<p><strong>WHICH：六種可以使用的工具 / 機制 / 方法</strong></p>
+<ul>
+<li>中央：Agent Governance Tools，分兩大類：</li>
+<li><strong>Runtime Enforcement（運行時）</strong>：</li>
+</ul>
+<p class="num-item"><span class="num">•</span>Framework Guardrails（框架層防護）</p>
+<p class="num-item"><span class="num">•</span>Agent Hooks（攔截點）</p>
+<p class="num-item"><span class="num">•</span>MCP / Tools Permission（工具權限）</p>
+<p class="num-item"><span class="num">•</span>LLM / RAG Guardrails（模型/RAG 防護）</p>
+<ul>
+<li><strong>Validation Policy（驗證期）</strong>：</li>
+</ul>
+<p class="num-item"><span class="num">•</span>Policy As Code</p>
+<p class="num-item"><span class="num">•</span>Testing / Red Team</p>
+<ul>
+<li>對應：治理地圖（WHEN）告訴你哪裡有風險；這張（WHICH）告訴你用什麼工具 — 左欄=執行期攔截，右欄=上線前驗證</li>
+</ul>
+<figure class="slide-fig"><img src="assets/s10-whichtools.svg" alt="s10-whichtools" loading="lazy"></figure>
+<p><strong>DEMO：Policy as Code（OPA/Rego 風格，示意語法非逐字）</strong></p>
+<ul>
+<li>核心：<strong>default-deny 正面表列 + ABAC 三態決策 (allow / deny / require_approval)</strong></li>
+<li>示範案例：admin 寄信到外部 domain → 不硬擋也不放行，升級 <strong>require_approval</strong>（人工核准）— 比單純 allow/deny 更貼真實情境</li>
+<li>落地三要求：版本控管 + PR review／搭配測試／稽核性</li>
+</ul>
+<figure class="slide-fig"><img src="assets/s10-policycode.svg" alt="s10-policycode" loading="lazy"></figure>
+<p><strong>心得（Yuga）：Policy as Code 放置位置的取捨</strong></p>
+<ul>
+<li>講者放在 Agent Hooks，但其實也可放 MCP 或 LLM Gateway，放哪決定看得到什麼：</li>
+<li><strong>Agent Hooks</strong>：看得到任務意圖＋動作鏈上下文；缺點＝綁框架，換框架要重寫</li>
+<li><strong>MCP / Tools Permission</strong>：工具層是標準介面，一次實作多個 agent 共用；但只看得到單一 tool call，看不到背後意圖</li>
+<li><strong>LLM Gateway</strong>：橫切面攔截所有 LLM 流量（PII 遮罩、prompt injection 偵測）；但離動作最遠，管不到 tool 執行結果</li>
+<li>本質 trade-off：<strong>越靠近模型，看得到 prompt 但看不到動作鏈；越靠近工具，看得到調用但看不到意圖</strong></li>
+<li>實務：分層防禦 — Gateway 擋輸入污染、Hooks 做意圖決策、MCP 層做權限白名單</li>
+</ul>
+<p><strong>TAKEAWAYS 總結</strong></p>
+<p class="num-item"><span class="num">•</span><strong>治理要發生在動作前</strong>（事前攔截，不是事後補救）</p>
+<p class="num-item"><span class="num">•</span><strong>治理工程化：Policy as Code</strong>（治理本身要版本化、可測試、可稽核）</p>
+<p class="num-item"><span class="num">•</span><strong>治理是否有效：用測試 + 觀測驗證</strong>（治理也要被驗證，呼應 Session 4「更多的測試≠信心」）</p>
+<figure class="slide-fig"><img src="assets/s10-takeaways.svg" alt="s10-takeaways" loading="lazy"></figure>
+<h2 id="11-讓-ai-不只回答-更能完成工作-企業-ai-工作流程的落地實務-tony-chung">11. 讓 AI 不只回答，更能完成工作：企業 AI 工作流程的落地實務 — Tony Chung</h2>
+<p><em>16:20–16:50</em></p>
+<p><strong>背景（官網摘要，session/4946）</strong></p>
+<ul>
+<li>主軸：企業如何讓 AI 從「回答問題的工具」變成「協助完成工作、提升效率、降低風險」的新型營運能力</li>
+<li>內容五段：</li>
+</ul>
+<p class="num-item"><span class="num">•</span><strong>企業 AI 的下一步</strong>：從回答問題到完成工作 — 聊天型 AI 的限制，企業真正需要的是能支援工作流程的 AI 能力</p>
+<p class="num-item"><span class="num">•</span><strong>AI 如何提升工作效率</strong>：文件分析、供應商評估、採購比價等情境 — 減少人工整理、比對與確認成本</p>
+<p class="num-item"><span class="num">•</span><strong>導入方法</strong>：先建立可信知識基礎 → 再逐步導入文件處理、任務執行、跨系統協作</p>
+<p class="num-item"><span class="num">•</span><strong>上線前的管理要求</strong>：權限、安全、紀錄、審核、維運 — AI 要被信任、被管理、被追蹤</p>
+<p class="num-item"><span class="num">•</span><strong>可持續擴展的企業 AI 工作平台</strong>：分階段導入路線，從單一應用走向可治理、可維運、可擴展</p>
+<ul>
+<li>聽眾收穫核心：<strong>企業 AI 的價值不在擁有多少工具，而在能否把 AI 安全、穩定地放進實際業務流程</strong></li>
+<li>難度：通識 / 中文 / TAG：Agentic Workflows、Agent Governance</li>
+</ul>
+<p><strong>03 現實落差：幫我找答案，與幫我完成工作，差在哪裡？</strong></p>
+<ul>
+<li>副標：真正的企業工作，通常不是一次問答，而是一個<strong>可追蹤、可驗證、可交付的流程</strong></li>
+<li>場景：採購主管交辦 — 50 份不同格式供應商報價單 → 整理成比較表、找出異常項目、評估風險、提供建議名單</li>
+<li>對比：</li>
+</ul>
+<table><tbody>
+<tr><td>Chatbot 一次問答</td><td>企業工作系統</td></tr>
+<tr><td>逐份上傳文件</td><td>批次匯入文件</td></tr>
+<tr><td>得到一段分析文字</td><td>結構化欄位擷取</td></tr>
+<tr><td>缺乏任務狀態</td><td>規則驗證與異常標註</td></tr>
+<tr><td>沒有批次處理能力</td><td>風險評分 → 輸出 Excel / ERP 任務</td></tr>
+<tr><td>❌ 無法形成可重跑流程</td><td>✅ 可重跑</td></tr>
+</tbody></table>
+<ul>
+<li>關鍵差異金句：企業真正需要的不是一段回答，而是<strong>一份可驗證、可交付、可追溯的工作成果</strong></li>
+<li>心得：差別不在 AI 聰不聰明，在<strong>有沒有把工作當流程做</strong> — 批次、結構化、驗證、輸出格式，全是工程問題不是模型問題（與 Session 3 SDD「流程切成有明確產出/驗收的步驟」同頻）</li>
+</ul>
+<figure class="slide-fig"><img src="assets/s11-gap.svg" alt="s11-gap" loading="lazy"></figure>
+<p><strong>06 參考架構：企業 Agentic Workflow 的五層設計</strong></p>
+<ul>
+<li>五層（下→上）：</li>
+</ul>
+<p class="num-item"><span class="num">•</span><strong>Model &amp; Infrastructure</strong> — Cloud / Private Cloud / On-prem</p>
+<p class="num-item"><span class="num">•</span><strong>Knowledge &amp; Data</strong> — Document / Image / Database</p>
+<p class="num-item"><span class="num">•</span><strong>Tool</strong> — ERP / Database / API</p>
+<p class="num-item"><span class="num">•</span><strong>Agent</strong> — Knowledge / Work / Personal（三種 agent 角色）</p>
+<p class="num-item"><span class="num">•</span><strong>Experience</strong> — Portal / Teams / Desktop</p>
+<ul>
+<li>兩側垂直切面：</li>
+<li><strong>Governance</strong>：Identity → Permission → Approval → Audit</li>
+<li><strong>AgentOps</strong>：Cost → Quality → Reliability → Performance</li>
+<li>Reference Implementation（華電自有產品）：<strong>UpGPT</strong>（Knowledge Platform）／<strong>WorkAgent</strong>（Workflow Engine）／<strong>UpAgent</strong>（Autonomous Agent）</li>
+<li>金句：<strong>模型只是其中一層；正式上線取決於資料、工具、狀態、權限與可觀測性</strong></li>
+<li>心得：把「Agentic Workflow ≠ 模型」講得很清楚 — 上線門檻在五層齊備＋兩側治理/維運；與 GAIA 治理切面、Session 10 可觀測性對齊</li>
+</ul>
+<figure class="slide-fig"><img src="assets/s11-fivelayer.svg" alt="s11-fivelayer" loading="lazy"></figure>
+<p><strong>07 Knowledge Implementation：可信知識中樞如何落地</strong></p>
+<ul>
+<li>三張卡片（知識中樞三要求）：</li>
+<li><strong>可查 FINDABLE</strong> — 多格式、多模態、Hybrid Retrieval</li>
+<li><strong>可驗 VERIFIABLE</strong> — 引用來源、頁碼、原文回溯</li>
+<li><strong>可控 GOVERNABLE</strong> — 使用者、群組、資源與租戶權限</li>
+<li>架構選項：Cloud / Private Cloud / On-Prem — <strong>依資料敏感度選擇不同後端</strong></li>
+<li>心得：知識中樞設計基準不是「RAG 效果多好」，是三個 -able：找得到（多模態混合檢索）、驗得到（引用可回溯原文）、管得住（租戶級權限）；「可驗」若無頁碼/來源回溯，就只是 LLM 在編故事</li>
+</ul>
+<figure class="slide-fig"><img src="assets/s11-knowledgehub.svg" alt="s11-knowledgehub" loading="lazy"></figure>
+<p><strong>10 Work Agent 架構：表格即流程、欄位即工具</strong></p>
+<ul>
+<li>核心：<strong>表格即流程、欄位即工具</strong> — Flow Engine 解析欄位相依性，建立可平行、可追蹤、可重跑的執行流程</li>
+<li>流程五步：<strong>Extract → Normalize → Validate → Score → Export</strong>（圖例：流程依賴 / 平行執行 / 失敗重跑）</li>
+<li>實例：發票處理 AI 代理（SAP）— 讀取資料夾發票 PDF，表格逐列產出：發票、供應商、統編、品項內容、標註、驗證 SAP PO</li>
+<li><strong>Workflow 能力</strong>：</li>
+<li>多文件並行處理</li>
+<li>單一 Cell 失敗隔離（一行掛了不影響整張表）</li>
+<li>失敗重跑</li>
+<li>原文溯源追蹤（回 PDF 原文）</li>
+<li>心得：設計精髓是把 agent 工作結果落在<strong>表格</strong>，每個 cell 是執行單元 — 欄位相依性 = 流程 DAG，可平行/重跑/追蹤；這其實是 <strong>spreadsheet 版的 data pipeline</strong>（Extract/Normalize/Validate = ETL），表格 UI 讓每一步都看得見；呼應 03「可驗證、可交付、可追溯」</li>
+</ul>
+<figure class="slide-fig"><img src="assets/s11-workagent.svg" alt="s11-workagent" loading="lazy"></figure>
+<p><strong>15 Roadmap &amp; 結語：從知識到可治理的 Agent Platform</strong></p>
+<ul>
+<li>四階段路線圖：</li>
+<li><strong>L1 Knowledge Foundation</strong>（UpGPT）— RAG 是基礎，不是終點 → 知識庫 RAG / 引用來源</li>
+<li><strong>L2 Document Workflow</strong>（WorkAgent）— 不同任務需要不同 orchestration → 文件流程 / 自動輸出</li>
+<li><strong>L3 Domain / Personal Agent</strong>（UpAgent）— Agent 的價值在 Workflow，而不是聊天 → 自主規劃 / 多工具協作</li>
+<li><strong>L4 Governed Platform</strong>（Governed）— <strong>治理與可觀測性決定能否正式上線</strong> → 權限治理 / 可觀測性</li>
+<li>結語金句：<strong>AI 的下一步，不是更會聊天，而是更能完成工作。</strong></li>
+<li>Progression：Knowledge → Workflow → Agent → <strong>Governed Platform</strong></li>
+<li>心得：四階梯每一階都是今天其他講者的主題（L1=Session 8 iSearch、L2=Session 3 SDD、L3=Session 2、L4=Session 9/10）— 這張其實是整個 AADay 的濃縮版 roadmap</li>
+</ul>
+<figure class="slide-fig"><img src="assets/s11-roadmap.svg" alt="s11-roadmap" loading="lazy"></figure>
+<h2 id="12-從-cio-大調查看企業-ai-自動化現況與挑戰-王宏仁">12. 從 CIO 大調查看企業 AI 自動化現況與挑戰 — 王宏仁</h2>
+<p><em>17:05–17:35（官網時間，原議程表 16:50）</em></p>
+<p><strong>背景（官網摘要）</strong></p>
+<ul>
+<li>講者：王宏仁，iThome 副總編輯</li>
+<li>內容：以 iThome CIO 大調查數據，看企業 AI 自動化現況與挑戰</li>
+<li>難度：通識 / 中文</li>
+</ul>
+<p><strong>7 數位轉型 vs AI 轉型</strong>（引述簡立峰）</p>
+<blockquote>
+<p>數位轉型目標是效率，<strong>Work Faster</strong>，把原來的事情做得更快</p>
+<p>AI 轉型的目標是智慧，<strong>Work Smarter</strong>，讓組織變得更聰明</p>
+<p>— 前 Google 台灣董事總經理 簡立峰</p>
+<ul>
+<li>心得：數位轉型＝把既有流程加速；AI 轉型＝改變組織做事方式；Session 2 automation 是 Work Faster，Session 11「從回答到完成工作」、Session 6「把專家調查方法工程化」才是 Work Smarter</li>
+</blockquote>
+</ul>
+<figure class="slide-fig"><img src="assets/s12-fastersmarter.svg" alt="s12-fastersmarter" loading="lazy"></figure>
+<p><strong>12 各產業 AI 預算金額與成長率（2025→2026，iThome 2026 CIO &amp; CISO 大調查）</strong></p>
+<ul>
+<li>金融業：5,198萬 → 11,309萬（<strong>+118%</strong> 翻倍）</li>
+<li>高科技製造業：650萬 → 819萬（+24%）</li>
+<li>一般製造業：190萬 → 299萬（+50%）</li>
+<li>服務業：822萬 → 852萬（+4%）</li>
+<li>醫療業：1,367萬 → 871萬（<strong>−36%</strong> 唯一衰退）</li>
+<li>政府學校：1,103萬 → 2,579萬（<strong>+134%</strong> 最高）</li>
+<li>百億營收企業 Top500：1,798萬 → 3,776萬（+111%）</li>
+<li>心得：預算翻倍（金融/政府）＋領先者比率跳升，但落地還在早期 — 錢進來了，正是今天「能 demo ≠ 能上線」的宏觀數據版</li>
+</ul>
+<figure class="slide-fig"><img src="assets/s12-aibudget.svg" alt="s12-aibudget" loading="lazy"></figure>
+<hr>
+<h2 id="會後心得-行動清單">會後心得 / 行動清單</h2>
+<h3 id="跨-session-綜效-agent-生態-big-data-生態名詞對應">跨 Session 綜效：Agent 生態 ↔ Big Data 生態名詞對應</h3>
+<blockquote>
+<p>核心觀察：Agent 生態幾乎把 Big Data 領域 20 年累積的概念全部重新發明一遍，只是對象從「死的資料」變成「活的 Agent」。</p>
+</blockquote>
+<table><tbody>
+<tr><td>Agent 生態</td><td>Big Data 對應</td><td>本質差異</td></tr>
+<tr><td>AgentOps（生命週期/成本/品質）</td><td>MLOps / ModelOps</td><td>MLOps 管無狀態模型；AgentOps 管有工具、有狀態、會自主行動的 agent</td></tr>
+<tr><td>Agent Governance（Policy as Code）</td><td>Data Governance + ML Governance</td><td>Data 管<strong>存取</strong>（誰能讀寫）；Agent 管<strong>行為</strong>（能執行什麼動作、動作鏈合法性、升級人工）</td></tr>
+<tr><td>決策軌跡 / 動作鏈稽核</td><td>Data Lineage</td><td>Lineage 追「資料怎麼流」；Agent 稽核追「決策怎麼發生」（意圖+決策過程）</td></tr>
+<tr><td>Agent 觀測（session/cost/reliability）</td><td>Data Observability</td><td>同樣四件事：成本、品質、可靠度、效能</td></tr>
+<tr><td>Agent 測試 / Red Team</td><td>Data Quality + ML Evaluation</td><td>資料管線確定性可重跑；Agent 非確定性 → 從「斷言輸出」變「斷言行為邊界」</td></tr>
+<tr><td>MCP / Tool Registry（Marketplace）</td><td>Feature Store / Data Catalog</td><td>資產註冊、重用、版本管理</td></tr>
+<tr><td>Agent Contract / capability spec</td><td>Data Contract</td><td>生產者/消費者契約（schema + SLA）</td></tr>
+</tbody></table>
+<ul>
+<li><strong>一句話本質差異</strong>：資料是死的，Agent 是活的 — Data 治理管「過去發生的事」（血緣、品質、事後追），Agent 治理管「正在發生的動作」（即時攔截、行為邊界、事中控）</li>
+<li>Big Data 沒有對應的新東西：<strong>非確定性、副作用、動態委派權限</strong>（user delegation / per-hop zero trust）</li>
+<li>橋樑名詞：<strong>LLMOps</strong>（介於 MLOps 與 DataOps，管 prompt/RAG/evaluation）— Session 10 講者即從 LLMOps 專案延伸</li>
+<li>呼應 Session 9 心得：GAIA ↔ lakehouse mapping（Marketplace↔DataHub、Gateway↔Trino、snapshot↔versioning）— 本質都是「資產化治理」，只是資產從 table 變成 agent</li>
+</ul>
+<h3 id="落地對照-agent-概念-lakehouse-data-platform-依-現在就能做-排序">落地對照：Agent 概念 → lakehouse data platform（依「現在就能做」排序）</h3>
+<p class="num-item"><span class="num">•</span><strong>Policy as Code + 三態決策 → 資料存取層</strong>（Session 10）</p>
+<ul>
+<li>現況：資料權限大多「給讀就全讀」；套用 agent 的 default-deny 正面表列 + allow / deny / <strong>require_approval</strong></li>
+<li>require_approval 案例：SELECT * FROM 大表、export 大量列、跨租戶 join、下載 PII 欄位 → 升級人工審核</li>
+<li>落地：Trino access control + event listener 接政策引擎（OPA）</li>
+</ul>
+<p class="num-item"><span class="num">•</span><strong>runaway agent → runaway query</strong>（Session 5）</p>
+<ul>
+<li>沒設 query budget → 掃全表吃爆資源；落地：scan bytes / 執行時間上限 / 自動 kill（Trino resource group / query queue）</li>
+</ul>
+<p class="num-item"><span class="num">•</span><strong>雙重身份嚴格化</strong>（Session 9，自己標過缺口）</p>
+<ul>
+<li>M2M（pipeline service account）vs User Delegation；使用者的 query 不能借用 service account 權限 → Trino impersonation</li>
+</ul>
+<p class="num-item"><span class="num">•</span><strong>AgentOps 四件套 → 資料平台觀測</strong>（Session 11）</p>
+<ul>
+<li>Cost（每 query/table 成本、Iceberg 冷熱）、Quality（GE/dbt tests）、Reliability（SLA、失敗率、血緣）、Performance（latency、scan bytes）</li>
+<li>既有 fault-lab（iceberg-minio-fault-lab）就是 Reliability 那一格</li>
+</ul>
+<p class="num-item"><span class="num">•</span><strong>端到端治理地圖 → 資料管線版</strong>（Session 10 NIST）</p>
+<ul>
+<li>Input→Tool exec→Retrieval→Output 對應 <strong>Ingest→Transform→Store→Serve</strong>：Ingest（未驗證資料進來？）、Transform（權限被放大？）、Store（ACL 漏、over-fetch？）、Serve（PII 漏到 dashboard/export？）</li>
+<li><strong>無損轉移的兩個</strong>：require_approval 三態決策、budget/kill switch — 因為管的是「動作」不是「資產」，資料是死的也能直接用</li>
+</ul>
+<h3 id="整體心得-yuga">整體心得（Yuga）</h3>
+<ul>
+<li><strong>今天的主旋律，三個詞：Workflow → Governance → Observability</strong></li>
+<li>上午講 Workflow（怎麼讓 agent 完成工作：SDD、harness、測試策略）</li>
+<li>下午講 Governance / Observability（怎麼控管 agent：GAIA、Policy as Code、五層設計）</li>
+<li>收尾（Session 12 數據）證明：企業預算大舉投入（金融 +118%、政府 +134%），但落地仍在早期 — <strong>「能 demo ≠ 能上線」是今天最被反覆驗證的一句話</strong>（Session 5 開場、Session 11 L4、Session 12 數據）</li>
+<li><strong>治理是 Agent 上線的最後一哩路</strong>：Session 9（GAIA 資產化生命週期）、Session 10（Policy as Code 三態決策）、Session 11（L4 Governed Platform）三場從平台/工程/產品三個角度講同一件事 — 治理與可觀測性決定能否正式上線</li>
+<li><strong>人的角色轉移</strong>：Session 2「從駕駛座到 review 席」+ Session 7「spec 講不清楚，AI 只是在猜你的意圖」→ 把意圖講清楚、定義驗收標準，變成稀缺技能</li>
+<li><strong>最有收穫的三場</strong>：Session 9（GAIA 完整企業級治理架構）、Session 10（Policy as Code 具體可抄）、Session 11（「表格即流程」的 Work Agent 設計 — spreadsheet 版的 data pipeline）</li>
+<li><strong>對自己工作的最大啟發</strong>：Agent 生態 = Big Data 生態的「活的資產」重製版（見上方對照表）→ lakehouse platform 可以直接借用 require_approval / budget / 資產化生命週期 這三套設計</li>
+</ul>
+<h3 id="行動清單">行動清單</h3>
+<ul>
+<li>[ ] <strong>① Policy as Code 套資料存取層</strong>：研究 OPA + Trino access control 整合可行性；設計 default-deny + require_approval（SELECT * FROM 大表 / export 大量列 / PII 欄位 → 升級人工審核）</li>
+<li>[ ] <strong>② Query budget 硬上限</strong>：Trino resource group 設 scan bytes / 執行時間上限 / auto-kill（對應 runaway agent → runaway query）</li>
+<li>[ ] <strong>③ 雙重身份嚴格化</strong>：Trino impersonation 設定，使用者的 query 不能借用 pipeline service account 權限</li>
+<li>[ ] <strong>④ 資料平台觀測四件套盤點</strong>：Cost / Quality / Reliability / Performance 現況 vs 缺口（fault-lab 已是 Reliability 那一格）</li>
+<li>[ ] <strong>⑤ 端到端治理地圖套 lakehouse</strong>：Ingest→Transform→Store→Serve 每站風險盤點一次</li>
+<li>[ ] <strong>⑥ 看 Spectra / prospec</strong>（Session 3/7 的 SDD 工具）：跟自己的 GSD 流程比較，Spectra 的 Park/Worktree 機制可參考</li>
+<li>[ ] <strong>⑦ 發展 idea #20</strong>（Agent↔Data 生態對照）：對照表完整化、挑一個 scenario 深入（候選：Policy as Code 套資料層 — 與 ① 合併）</li>
+<li>[ ] <strong>⑧ 把「會議照片 → SVG 重繪」流程存成 skill</strong>（今天做了 11 張：vision 精讀 → SVG 重繪 → XML 驗證 → 瀏覽器渲染檢查 → 嵌入）</li>
+</ul>
+<footer class="nav-bottom">
+  <span>Yuga Chang · AADay 2026</span>
+  <a href="#top">↑ 回到頂部</a>
+</footer>
+</div>
+<a class="back-top" href="#top" aria-label="回到頂部">↑</a>
+</body>
+</html>
