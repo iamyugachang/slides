@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yuga Chang — Data &amp; AI Engineer</title>
+  <meta name="description" content="Yuga Chang's public Data and AI engineering portfolio: computer vision, recommendation systems, data engineering, and AI platforms.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>
+    /* === THEME === */
+    :root {
+      --stage-bg: #090d12;
+      --slide-bg: #0c1219;
+      --bg: #0c1219;
+      --bg-deep: #090d12;
+      --ink: #f4f1e8;
+      --muted: #9db0bf;
+      --line: #355064;
+      --line-soft: rgba(53, 80, 100, 0.42);
+      --accent: #ff5b35;
+      --accent-soft: rgba(255, 91, 53, 0.14);
+      --display: "Archivo Black", sans-serif;
+      --mono: "IBM Plex Mono", monospace;
+      --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--stage-bg);
+    }
+    button { font: inherit; }
+
+    /* === FIXED 16:9 STAGE === */
+    .deck-viewport,
+    .viewport {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      background: var(--stage-bg);
+    }
+    .deck-stage,
+    .stage {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      transform-origin: 0 0;
+      background: var(--slide-bg);
+    }
+    .slide {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      display: block;
+      visibility: hidden;
+      opacity: 0;
+      pointer-events: none;
+      background: var(--slide-bg);
+      color: var(--ink);
+      font-family: var(--mono);
+      transition: opacity 420ms ease, visibility 420ms ease;
+    }
+    .slide.active,
+    .slide.visible {
+      visibility: visible;
+      opacity: 1;
+      pointer-events: auto;
+      z-index: 1;
+    }
+    img, video, canvas, svg {
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    /* === ENGINEERING CANVAS === */
+    .slide::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--line-soft) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+      background-size: 120px 120px;
+      opacity: 0.22;
+      pointer-events: none;
+    }
+    .slide::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 14% 12%, rgba(53, 80, 100, 0.2), transparent 28%),
+        linear-gradient(115deg, transparent 45%, rgba(9, 13, 18, 0.7) 100%);
+      pointer-events: none;
+    }
+    .content {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      height: 100%;
+      padding: 72px 220px 72px 84px;
+    }
+    .topline {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      color: var(--accent);
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+    .topline::before {
+      content: "";
+      width: 52px;
+      height: 3px;
+      background: var(--accent);
+    }
+    .slide-no {
+      position: absolute;
+      left: 84px;
+      bottom: 54px;
+      color: var(--muted);
+      font-size: 17px;
+      letter-spacing: 0.12em;
+    }
+    .slide-no strong { color: var(--ink); }
+    h1, h2, .display {
+      margin: 0;
+      font-family: var(--display);
+      font-weight: 400;
+      letter-spacing: -0.045em;
+      line-height: 0.98;
+    }
+    h1 { font-size: 118px; max-width: 1350px; }
+    h2 { font-size: 88px; max-width: 1320px; }
+    p { margin: 0; }
+    .lead {
+      max-width: 1050px;
+      color: var(--muted);
+      font-size: 30px;
+      line-height: 1.55;
+    }
+    .micro {
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.5;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .accent { color: var(--accent); }
+    [contenteditable="true"] {
+      outline: 2px dashed var(--accent);
+      outline-offset: 8px;
+      cursor: text;
+    }
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 600ms var(--ease), transform 600ms var(--ease);
+    }
+    .active .reveal { opacity: 1; transform: translateY(0); }
+    .active .reveal:nth-child(2) { transition-delay: 70ms; }
+    .active .reveal:nth-child(3) { transition-delay: 140ms; }
+    .active .reveal:nth-child(4) { transition-delay: 210ms; }
+
+    /* === CAPABILITY RAIL === */
+    .capability-rail {
+      position: absolute;
+      z-index: 4;
+      top: 72px;
+      right: 42px;
+      bottom: 72px;
+      width: 126px;
+      border-left: 1px solid var(--line);
+      display: grid;
+      grid-template-rows: repeat(5, 1fr);
+    }
+    .rail-item {
+      position: relative;
+      display: grid;
+      place-items: center;
+      color: rgba(157, 176, 191, 0.46);
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+    }
+    .rail-item::after {
+      content: "";
+      position: absolute;
+      right: -1px;
+      width: 3px;
+      height: 0;
+      background: var(--accent);
+      transition: height 500ms var(--ease);
+    }
+    .rail-item.active { color: var(--ink); }
+    .rail-item.active::after { height: 64%; }
+
+    /* === GEOMETRIC MOTIFS === */
+    .ring {
+      position: absolute;
+      z-index: 1;
+      width: 560px;
+      height: 560px;
+      border: 4px solid var(--accent);
+      border-left-color: transparent;
+      border-bottom-color: transparent;
+      border-radius: 50%;
+      opacity: 0.82;
+      transform: rotate(24deg);
+      pointer-events: none;
+    }
+    .ring::before,
+    .ring::after {
+      content: "";
+      position: absolute;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+    }
+    .ring::before { inset: 46px; }
+    .ring::after { inset: 106px; border-color: var(--accent-soft); }
+    .crosshair {
+      position: absolute;
+      z-index: 1;
+      width: 120px;
+      height: 120px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+    }
+    .crosshair::before,
+    .crosshair::after {
+      content: "";
+      position: absolute;
+      background: var(--line);
+    }
+    .crosshair::before { left: 59px; top: -36px; width: 1px; height: 192px; }
+    .crosshair::after { top: 59px; left: -36px; width: 192px; height: 1px; }
+
+    /* === SLIDE 1: COVER === */
+    .cover .content { display: grid; align-content: center; gap: 32px; }
+    .cover h1 { max-width: 1390px; font-size: 126px; }
+    .cover .lead { max-width: 1120px; }
+    .cover .role {
+      position: absolute;
+      top: 80px;
+      left: 84px;
+      color: var(--ink);
+      font-size: 20px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+    .cover .journey {
+      color: var(--accent);
+      font-size: 19px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+    }
+    .cover .ring { right: -175px; bottom: -150px; width: 720px; height: 720px; }
+
+    /* === SLIDE 2: ENGINEERING LENS === */
+    .lens .content { display: grid; align-content: center; gap: 72px; }
+    .lens .chain {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      max-width: 1460px;
+    }
+    .lens .chain span {
+      flex: 1;
+      padding: 28px 16px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      color: var(--ink);
+      font-size: 25px;
+      text-align: center;
+    }
+    .lens .chain b { color: var(--accent); font-size: 28px; font-weight: 500; }
+    .lens .lead { font-size: 36px; max-width: 1280px; color: var(--ink); }
+    .lens .ring { left: -320px; top: -320px; }
+
+    /* === SLIDE 3: COMPUTER VISION === */
+    .vision .content { display: grid; grid-template-columns: 1.45fr 0.65fr; gap: 70px; align-items: center; }
+    .metric-block { border-left: 8px solid var(--accent); padding-left: 38px; }
+    .metric-kicker { color: var(--muted); font-size: 19px; letter-spacing: 0.13em; text-transform: uppercase; }
+    .metric-main { margin-top: 18px; font-family: var(--display); font-size: 110px; line-height: 0.95; letter-spacing: -0.055em; }
+    .metric-main .arrow { color: var(--accent); }
+    .metric-label { margin-top: 20px; color: var(--muted); font-size: 24px; }
+    .secondary-metric { align-self: center; }
+    .secondary-metric strong { display: block; color: var(--accent); font-family: var(--display); font-size: 124px; line-height: 0.9; }
+    .secondary-metric span { display: block; margin-top: 20px; color: var(--ink); font-size: 28px; }
+    .techline { position: absolute; left: 84px; right: 220px; bottom: 116px; color: var(--muted); font-size: 20px; }
+    .vision .crosshair { right: 275px; top: 150px; }
+
+    /* === SLIDE 4: DATA FOUNDATION === */
+    .data .content { display: grid; align-content: center; gap: 64px; }
+    .data-flow { display: grid; grid-template-columns: 1fr 100px 1fr 100px 1fr; align-items: stretch; max-width: 1470px; }
+    .flow-node { min-height: 210px; border: 1px solid var(--line); padding: 32px; display: flex; flex-direction: column; justify-content: space-between; background: rgba(9,13,18,0.74); }
+    .flow-node strong { font-family: var(--display); font-size: 34px; line-height: 1.05; }
+    .flow-node span { color: var(--muted); font-size: 18px; line-height: 1.5; }
+    .flow-arrow { display: grid; place-items: center; color: var(--accent); font-size: 42px; }
+    .stackline { color: var(--accent); font-size: 19px; }
+
+    /* === SLIDE 5: RECOMMENDATION === */
+    .recommendation .content { display: grid; align-content: center; gap: 44px; }
+    .recommendation .mega { max-width: 1450px; font-family: var(--display); font-size: 158px; line-height: 0.88; letter-spacing: -0.06em; }
+    .recommendation .mega span { color: var(--accent); }
+    .recommendation .subline { color: var(--ink); font-size: 30px; }
+    .recommendation .stackline { border-top: 1px solid var(--line); padding-top: 28px; max-width: 1420px; color: var(--muted); }
+    .recommendation .ring { right: 210px; top: -330px; }
+
+    /* === SLIDE 6: PRODUCT OUTCOMES === */
+    .product .content { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 80px; align-items: center; }
+    .product-copy { display: grid; gap: 34px; }
+    .metric-bridge { padding: 46px; border: 1px solid var(--line); background: rgba(9,13,18,0.74); }
+    .bridge-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 28px; }
+    .bridge-side { display: grid; gap: 14px; }
+    .bridge-side b { color: var(--accent); font-size: 18px; letter-spacing: 0.12em; text-transform: uppercase; }
+    .bridge-side span { color: var(--ink); font-family: var(--display); font-size: 39px; line-height: 1.1; }
+    .bridge-arrow { color: var(--accent); font-size: 52px; }
+    .playlist { margin-top: 42px; padding-top: 34px; border-top: 1px solid var(--line); color: var(--muted); font-size: 21px; line-height: 1.6; }
+
+    /* === SLIDE 7: AI PLATFORM === */
+    .platform .content { display: grid; align-content: center; gap: 50px; }
+    .platform-layers { display: grid; gap: 12px; max-width: 1400px; }
+    .platform-layer { display: grid; grid-template-columns: 230px 1fr; align-items: center; min-height: 92px; border-left: 4px solid var(--line); background: linear-gradient(90deg, rgba(53,80,100,0.22), transparent 72%); }
+    .platform-layer.active { border-left-color: var(--accent); background: linear-gradient(90deg, var(--accent-soft), transparent 76%); }
+    .platform-layer b { padding-left: 28px; color: var(--accent); font-size: 18px; letter-spacing: 0.12em; text-transform: uppercase; }
+    .platform-layer span { color: var(--ink); font-size: 23px; }
+
+    /* === SLIDE 8: END TO END === */
+    .end-to-end .content { display: grid; align-content: center; gap: 72px; }
+    .discipline-path { display: grid; grid-template-columns: 1fr 84px 1fr 84px 1fr; align-items: center; max-width: 1450px; }
+    .discipline { min-height: 280px; padding: 36px; border-top: 5px solid var(--line); display: flex; flex-direction: column; justify-content: space-between; background: rgba(9,13,18,0.7); }
+    .discipline:last-of-type { border-top-color: var(--accent); }
+    .discipline .index { color: var(--muted); font-size: 18px; }
+    .discipline strong { font-family: var(--display); font-size: 42px; line-height: 1.05; }
+    .discipline-arrow { color: var(--accent); font-size: 44px; text-align: center; }
+    .end-to-end .lead { max-width: 1300px; color: var(--ink); font-size: 38px; }
+
+    /* === SLIDE 9: CLOSING === */
+    .closing .content { display: grid; align-content: center; gap: 40px; }
+    .closing h2 { max-width: 1350px; font-size: 126px; }
+    .closing .lead { max-width: 1150px; color: var(--ink); font-size: 36px; }
+    .closing .github { color: var(--accent); font-size: 21px; letter-spacing: 0.08em; }
+    .closing .ring { right: -120px; top: -120px; width: 680px; height: 680px; }
+
+    /* === PRESENTATION UI === */
+    .tap-zone { position: fixed; top: 0; bottom: 0; width: 16vw; z-index: 800; cursor: pointer; }
+    .tap-prev { left: 0; }
+    .tap-next { right: 0; }
+    .deck-controls,
+    .controls {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      border: 1px solid rgba(157,176,191,0.28);
+      background: rgba(9,13,18,0.86);
+      backdrop-filter: blur(12px);
+    }
+    .controls button,
+    .edit-toggle {
+      min-width: 46px;
+      min-height: 38px;
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .controls button:hover,
+    .controls button:focus-visible,
+    .edit-toggle:hover,
+    .edit-toggle:focus-visible { border-color: var(--accent); outline: none; }
+    .counter { min-width: 72px; color: var(--muted); text-align: center; font-family: var(--mono); font-size: 14px; }
+    .edit-toggle {
+      position: fixed;
+      z-index: 1001;
+      top: 18px;
+      left: 18px;
+      padding: 0 14px;
+      background: rgba(9,13,18,0.86);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+    .edit-toggle[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+
+    /* === PRINT: ONE FIXED SLIDE PER PAGE === */
+    @media print {
+      html, body {
+        width: 1920px;
+        height: auto;
+        overflow: visible;
+        background: #fff;
+      }
+      .deck-viewport, .viewport {
+        position: static;
+        width: auto;
+        height: auto;
+        overflow: visible;
+        background: #fff;
+      }
+      .deck-stage, .stage {
+        position: static;
+        left: auto !important;
+        top: auto !important;
+        width: auto;
+        height: auto;
+        overflow: visible;
+        transform: none !important;
+        background: none;
+      }
+      .slide {
+        position: relative;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        width: 1920px;
+        height: 1080px;
+        break-after: page;
+        page-break-after: always;
+      }
+      .slide:last-child { break-after: auto; page-break-after: auto; }
+      .deck-controls, .controls, .tap-zone, .edit-toggle { display: none !important; }
+    }
+
+    /* === REDUCED MOTION === */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        transition-delay: 0ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck-viewport viewport" aria-label="Yuga Chang career portfolio presentation">
+    <div class="deck-stage stage" id="deckStage">
+      <section class="slide cover active visible" data-stage="cover" aria-label="Slide 1 of 9" aria-hidden="false">
+        <div class="ring"></div>
+        <div class="content">
+          <p class="role reveal" contenteditable="false">Yuga Chang · Data &amp; AI Engineer</p>
+          <p class="topline reveal">Career portfolio / 2026</p>
+          <h1 class="reveal" contenteditable="false">I Build Data &amp; AI Systems <span class="accent">That Ship</span></h1>
+          <p class="lead reveal" contenteditable="false">From computer vision research to recommendation at scale—and the platforms that make AI reliable in production.</p>
+          <p class="journey reveal" contenteditable="false">COMPUTER VISION → RECOMMENDATION → DATA &amp; AI PLATFORM</p>
+          <p class="slide-no"><strong>01</strong> / 09</p>
+        </div>
+        <aside class="capability-rail" aria-label="Capability journey"><span class="rail-item active">VISION</span><span class="rail-item">DATA</span><span class="rail-item">ML</span><span class="rail-item">PRODUCT</span><span class="rail-item">PLATFORM</span></aside>
+      </section>
+
+      <section class="slide lens" data-stage="engineering-lens" aria-label="Slide 2 of 9" aria-hidden="true">
+        <div class="ring"></div>
+        <div class="content">
+          <p class="topline reveal">01 / Engineering lens</p>
+          <h2 class="reveal" contenteditable="false">The system is the product.</h2>
+          <div class="chain reveal" aria-label="Data to platform lifecycle"><span>Data</span><b>→</b><span>Models</span><b>→</b><span>Experiments</span><b>→</b><span>Products</span><b>→</b><span>Platforms</span></div>
+          <p class="lead reveal" contenteditable="false">The work does not stop at model training. Success is a reliable system that reaches real users.</p>
+          <p class="micro reveal" contenteditable="false">Data → Models → Experiments → Products → Platforms</p>
+          <p class="slide-no"><strong>02</strong> / 09</p>
+        </div>
+        <aside class="capability-rail" aria-label="Capability journey"><span class="rail-item">VISION</span><span class="rail-item">DATA</span><span class="rail-item active">ML</span><span class="rail-item">PRODUCT</span><span class="rail-item">PLATFORM</span></aside>
+      </section>
+
+      <section class="slide vision" data-stage="computer-vision" aria-label="Slide 3 of 9" aria-hidden="true">
+        <div class="crosshair"></div>
+        <div class="content">
+          <div class="metric-block reveal">
+            <p class="topline">02 / Computer vision</p>
+            <p class="metric-main" contenteditable="false">78.65% <span class="arrow">→</span> 95.47%</p>
+            <p class="metric-label" contenteditable="false">detection accuracy</p>
+          </div>
+          <div class="secondary-metric reveal"><strong contenteditable="false">−70%</strong><span contenteditable="false">monitoring cost</span></div>
+          <p class="techline reveal" contenteditable="false">YOLOv3/YOLOv4 · LSTM · GANs · Object Tracking · TensorRT · OpenVINO</p>
+          <p class="slide-no"><strong>03</strong> / 09</p>
+        </div>
+        <aside class="capability-rail" aria-label="Capability journey"><span class="rail-item active">VISION</span><span class="rail-item">DATA</span><span class="rail-item">ML</span><span class="rail-item">PRODUCT</span><span class="rail-item">PLATFORM</span></aside>
+      </section>
+
+      <section class="slide data" data-stage="data-foundation" aria-label="Slide 4 of 9" aria-hidden="true">
+        <div class="content">
+          <p class="topline reveal">03 / Data foundation</p>
+          <h2 class="reveal" contenteditable="false">Reliable ML starts with <span class="accent">reliable data.</span></h2>
+          <div class="data-flow reveal">
+            <div class="flow-node"><strong>Operational sources</strong><span>OLTP · CDC · events</span></div><div class="flow-arrow">→</div>
+            <div class="flow-node"><strong>Trusted data</strong><span>warehouses · marts · quality</span></div><div class="flow-arrow">→</div>
+            <div class="flow-node"><strong>Consumers</strong><span>analytics · experiments · ML</span></div>
+          </div>
+          <p class="micro reveal" contenteditable="false">Operational sources → trusted warehouses and marts → analytics and ML consumers</p>
+          <p class="stackline reveal" contenteditable="false">ETL/CDC · OLTP/OLAP · Spark · Kafka · Airflow · AWS/GCP</p>
+          <p class="slide-no"><strong>04</strong> / 09</p>
+        </div>
+        <aside class="capability-rail" aria-label="Capability journey"><span class="rail-item">VISION</span><span class="rail-item active">DATA</span><span class="rail-item">ML</span><span class="rail-item">PRODUCT</span><span class="rail-item">PLATFORM</span></aside>
+      </section>
+
+      <section class="slide recommendation" data-stage="recommendation-scale" aria-label="Slide 5 of 9" aria-hidden="true">
+        <div class="ring"></div>
+        <div class="content">
+          <p class="topline reveal">04 / Recommendation at scale</p>
+          <p class="mega reveal" contenteditable="false"><span>100M+</span> daily personalized recommendations</p>
+          <p class="subline reveal" contenteditable="false">Production personalization integrated with AWS SageMaker and Personalize</p>
+          <p class="stackline reveal" contenteditable="false">DSSM · Collaborative Filtering · Model Distillation</p>
+          <p class="slide-no"><strong>05</strong> / 09</p>
+        </div>
+        <aside class="capability-rail" aria-label="Capability journey"><span class="rail-item">VISION</span><span class="rail-item">DATA</span><span class="rail-item active">ML</span><span class="rail-item">PRODUCT</span><span class="rail-item">PLATFORM</span></aside>
+      </section>
+
+      <section class="slide product" data-stage="product-outcomes" aria-label="Slide 6 of 9" aria-hidden="true">
+        <div class="content">
+          <div class="product-copy">
+            <p class="topline reveal">05 / Product outcomes</p>
+            <h2 class="reveal" contenteditable="false">Technical metrics only matter when they move <span class="accent">product behavior.</span></h2>
+            <p class="lead reveal" contenteditable="false">Measure the model and the human response—then improve both.</p>
+          </div>
+          <div class="metric-bridge reveal">
+            <div class="bridge-row"><div class="bridge-side"><b>Model signal</b><span>NDCG@k<br>MAP · MRR@k</span></div><div class="bridge-arrow">↔</div><div class="bridge-side"><b>Product signal</b><span>CTR<br>Favoriting · Sharing</span></div></div>
+            <p class="micro" contenteditable="false">NDCG@k · MAP · MRR@k ↔ CTR · Favoriting · Sharing</p>
+            <p class="playlist" contenteditable="false">AI Playlist: RAG + fine-tuned LLMs + music embeddings</p>
+          </div>
+          <p class="slide-no"><strong>06</strong> / 09</p>
+        </div>
+        <aside class="capability-rail" aria-label="Capability journey"><span class="rail-item">VISION</span><span class="rail-item">DATA</span><span class="rail-item">ML</span><span class="rail-item active">PRODUCT</span><span class="rail-item">PLATFORM</span></aside>
+      </section>
+
+      <section class="slide platform" data-stage="ai-platform" aria-label="Slide 7 of 9" aria-hidden="true">
+        <div class="content">
+          <p class="topline reveal">06 / Data &amp; AI platform</p>
+          <h2 class="reveal" contenteditable="false">Build the platform, <span class="accent">not just the pipeline.</span></h2>
+          <div class="platform-layers reveal">
+            <div class="platform-layer"><b>Experience</b><span>Private-cloud PaaS · governed self-service</span></div>
+            <div class="platform-layer active"><b>Compute</b><span>Trino · Kubernetes · Spark Structured Streaming</span></div>
+            <div class="platform-layer"><b>Data</b><span>Iceberg · dbt · Lakehouse</span></div>
+            <div class="platform-layer"><b>Flow</b><span>Airflow · Kafka · Streaming</span></div>
+          </div>
+          <p class="micro reveal" contenteditable="false">Private-cloud PaaS · Lakehouse · Streaming · Kubernetes</p>
+          <p class="micro reveal" contenteditable="false">Trino · Iceberg · dbt · Airflow · Kafka · Spark Structured Streaming</p>
+          <p class="slide-no"><strong>07</strong> / 09</p>
+        </div>
+        <aside class="capability-rail" aria-label="Capability journey"><span class="rail-item">VISION</span><span class="rail-item active">DATA</span><span class="rail-item">ML</span><span class="rail-item">PRODUCT</span><span class="rail-item active">PLATFORM</span></aside>
+      </section>
+
+      <section class="slide end-to-end" data-stage="end-to-end" aria-label="Slide 8 of 9" aria-hidden="true">
+        <div class="content">
+          <p class="topline reveal">07 / End to end</p>
+          <h2 class="reveal" contenteditable="false">One engineering lifecycle.</h2>
+          <div class="discipline-path reveal">
+            <div class="discipline"><span class="index">01</span><strong>ML &amp; AI</strong></div><div class="discipline-arrow">→</div>
+            <div class="discipline"><span class="index">02</span><strong>Data Engineering</strong></div><div class="discipline-arrow">→</div>
+            <div class="discipline"><span class="index">03</span><strong>Platform Engineering</strong></div>
+          </div>
+          <p class="micro reveal" contenteditable="false">ML &amp; AI → Data Engineering → Platform Engineering</p>
+          <p class="lead reveal" contenteditable="false">One lifecycle. One accountable engineering mindset.</p>
+          <p class="slide-no"><strong>08</strong> / 09</p>
+        </div>
+        <aside class="capability-rail" aria-label="Capability journey"><span class="rail-item active">VISION</span><span class="rail-item active">DATA</span><span class="rail-item active">ML</span><span class="rail-item active">PRODUCT</span><span class="rail-item active">PLATFORM</span></aside>
+      </section>
+
+      <section class="slide closing" data-stage="closing" aria-label="Slide 9 of 9" aria-hidden="true">
+        <div class="ring"></div>
+        <div class="content">
+          <p class="topline reveal">Yuga Chang / Data &amp; AI Engineer</p>
+          <h2 class="reveal" contenteditable="false">Models Are Only <span class="accent">the Beginning</span></h2>
+          <p class="lead reveal" contenteditable="false">I turn data and models into systems people can trust and use.</p>
+          <p class="github reveal" contenteditable="false">GitHub: github.com/iamyugachang</p>
+          <p class="slide-no"><strong>09</strong> / 09</p>
+        </div>
+        <aside class="capability-rail" aria-label="Capability journey"><span class="rail-item">VISION</span><span class="rail-item">DATA</span><span class="rail-item">ML</span><span class="rail-item">PRODUCT</span><span class="rail-item active">PLATFORM</span></aside>
+      </section>
+    </div>
+
+    <div class="tap-zone tap-prev" id="tapPrev" aria-hidden="true"></div>
+    <div class="tap-zone tap-next" id="tapNext" aria-hidden="true"></div>
+    <nav class="deck-controls controls" aria-label="Presentation controls">
+      <button id="prevButton" type="button" aria-label="Previous slide">←</button>
+      <span class="counter" id="slideCounter" aria-live="polite">1 / 9</span>
+      <button id="nextButton" type="button" aria-label="Next slide">→</button>
+    </nav>
+    <button class="edit-toggle" id="editToggle" type="button" aria-pressed="false">Edit</button>
+  </main>
+
+  <script>
+    /* === FIXED-STAGE SCALING === */
+    const stage = document.getElementById('deckStage');
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    const counter = document.getElementById('slideCounter');
+    const editToggle = document.getElementById('editToggle');
+    const editableNodes = Array.from(document.querySelectorAll('[contenteditable]'));
+    let current = 0;
+    let isEditing = false;
+    let touchStartX = 0;
+
+    function scaleStage() {
+      const factor = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+      const x = (window.innerWidth - 1920 * factor) / 2;
+      const y = (window.innerHeight - 1080 * factor) / 2;
+      stage.style.transform = `translate(${x}px, ${y}px) scale(${factor})`;
+    }
+
+    /* === NAVIGATION STATE === */
+    function goTo(index, updateHash = true) {
+      current = Math.max(0, Math.min(slides.length - 1, index));
+      slides.forEach((slide, i) => {
+        const active = i === current;
+        slide.classList.toggle('active', active);
+        slide.classList.toggle('visible', active);
+        slide.setAttribute('aria-hidden', String(!active));
+      });
+      counter.textContent = `${current + 1} / ${slides.length}`;
+      if (updateHash) history.replaceState(null, '', `#${current + 1}`);
+    }
+
+    function hashIndex() {
+      const parsed = Number.parseInt(location.hash.slice(1), 10);
+      return Number.isFinite(parsed) ? parsed - 1 : 0;
+    }
+
+    function eventIsEditing(event) {
+      return isEditing || Boolean(event.target.closest('[contenteditable="true"]'));
+    }
+
+    /* === INLINE EDITING AND EXPORT === */
+    function setEditing(enabled) {
+      isEditing = enabled;
+      editableNodes.forEach((node) => node.setAttribute('contenteditable', String(enabled)));
+      editToggle.setAttribute('aria-pressed', String(enabled));
+      editToggle.textContent = enabled ? 'Editing' : 'Edit';
+      if (!enabled && document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    }
+
+    function downloadEditedDeck() {
+      const clone = document.documentElement.cloneNode(true);
+      clone.querySelectorAll('[contenteditable]').forEach((node) => node.setAttribute('contenteditable', 'false'));
+      const source = '<!doctype html>\n' + clone.outerHTML;
+      const blob = new Blob([source], { type: 'text/html;charset=utf-8' });
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = 'yuga-career-portfolio-edited.html';
+      anchor.click();
+      URL.revokeObjectURL(objectUrl);
+    }
+
+    /* === INPUT HANDLERS === */
+    document.getElementById('prevButton').addEventListener('click', () => goTo(current - 1));
+    document.getElementById('nextButton').addEventListener('click', () => goTo(current + 1));
+    document.getElementById('tapPrev').addEventListener('click', () => { if (!isEditing) goTo(current - 1); });
+    document.getElementById('tapNext').addEventListener('click', () => { if (!isEditing) goTo(current + 1); });
+    editToggle.addEventListener('click', () => setEditing(!isEditing));
+
+    document.addEventListener('keydown', (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's' && isEditing) {
+        event.preventDefault();
+        downloadEditedDeck();
+        return;
+      }
+      if (event.key === 'Escape' && isEditing) {
+        event.preventDefault();
+        setEditing(false);
+        return;
+      }
+      if ((event.key === 'e' || event.key === 'E') && !eventIsEditing(event)) {
+        event.preventDefault();
+        setEditing(!isEditing);
+        return;
+      }
+      if (eventIsEditing(event)) return;
+      if (['ArrowRight', 'PageDown', ' '].includes(event.key)) { event.preventDefault(); goTo(current + 1); }
+      if (['ArrowLeft', 'PageUp'].includes(event.key)) { event.preventDefault(); goTo(current - 1); }
+      if (event.key === 'Home') { event.preventDefault(); goTo(0); }
+      if (event.key === 'End') { event.preventDefault(); goTo(slides.length - 1); }
+    });
+
+    document.addEventListener('touchstart', (event) => {
+      touchStartX = event.changedTouches[0].clientX;
+    }, { passive: true });
+    document.addEventListener('touchend', (event) => {
+      if (isEditing) return;
+      const delta = event.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(delta) > 50) goTo(current + (delta < 0 ? 1 : -1));
+    }, { passive: true });
+
+    window.addEventListener('resize', scaleStage);
+    window.addEventListener('hashchange', () => goTo(hashIndex(), false));
+    scaleStage();
+    goTo(hashIndex(), false);
+  </script>
+</body>
+</html>
