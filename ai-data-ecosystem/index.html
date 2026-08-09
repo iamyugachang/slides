@@ -1,0 +1,861 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 生態系，其實是 Data 生態系的未來回顧鏡</title>
+<meta name="description" content="AI × Data 生態系同構簡報：七組同構、三大類比斷點、GAIA 資產生命週期、以及 Lakehouse 的下一步。17 slides，內部技術分享。">
+<style>
+/* ============================================================
+   EDITORIAL THEME — warm paper, fixed 1920×1080 stage
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@700;900&display=swap');
+:root{
+  color-scheme:light;
+  --paper:#f6f0e4; --paper-deep:#efe6d2; --panel:#fdfaf2; --panel-warm:#f9f1e0;
+  --ink:#2c2418; --muted:#6f6350; --faint:#a2967e;
+  --terra:#c0562e; --terra-soft:#f3e0d3; --teal:#1f7a70; --teal-soft:#dcece6;
+  --gold:#a87f22; --gold-soft:#f2e7c9; --green:#4d7c4f; --green-soft:#e0ecdc;
+  --red:#b0413e; --red-soft:#f4e0de;
+  --line:#e4d9c2; --shadow:#0000001c;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  display:grid;place-items:center;overflow:hidden;
+  background:radial-gradient(circle at 16% 12%,#efe6d2 0,#f6f0e4 42%,#eee3cb 100%);
+  font-family:"Noto Sans TC",ui-sans-serif,system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+  color:var(--ink);
+}
+a{color:var(--teal);text-decoration:underline;text-underline-offset:3px}
+a:hover{color:var(--terra)}
+h1,h2,h3,.h2,.kicker,.y{font-family:"Noto Serif TC",Georgia,"Songti TC",serif}
+
+/* ---- fixed stage ---- */
+.viewport{position:relative;width:100vw;height:100vh;overflow:hidden}
+.stage{
+  position:absolute;left:50%;top:50%;width:1920px;height:1080px;
+  transform:translate(-50%,-50%) scale(calc(100vw / 1920px));
+  transform-origin:center;
+  background:linear-gradient(135deg,#faf6ec,#f3ecd9 58%,#f6f0e4);
+  box-shadow:0 0 0 1px #0000000d,0 36px 120px #00000038;
+  overflow:hidden;
+}
+@media (min-aspect-ratio:16/9){
+  .stage{transform:translate(-50%,-50%) scale(calc(100vh / 1080px))}
+}
+/* no-JS fallback: slides stack; with .js they overlay */
+.slide{position:relative;inset:auto;opacity:1;pointer-events:auto}
+html.js .slide{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  padding:50px 84px 40px;opacity:0;pointer-events:none;
+}
+html.js .slide.is-active{opacity:1;pointer-events:auto}
+.slide::before{
+  content:"";position:absolute;inset:0;
+  background:
+    radial-gradient(circle at 82% 14%,#f2e7c955,transparent 32%),
+    radial-gradient(circle at 12% 80%,#dcece655,transparent 34%);
+  z-index:-1;
+}
+
+/* ---- shared type ---- */
+.meta{display:flex;align-items:center;gap:18px;color:var(--muted);font-size:22px;letter-spacing:.08em;text-transform:uppercase}
+.num{color:var(--terra);font-weight:900}
+.part{color:var(--muted);font-weight:700}
+.kicker{font-size:28px;color:var(--terra);font-weight:900;letter-spacing:.1em;margin:0 0 12px}
+.h2{font-size:52px;line-height:1.18;margin:0;font-weight:900;letter-spacing:-.02em;max-width:1700px;color:var(--ink)}
+.h2 strong{color:var(--terra)}
+.sub{max-width:1560px;font-size:26px;line-height:1.5;color:var(--muted);margin:12px 0 0}
+.sub b{color:var(--ink)}
+.note{margin-top:12px;color:var(--muted);font-size:22px;line-height:1.55;max-width:1700px}
+.note b{color:var(--ink)}
+.take{
+  margin-top:14px;padding:12px 24px;border-left:7px solid var(--terra);
+  background:linear-gradient(90deg,#f9efdc,#f6f0e400);
+  font-size:23px;line-height:1.5;color:#7c4a20;font-weight:700;max-width:1720px;
+}
+.take b{color:var(--terra)}
+.src{
+  margin-top:auto;padding-top:10px;color:var(--faint);font-size:15px;line-height:1.5;max-width:1720px;
+}
+.src a{color:var(--muted)}
+
+/* ---- diagram primitives ---- */
+.dg{display:flex;align-items:stretch;gap:14px;margin-top:20px}
+.dg.col{flex-direction:column;align-items:stretch}
+.dg.center{align-items:center}
+.dg.wrap{flex-wrap:wrap}
+.node{
+  background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  padding:16px 20px;min-width:0;text-align:center;
+  display:flex;flex-direction:column;justify-content:center;gap:5px;
+  box-shadow:0 10px 30px #00000010;
+}
+.node .t{font-size:23px;font-weight:900;color:var(--ink);line-height:1.3}
+.node .s{font-size:18px;color:var(--muted);line-height:1.45}
+.node.hl{border-color:#1f7a7055;background:linear-gradient(160deg,#eef6f1,#fdfaf2)}
+.node.warn{border-color:#c0562e55;background:linear-gradient(160deg,#f9efe6,#fdfaf2)}
+.node.ok{border-color:#4d7c4f55;background:linear-gradient(160deg,#eef5ec,#fdfaf2)}
+.arrow{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  color:var(--terra);font-size:30px;font-weight:900;flex:0 0 auto;padding:0 2px;line-height:1;
+}
+.arrow .lbl{font-size:15px;color:var(--muted);font-weight:700;white-space:nowrap;line-height:1.2;text-align:center}
+.arrow.up{color:var(--teal)}
+.arrow.warn{color:var(--red)}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;border-radius:999px;
+  padding:3px 14px;font-size:18px;font-weight:800;white-space:nowrap;
+}
+.chip.d{background:var(--teal-soft);color:#14554e}
+.chip.a{background:var(--terra-soft);color:#8a3b1d}
+.chip.g{background:var(--gold-soft);color:#7a5a12}
+
+/* 2-col layouts */
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+.card{
+  background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  padding:18px 22px;box-shadow:0 10px 30px #0000000c;
+}
+.card h4{font-size:24px;font-weight:900;margin:0 0 8px;line-height:1.3}
+.card h4.d{color:var(--teal)}
+.card h4.a{color:var(--terra)}
+.card h4.g{color:var(--gold)}
+.card ul{margin:0;padding-left:20px;font-size:19px;line-height:1.55;color:var(--muted)}
+.card ul li{margin-top:4px}
+.card ul b{color:var(--ink)}
+
+/* 3-col cards */
+.cols3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px}
+.panel3{
+  background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  padding:18px 20px;box-shadow:0 10px 30px #0000000c;
+  display:flex;flex-direction:column;gap:7px;
+}
+.panel3 .who{font-size:20px;font-weight:900;color:var(--terra);letter-spacing:.05em}
+.panel3 .big{font-size:24px;font-weight:900;line-height:1.35}
+.panel3 .big b{color:var(--teal)}
+.panel3 .small{font-size:18px;color:var(--muted);line-height:1.5}
+
+/* pair grid (7 同構) */
+.pairs{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:18px}
+.pair{
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  padding:12px 18px;box-shadow:0 8px 24px #0000000b;
+}
+.pair .pt{font-size:23px;font-weight:900;letter-spacing:.01em}
+.pair .pt .d{color:var(--teal)}
+.pair .pt .x{color:var(--faint);padding:0 6px}
+.pair .pt .a{color:var(--terra)}
+.pair .q{font-size:17px;color:var(--muted);line-height:1.45;margin-top:4px}
+.pair .q b{color:var(--ink)}
+.pair .n{font-size:17px;color:var(--red);line-height:1.45;margin-top:3px}
+.pair .n b{color:var(--red)}
+
+/* dual timeline */
+.tl{position:relative;margin-top:26px;padding:0 14px}
+.tl::before{content:"";position:absolute;left:30px;right:30px;top:64px;height:5px;border-radius:5px;background:linear-gradient(90deg,#1f7a70,#a87f22 55%,#4d7c4f)}
+.tl-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;position:relative}
+.tl-row.bot{margin-top:34px}
+.tl-cap{font-size:21px;font-weight:900;letter-spacing:.1em;margin-bottom:12px}
+.tl-cap.d{color:var(--teal)}
+.tl-cap.a{color:var(--terra)}
+.tln{display:flex;flex-direction:column;align-items:center;gap:8px}
+.tln .dot{width:24px;height:24px;border-radius:999px;background:var(--paper);border:5px solid var(--teal);z-index:1}
+.tln.hot .dot{border-color:var(--terra);box-shadow:0 0 0 7px #c0562e1f}
+.tln .y{font-size:22px;font-weight:900;color:var(--teal);letter-spacing:.02em}
+.tln.hot .y{color:var(--terra)}
+.tln .l{font-size:17px;line-height:1.45;color:var(--muted);text-align:center;max-width:250px}
+.tln .l b{color:var(--ink)}
+.tl-row.bot .tln .dot{background:var(--panel)}
+
+/* lifecycle flow */
+.flow{display:flex;align-items:stretch;gap:8px;margin-top:20px}
+.fnode{
+  flex:1;background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  padding:16px 18px;box-shadow:0 10px 30px #0000000c;
+  display:flex;flex-direction:column;gap:6px;
+}
+.fnode .ft{font-size:24px;font-weight:900;color:var(--terra);line-height:1.2}
+.fnode .fd{font-size:17px;color:var(--muted);line-height:1.5}
+.fnode .fd b{color:var(--ink)}
+.fnode.hl{border-color:#c0562e66;background:linear-gradient(160deg,#fbf1e3,#fdfaf2)}
+.roles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
+.role{background:var(--panel-warm);border:1px solid var(--line);border-radius:14px;padding:13px 18px;display:flex;flex-direction:column;gap:5px}
+.role .rn{font-size:21px;font-weight:900;color:var(--gold)}
+.role .rd{font-size:17px;color:var(--muted);line-height:1.5}
+.role .rd b{color:var(--ink)}
+
+/* catalog vs marketplace */
+.vs{display:flex;align-items:center;gap:16px;margin-top:20px}
+.vs-card{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 22px;box-shadow:0 10px 30px #0000000c}
+.vs-card h4{font-size:25px;font-weight:900;margin:0 0 8px}
+.vs-card h4.reg{color:var(--muted)}
+.vs-card h4.mkt{color:var(--terra)}
+.vs-card ul{margin:0;padding-left:20px;font-size:19px;line-height:1.55;color:var(--muted)}
+.vs-card ul b{color:var(--ink)}
+.vs .vs-arrow{font-size:44px;color:var(--terra);font-weight:900;flex:0 0 auto}
+.vs-foot{margin-top:14px;font-size:21px;line-height:1.5;color:var(--ink)}
+.vs-foot b{color:var(--terra)}
+
+/* loop cycle */
+.cycle{display:grid;grid-template-columns:1fr 60px 1fr;grid-template-rows:auto auto auto;gap:8px 8px;margin-top:22px;align-items:stretch}
+.cycle .n1{grid-area:1/1}.cycle .n2{grid-area:1/3}.cycle .n3{grid-area:3/3}.cycle .n4{grid-area:3/1}
+.cycle .a1{grid-area:1/2;display:flex;align-items:center;justify-content:center;color:var(--terra);font-size:30px;font-weight:900}
+.cycle .a2{grid-area:2/3;display:flex;align-items:center;justify-content:center;color:var(--terra);font-size:30px;font-weight:900}
+.cycle .a3{grid-area:3/2;display:flex;align-items:center;justify-content:center;color:var(--terra);font-size:30px;font-weight:900}
+.cycle .a4{grid-area:2/1;display:flex;align-items:center;justify-content:center;color:var(--terra);font-size:30px;font-weight:900}
+.loop-note{margin-top:14px;font-size:20px;color:var(--muted);line-height:1.5}
+.loop-note b{color:var(--ink)}
+
+/* chain (gateway) */
+.chain{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:20px}
+.link{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:9px 20px;font-size:20px;font-weight:800;box-shadow:0 6px 18px #0000000a}
+.link .lk{color:var(--muted);font-size:17px;font-weight:700}
+.chain .carrow{color:var(--terra);font-size:24px;font-weight:900}
+.warnbox{
+  margin-top:16px;border:1px solid #c0562e55;background:linear-gradient(160deg,#f9efe6,#fdfaf2);
+  border-radius:14px;padding:13px 20px;font-size:20px;line-height:1.5;color:#7c4a20;
+}
+.warnbox b{color:var(--terra)}
+
+/* break panels */
+.break-panels{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px}
+.bp{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 20px;box-shadow:0 10px 30px #0000000c;display:flex;flex-direction:column;gap:8px}
+.bp .bn{font-size:40px;font-weight:950;color:#2c241815;letter-spacing:-.02em;line-height:1}
+.bp h4{font-size:25px;font-weight:900;margin:0;line-height:1.3;color:var(--red)}
+.bp ul{margin:0;padding-left:18px;font-size:17.5px;line-height:1.5;color:var(--muted)}
+.bp ul b{color:var(--ink)}
+.bp ul li{margin-top:4px}
+
+/* layer stack */
+.stack{display:flex;flex-direction:column;gap:12px;margin-top:20px}
+.layer{
+  display:flex;align-items:center;gap:18px;padding:15px 24px;border-radius:14px;border:1px solid var(--line);
+  background:var(--panel);box-shadow:0 10px 30px #0000000b;
+}
+.layer .lt{font-size:25px;font-weight:900;min-width:250px;line-height:1.25}
+.layer .li{font-size:18px;color:var(--muted);line-height:1.5}
+.layer .li b{color:var(--ink)}
+.layer.data{border-color:#4d7c4f55;background:linear-gradient(160deg,#eef5ec,#fdfaf2)}
+.layer.data .lt{color:var(--green)}
+.layer.shared{border-color:#1f7a7055;background:linear-gradient(160deg,#eef6f1,#fdfaf2)}
+.layer.shared .lt{color:var(--teal)}
+.layer.control{border-color:#c0562e55;background:linear-gradient(160deg,#fbf1e3,#fdfaf2)}
+.layer.control .lt{color:var(--terra)}
+
+/* architecture rows */
+.arch{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+.arch-row{
+  display:grid;grid-template-columns:290px 1fr 96px;align-items:center;gap:16px;
+  padding:9px 18px;border:1px solid var(--line);border-radius:12px;background:var(--panel);
+  box-shadow:0 6px 18px #00000009;
+}
+.arch-row .what{font-weight:900;font-size:21px;line-height:1.3}
+.arch-row .desc{font-size:17px;color:var(--muted);line-height:1.45}
+.arch-row .desc b{color:var(--ink)}
+.arch-row .st{text-align:center;font-weight:900;font-size:16px;border-radius:999px;padding:4px 10px}
+.st.ok{background:var(--green-soft);color:#2f5a31}
+.st.part{background:var(--gold-soft);color:#7a5a12}
+.st.no{background:var(--red-soft);color:#8a2f2d}
+
+/* roadmap bands */
+.bands{display:flex;flex-direction:column;gap:13px;margin-top:18px}
+.band{display:grid;grid-template-columns:210px 1fr;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel);box-shadow:0 8px 24px #0000000b}
+.band .when{display:flex;flex-direction:column;justify-content:center;gap:4px;padding:16px 20px;font-weight:900;font-size:24px}
+.band .when .wd{font-size:15px;color:var(--muted);font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.band .items{padding:13px 20px;font-size:19px;line-height:1.6;color:var(--muted);display:flex;flex-direction:column;justify-content:center}
+.band .items b{color:var(--ink)}
+.band.d30 .when{background:var(--teal-soft);color:#14554e}
+.band.d90 .when{background:var(--gold-soft);color:#7a5a12}
+.band.dp .when{background:var(--terra-soft);color:#8a3b1d}
+
+/* closing */
+.closing{display:flex;flex-direction:column;gap:16px;margin-top:26px}
+.closing .cl{font-size:26px;line-height:1.55;color:var(--muted);max-width:1640px}
+.closing .cl b{color:var(--ink)}
+.closing .cl strong{color:var(--terra)}
+
+/* ---- chrome ---- */
+.nav{position:absolute;right:46px;bottom:34px;display:flex;gap:10px;z-index:5}
+.navbtn{
+  width:46px;height:46px;border-radius:999px;border:1px solid var(--line);
+  background:var(--panel);color:var(--ink);font-size:22px;font-weight:900;cursor:pointer;
+  box-shadow:0 6px 18px #00000014;transition:transform 120ms ease,background 120ms ease;
+}
+.navbtn:hover{background:var(--panel-warm);transform:translateY(-2px)}
+.progress{position:absolute;left:0;bottom:0;height:7px;background:#0000000a;z-index:6;width:100%}
+.progress-bar{height:100%;width:16.66%;background:linear-gradient(90deg,var(--teal),var(--gold));transition:width 300ms ease}
+.counter{
+  position:absolute;right:108px;bottom:46px;font-size:17px;color:var(--faint);
+  font-weight:800;letter-spacing:.12em;z-index:5;
+}
+.hint{
+  position:absolute;left:46px;bottom:44px;font-size:15px;color:var(--faint);z-index:5;
+}
+#overview{
+  position:absolute;inset:0;background:#2c2418f2;z-index:50;display:none;
+  overflow:auto;padding:54px 64px;
+}
+#overview.open{display:block}
+#overview h2{color:#f6f0e4;font-size:34px;margin:0 0 26px;font-weight:900}
+.ovgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.ovbtn{
+  background:#ffffff10;border:1px solid #ffffff22;border-radius:12px;color:#f6f0e4;
+  padding:16px 14px;text-align:left;cursor:pointer;font-family:inherit;
+}
+.ovbtn:hover{background:#ffffff1c;border-color:#f4b23d88}
+.ovbtn .on{font-size:14px;color:#f4b23d;font-weight:900;letter-spacing:.1em}
+.ovbtn .ot{font-size:17px;font-weight:800;line-height:1.4;margin-top:6px;color:#efe6d2}
+#help{
+  position:absolute;right:26px;bottom:96px;background:var(--ink);color:var(--paper);
+  border-radius:14px;padding:18px 22px;font-size:17px;line-height:1.9;z-index:60;display:none;
+  box-shadow:0 20px 60px #00000055;
+}
+#help.open{display:block}
+#help b{color:#f4b23d}
+#help kbd{background:#ffffff1a;border-radius:6px;padding:1px 8px;font-family:inherit}
+
+/* reduced motion */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none !important;scroll-behavior:auto !important}
+}
+
+/* ---- mobile portrait: readable scroll mode ---- */
+@media (max-width:900px) and (orientation:portrait){
+  body{display:block;overflow:auto;background:var(--paper)}
+  .viewport{height:auto;overflow:visible}
+  .stage{position:relative;left:auto;top:auto;width:100%;height:auto;transform:none;box-shadow:none;background:var(--paper)}
+  html.js .slide{position:relative;inset:auto;opacity:1;pointer-events:auto;display:flex;flex-direction:column;
+    height:auto;padding:26px 20px;margin-bottom:18px;border-bottom:2px solid var(--line)}
+  .slide::before{display:none}
+  .nav,.counter,.hint,.progress{display:none}
+  .meta{font-size:15px;gap:10px}
+  .kicker{font-size:18px;margin-bottom:8px}
+  .h2{font-size:28px}
+  .sub{font-size:19px}
+  .note{font-size:18px}
+  .take{font-size:17px;padding:10px 16px;border-left-width:5px}
+  .src{font-size:13px;position:static;margin-top:14px}
+  .dg{flex-direction:column;align-items:stretch}
+  .node .t{font-size:19px}
+  .node .s{font-size:16px}
+  .cols2,.cols3,.break-panels,.pairs,.roles{grid-template-columns:1fr;gap:12px}
+  .flow{flex-direction:column;gap:6px}
+  .arrow{flex-direction:row;padding:2px 0}
+  .arrow .lbl{white-space:normal}
+  .tl::before{display:none}
+  .tl-row{grid-template-columns:1fr 1fr;gap:18px 10px}
+  .tl-row.bot{margin-top:24px}
+  .tln .l{font-size:14px;max-width:none}
+  .tl-cap{font-size:16px}
+  .cycle{grid-template-columns:1fr;grid-template-rows:auto}
+  .cycle .n1,.cycle .n2,.cycle .n3,.cycle .n4{grid-area:auto}
+  .cycle .a1,.cycle .a2,.cycle .a3,.cycle .a4{grid-area:auto;transform:rotate(90deg);font-size:22px;padding:2px 0}
+  .vs{flex-direction:column}
+  .vs .vs-arrow{transform:rotate(90deg)}
+  .chain{flex-direction:column;align-items:stretch}
+  .chain .carrow{transform:rotate(90deg);align-self:center}
+  .arch-row{grid-template-columns:1fr;gap:6px;padding:12px 14px}
+  .arch-row .st{justify-self:start}
+  .band{grid-template-columns:1fr}
+  .stack{gap:10px}
+  .layer{flex-direction:column;align-items:flex-start;gap:6px;padding:14px 16px}
+  .layer .lt{min-width:0;font-size:21px}
+  .closing .cl{font-size:19px}
+  .node .s,.card ul,.panel3 .small,.fnode .fd,.pair .q,.pair .n{overflow-wrap:anywhere}
+  #overview{position:fixed;padding:28px 18px}
+  .ovgrid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<script>document.documentElement.classList.add('js')</script>
+
+<div class="viewport">
+<div class="stage" id="stage">
+
+<!-- ============ 1 TITLE ============ -->
+<section class="slide" id="s1" aria-labelledby="s1t">
+  <p class="meta"><span class="num">01</span><span class="part">DATA × AI ARCHITECTURE</span><span class="part">內部技術分享</span></p>
+  <h2 class="h2" id="s1t" style="font-size:78px;margin-top:110px">AI 生態系，其實是 Data 生態系的<br><strong>「未來回顧鏡」</strong></h2>
+  <p class="sub" style="font-size:30px;margin-top:28px">從 <b>AIOps · AI Governance · AI Lineage</b> 這些新名詞看回去——<br>它們大多是我們十年前就踩過的坑，只是主角從「資料」換成了「模型與 Agent」。</p>
+  <div class="dg center" style="margin-top:44px;flex-wrap:wrap;gap:10px">
+    <span class="chip d">DataOps</span><span class="chip a">AIOps</span>
+    <span class="chip d">Data Governance</span><span class="chip a">AI Governance</span>
+    <span class="chip d">Data Lineage</span><span class="chip a">AI Lineage</span>
+    <span class="chip d">Data Catalog</span><span class="chip a">Model / Asset Registry</span>
+  </div>
+  <div class="take" style="margin-top:70px">今天不談「AI 能做什麼」——談 <b>AI 生態系長什麼樣</b>，以及我們的大數據平台怎麼接住它、又從它身上學到什麼。</div>
+  <p class="src">主題框架：內部研討架構 · 參考 AADay 2026 國泰世華 AgentOps 治理實務</p>
+</section>
+
+<!-- ============ 2 AUDIENCE ============ -->
+<section class="slide" id="s2" aria-labelledby="s2t">
+  <p class="meta"><span class="num">02</span><span class="part">給三種聽眾的一句話</span></p>
+  <h2 class="h2" id="s2t">一場分享，三種收穫：<strong>看懂、管住、排程</strong></h2>
+  <div class="cols3">
+    <div class="panel3">
+      <div class="who">A｜DATA PLATFORM 工程師</div>
+      <div class="big">新名詞 = <b>舊模式</b></div>
+      <div class="small">AI 平台的 primitive 你幾乎都做過：catalog、pipeline、gateway、observability。差別只在 non-determinism、context、agency 三個新維度。</div>
+    </div>
+    <div class="panel3">
+      <div class="who">B｜治理／資安／平台</div>
+      <div class="big">治理對象<b>擴張</b></div>
+      <div class="small">從「誰能讀什麼資料」→「誰能在什麼情境下做什麼事」。資產生命週期（publish → subscribe → version → deprecate）是現成的管理語言。</div>
+    </div>
+    <div class="panel3">
+      <div class="who">C｜技術主管／架構決策</div>
+      <div class="big">別再追<b>新工具</b></div>
+      <div class="small">把資源投在四個 primitive：資產生命週期、控制面（gateway）、依賴圖（lineage）、評估閉環（continuous evaluation）。</div>
+    </div>
+  </div>
+  <div class="take">今天的主張：<b>與其追著 AI 名詞跑，不如先認出它們在 Data 世界裡的長輩</b>——認識長輩，就知道下一步該補哪裡。</div>
+  <p class="src">來源：內部研討架構（自製）</p>
+</section>
+
+<!-- ============ 3 THESIS ============ -->
+<section class="slide" id="s3" aria-labelledby="s3t">
+  <p class="meta"><span class="num">03</span><span class="part">核心主張</span></p>
+  <h2 class="h2" id="s3t">同一組<strong>組織壓力</strong>，長出同一組<strong>平台 primitive</strong></h2>
+  <p class="sub">Data 生態系的平台化不是因為技術多酷——是因為「多團隊規模化」遲早失控。AI 生態系正在同一條路上。</p>
+  <div class="dg" style="margin-top:26px">
+    <div class="node hl" style="flex:1">
+      <div class="t">組織壓力</div>
+      <div class="s">來源／團隊變多 · 合規變嚴 · 成本失控 · 信任不足</div>
+    </div>
+    <div class="arrow">→<span class="lbl">所有平台都這樣長出來</span></div>
+    <div class="node warn" style="flex:1.6">
+      <div class="t">平台 primitive</div>
+      <div class="s"><b>Catalog</b> 有哪些資產 · <b>Pipeline</b> 怎麼加工 · <b>Governance</b> 誰能碰、能碰多久 · <b>Observability</b> 壞了誰知道 · <b>Gateway</b> 所有請求走同一道門</div>
+    </div>
+  </div>
+  <div class="note" style="margin-top:18px">國泰 GAIA 2.0 的案例把這件事講得很清楚：企業導入 AI Agent 的真正瓶頸，<b>從來不是 PoC 做不出來，而是多團隊規模化（scale up）時的失控</b>——點對點串接、權限標準不一、上線維運混亂。</div>
+  <div class="take">Data 世界已經為這些壓力交過學費；<b>AI 世界正在重交同一筆</b>。差別是：這次我們可以站在已經繳過費的那一邊。</div>
+  <p class="src">來源：AADay 2026 · 國泰世華 Neo「金融業 AgentOps 與權限治理設計」</p>
+</section>
+
+<!-- ============ 4 DUAL TIMELINE ============ -->
+<section class="slide" id="s4" aria-labelledby="s4t">
+  <p class="meta"><span class="num">04</span><span class="part">雙時間線</span></p>
+  <h2 class="h2" id="s4t">每次換代，都是<strong>「碎片化 → 平台化」</strong>的重演</h2>
+  <div class="tl">
+    <div class="tl-cap d">DATA 十五年（平台化的教科書）</div>
+    <div class="tl-row">
+      <div class="tln"><div class="dot"></div><div class="y">Database</div><div class="l">單一系統管單一應用</div></div>
+      <div class="tln"><div class="dot"></div><div class="y">Warehouse</div><div class="l">集中倉儲，SQL 統一存取</div></div>
+      <div class="tln"><div class="dot"></div><div class="y">Data Lake</div><div class="l">低成本但<b>無治理</b>，變資料沼澤</div></div>
+      <div class="tln hot"><div class="dot"></div><div class="y">Lakehouse</div><div class="l">統一 storage＋catalog＋governance（Iceberg/Trino）</div></div>
+    </div>
+    <div class="tl-row bot">
+      <div class="tln hot"><div class="dot"></div><div class="y">Script</div><div class="l">Notebook／adhoc，<b>不可重現</b></div></div>
+      <div class="tln"><div class="dot"></div><div class="y">MLOps</div><div class="l">model registry、feature store、CI/CD for ML</div></div>
+      <div class="tln"><div class="dot"></div><div class="y">GenAI / RAG</div><div class="l">prompt、vector index、eval——各自為政</div></div>
+      <div class="tln hot"><div class="dot"></div><div class="y">Agentic</div><div class="l">agents、tools、guardrails、gateway——平台化起點</div></div>
+    </div>
+    <div class="tl-cap a" style="margin-top:26px">AI 五年（節奏快得多）</div>
+  </div>
+  <div class="take">我們正站在 Agentic 的「<b>Data Lake 早期</b>」：低門檻、高混亂、弱治理。而 Lakehouse 那一課的答案，已經寫在我們自己家的架構裡。</div>
+  <p class="src">來源：內部研討架構（自製時間線）；Lakehouse 對照 Iceberg / Trino 現行架構</p>
+</section>
+
+<!-- ============ 5 SEVEN PAIRS ============ -->
+<section class="slide" id="s5" aria-labelledby="s5t">
+  <p class="meta"><span class="num">05</span><span class="part">七組同構</span></p>
+  <h2 class="h2" id="s5t">新名詞對回舊名詞：<strong>七組同構地圖</strong></h2>
+  <div class="pairs">
+    <div class="pair"><div class="pt"><span class="d">DataOps</span><span class="x">↔</span><span class="a">AIOps</span></div><div class="q">共同問題：<b>把系統顧好、養好</b>——部署、修復、調度</div><div class="n">新增：行為軌跡 non-deterministic，每次執行都不一樣</div></div>
+    <div class="pair"><div class="pt"><span class="d">Data Governance</span><span class="x">↔</span><span class="a">AI Governance</span></div><div class="q">共同問題：<b>資產誰能用、邊界在哪</b></div><div class="n">新增：prompt injection、權限放大、決策稽核</div></div>
+    <div class="pair"><div class="pt"><span class="d">Data Lineage</span><span class="x">↔</span><span class="a">AI Lineage</span></div><div class="q">共同問題：<b>產出從哪來、影響到誰</b></div><div class="n">新增：context、model version、tool call 都要入圖</div></div>
+    <div class="pair"><div class="pt"><span class="d">Data Observability</span><span class="x">↔</span><span class="a">AI Observability</span></div><div class="q">共同問題：<b>壞了要第一個知道</b></div><div class="n">新增：生成內容品質、安全違規也要觀測</div></div>
+    <div class="pair"><div class="pt"><span class="d">Data Quality</span><span class="x">↔</span><span class="a">AI Evaluation</span></div><div class="q">共同問題：<b>產出可不可信</b></div><div class="n">新增：從規則 pass/fail → 行為分布評估（judge / golden set / human feedback）</div></div>
+    <div class="pair"><div class="pt"><span class="d">Data Catalog</span><span class="x">↔</span><span class="a">Model / Asset Registry</span></div><div class="q">共同問題：<b>有哪些資產、誰擁有、品質如何</b></div><div class="n">新增：組合資產——model＋prompt＋context＋tool＋policy＋eval</div></div>
+    <div class="pair"><div class="pt"><span class="d">Query Gateway</span><span class="x">↔</span><span class="a">Agent Gateway</span></div><div class="q">共同問題：<b>統一入口＝集中權限／路由／稽核</b></div><div class="n">新增：動態路由、身份委派、決策軌跡稽核</div></div>
+    <div class="pair" style="display:flex;align-items:center;justify-content:center;background:var(--panel-warm)"><div class="q" style="font-size:19px;color:var(--ink);font-weight:800">名詞換了，問題沒換。<br>先認出 pattern，再談差異。</div></div>
+  </div>
+  <p class="src">來源：內部研討架構（自製對照）；各項對應公開標準見後續頁腳</p>
+</section>
+
+<!-- ============ 6 GAIA LIFECYCLE ============ -->
+<section class="slide" id="s6" aria-labelledby="s6t">
+  <p class="meta"><span class="num">06</span><span class="part">治理案例 · 國泰世華 GAIA 2.0</span></p>
+  <h2 class="h2" id="s6t">資產生命週期：<strong>Publish → Subscribe → Versioning → Deprecation</strong></h2>
+  <div class="flow">
+    <div class="fnode hl"><div class="ft">① Publish 上架發布</div><div class="fd">能力規格＋權限要求註冊進內部 <b>Marketplace</b>，供全行檢索</div></div>
+    <div class="arrow">→</div>
+    <div class="fnode"><div class="ft">② Subscribe 申請授權</div><div class="fd">其他 Agent <b>不得私下串接</b>，一律走平台訂閱與權限審批</div></div>
+    <div class="arrow">→</div>
+    <div class="fnode"><div class="ft">③ Versioning 版本控管</div><div class="fd">多版本並存、<b>不強制覆蓋</b>，給呼叫端測試與遷移緩衝</div></div>
+    <div class="arrow">→</div>
+    <div class="fnode"><div class="ft">④ Deprecation 安全下架</div><div class="fd">下架前<b>主動分析依賴關係</b>、強制通知、平滑下線</div></div>
+  </div>
+  <div class="roles">
+    <div class="role"><div class="rn">Provider 提供方</div><div class="rd">開發與維護、版本更新、決定是否同意存取、承擔品質與乘載</div></div>
+    <div class="role"><div class="rn">Consumer 需求方</div><div class="rd">Marketplace 搜尋、發起訂閱；新版上線時<b>升級依賴＋回歸測試</b></div></div>
+    <div class="role"><div class="rn">Governance 平台方</div><div class="rd">上架前資安掃描＋合規審核、監控流量與相依性、異常時<b>責任歸屬</b></div></div>
+  </div>
+  <div class="take">這套生命週期不是 Agent 專利——它其實是<b>任何「資產化」的平台都要走的路</b>。下一頁把它套回我們的 Data Asset。</div>
+  <p class="src">來源：AADay 2026 · 國泰世華 Neo「金融業 AgentOps 與權限治理設計」（GAIA 2.0：Workspace／Marketplace／Gateway 三核心）</p>
+</section>
+
+<!-- ============ 7 DATA ASSET LIFECYCLE ============ -->
+<section class="slide" id="s7" aria-labelledby="s7t">
+  <p class="meta"><span class="num">07</span><span class="part">套回 Data Asset</span></p>
+  <h2 class="h2" id="s7t">同一條生命週期，<strong>我們其實已經走了一半</strong></h2>
+  <div class="flow">
+    <div class="fnode hl"><div class="ft">① Publish</div><div class="fd">HMS / Iceberg catalog 註冊：owner、SLA、schema、metadata</div></div>
+    <div class="arrow">→</div>
+    <div class="fnode"><div class="ft">② Subscribe</div><div class="fd">權限中心申請審批（Ranger 層）——<b>禁止私下連表</b></div></div>
+    <div class="arrow">→</div>
+    <div class="fnode"><div class="ft">③ Versioning</div><div class="fd">Iceberg <b>snapshot / time travel</b> 天生多版本；schema evolution 不強制覆蓋</div></div>
+    <div class="arrow">→</div>
+    <div class="fnode"><div class="ft">④ Deprecation</div><div class="fd">下架前 lineage 依賴分析＋通知＋平滑下線——<b>目前缺口</b></div></div>
+  </div>
+  <div class="dg" style="margin-top:16px">
+    <div class="node" style="flex:1"><div class="t">Gateway</div><div class="s">Trino = 統一查詢入口＝集中權限／路由／稽核</div></div>
+    <div class="node" style="flex:1"><div class="t">Marketplace</div><div class="s">資料目錄（DataHub / OpenMetadata 等級）＝發現與申請入口</div></div>
+    <div class="node" style="flex:1"><div class="t">雙重身份</div><div class="s">M2M（pipeline service account）vs User Delegation（使用者查詢）</div></div>
+  </div>
+  <div class="take">我們已經有「<b>半個 GAIA</b>」：Iceberg 版本管理＋Trino 統一入口＋HMS catalog。缺的是 <b>②訂閱審批流程、④deprecation 依賴分析、嚴格雙重身份</b>。</div>
+  <p class="src">來源：AADay 2026 Neo GAIA 2.0 映射（Yuga 會後筆記）；Iceberg branching/tagging 官方文件 https://iceberg.apache.org/docs/latest/branching/</p>
+</section>
+
+<!-- ============ 8 CATALOG VS MARKETPLACE ============ -->
+<section class="slide" id="s8" aria-labelledby="s8t">
+  <p class="meta"><span class="num">08</span><span class="part">Catalog ≠ Marketplace</span></p>
+  <h2 class="h2" id="s8t">Catalog 回答「有什麼」；<strong>Marketplace 回答「怎麼安全地用到」</strong></h2>
+  <div class="vs">
+    <div class="vs-card">
+      <h4 class="reg">Registry／目錄（我們有）</h4>
+      <ul>
+        <li>可搜尋：<b>有哪些表／欄位</b></li>
+        <li>有 metadata：owner、schema、SLA</li>
+        <li>有品質資訊：freshness、行數</li>
+        <li>但只能「<b>看</b>」——不包含申請與使用流程</li>
+      </ul>
+    </div>
+    <div class="vs-arrow">→</div>
+    <div class="vs-card">
+      <h4 class="mkt">Marketplace（下一步）</h4>
+      <ul>
+        <li>發現＋<b>申請</b>：一鍵發起訂閱</li>
+        <li><b>審批流程</b>：依資料機敏度分級核決</li>
+        <li>自動開權限：審過即生效，<b>不靠人肉</b></li>
+        <li>SLA 與用量儀表板：好用與否看得見</li>
+      </ul>
+    </div>
+  </div>
+  <div class="vs-foot">類比：Catalog = <b>圖書館目錄</b>；Marketplace = 目錄＋<b>借書證＋流通管理</b>。治理價值在後者。</div>
+  <div class="take">AI 世界的 Model Registry 也一樣——MLflow 可以註冊模型、Alias 指版本、記 lineage；但「<b>誰可以用、升級要不要審批</b>」是平台層的活。dbt 的 model versions＋deprecation_date 更是 Data 世界自己的 subscribe/version/deprecate。</div>
+  <p class="src">來源：MLflow Model Registry https://mlflow.org/docs/latest/ml/model-registry/ · dbt Model Versions https://docs.getdbt.com/docs/mesh/govern/model-versions</p>
+</section>
+
+<!-- ============ 9 LINEAGE ============ -->
+<section class="slide" id="s9" aria-labelledby="s9t">
+  <p class="meta"><span class="num">09</span><span class="part">Lineage</span></p>
+  <h2 class="h2" id="s9t">從「欄位從哪張表來」到「<strong>這個回答為什麼是這樣</strong>」</h2>
+  <div class="cols2">
+    <div class="card">
+      <h4 class="d">Data Lineage（OpenLineage 模型）</h4>
+      <ul>
+        <li>單位：<b>Job → Run → Dataset</b>（input / output）</li>
+        <li>欄位級血緣、schema 演進追蹤</li>
+        <li>用途：衝擊分析、除錯、合規</li>
+        <li>我們已有：query log 可重建 table-level 依賴</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 class="a">AI Lineage（= Trace 的擴張）</h4>
+      <ul>
+        <li>單位：<b>Request → Prompt → Retrieval → Model → Tool → Response</b></li>
+        <li>要記：prompt template vN、檢索 chunk 來源、model version、tool 結果、policy 檢查</li>
+        <li>用途：重現「為什麼這樣答」、責任歸屬、審計</li>
+        <li>OpenTelemetry GenAI semantic conventions 正在標準化</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note"><b>關鍵差異：</b>Data lineage 追「資料的血緣」；AI lineage 追「<b>決策的血緣</b>」——同樣的底層資料，不同的 prompt／模型／工具組合，就是不同的答案。</div>
+  <div class="take">對我們來說這是好消息：<b>lineage 基建可共用</b>——把 trace 掛進同一個依賴圖，AI 資產就能享受 Data 資產的衝擊分析。</div>
+  <p class="src">來源：OpenLineage Object Model https://openlineage.io/docs/spec/object-model/ · OpenTelemetry for Generative AI https://opentelemetry.io/blog/2024/otel-generative-ai/</p>
+</section>
+
+<!-- ============ 10 OBSERVABILITY LOOP ============ -->
+<section class="slide" id="s10" aria-labelledby="s10t">
+  <p class="meta"><span class="num">10</span><span class="part">Observability × AIOps</span></p>
+  <h2 class="h2" id="s10t">AIOps 不是「用 LLM 看 log」——是讓 <strong>signal 閉環成 action</strong></h2>
+  <div class="cycle">
+    <div class="node n1"><div class="t">Signal</div><div class="s">latency / error / token cost / quality score / safety 違規</div></div>
+    <div class="a1">→</div>
+    <div class="node n2 hl"><div class="t">Context</div><div class="s">trace＋lineage 關聯：這次請求用了哪些資料、模型、工具</div></div>
+    <div class="a2">↓</div>
+    <div class="node n4 warn"><div class="t">Action</div><div class="s">retry／rollback／guardrail 介入／配額調整／通知 owner</div></div>
+    <div class="a3">←</div>
+    <div class="node n3"><div class="t">Decision</div><div class="s">根因定位、模型路由、風險分級</div></div>
+    <div class="a4">↑</div>
+  </div>
+  <div class="loop-note">OTel 已定義 GenAI semantic conventions：prompt、completion、token 用量、model 版本、tool 呼叫——<b>觀測單位從「資料表」擴張為「一次推理與行動軌跡」</b>。Data observability 的 freshness/volume/schema 對應 AI 的 quality/safety/cost。</div>
+  <div class="take">平台要提供的不是儀表板，是 <b>trace 通道＋feedback 迴路</b>：壞了能定位到「哪一步」，還能自動或半自動採取行動。</div>
+  <p class="src">來源：OpenTelemetry for Generative AI https://opentelemetry.io/blog/2024/otel-generative-ai/</p>
+</section>
+
+<!-- ============ 11 QUALITY / EVALUATION ============ -->
+<section class="slide" id="s11" aria-labelledby="s11t">
+  <p class="meta"><span class="num">11</span><span class="part">Quality × Evaluation</span></p>
+  <h2 class="h2" id="s11t">Data 的品質是「規則可驗證」；AI 的品質是「<strong>行為分布要落在可接受風險內</strong>」</h2>
+  <div class="cols2">
+    <div class="card">
+      <h4 class="d">Data Quality：pass / fail</h4>
+      <ul>
+        <li>schema check、freshness、volume、row count</li>
+        <li>規則形式化：<b>可重現、可自動化</b></li>
+        <li>壞了就擋（gate）</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 class="a">AI Evaluation：distribution</h4>
+      <ul>
+        <li>accuracy、hallucination rate、task success、guardrail violation</li>
+        <li>golden set、LLM judge、human feedback</li>
+        <li>看的是<b>分布與趨勢</b>，不是單次對錯</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note">NIST AI RMF 的 <b>Measure</b> function 說得很清楚：評估不是一次性的測試，是<b>持續的測量與監控</b>（continuous evaluation）——這跟 Data 平台的品質閘門（quality gate）同構，但單位從「表」變成「行為」。</div>
+  <div class="take">反過來給我們的啟發：Data 品質也可以從「規則閘門」升級成「<b>行為型 SLA</b>」——不只檢查 schema，還追「這個資產被用得怎樣、下游結果好不好」。</div>
+  <p class="src">來源：NIST AI RMF https://www.nist.gov/itl/ai-risk-management-framework · Google Cloud MLOps continuous evaluation https://docs.cloud.google.com/architecture/mlops-continuous-delivery-and-automation-pipelines-in-machine-learning</p>
+</section>
+
+<!-- ============ 12 GATEWAY / IDENTITY ============ -->
+<section class="slide" id="s12" aria-labelledby="s12t">
+  <p class="meta"><span class="num">12</span><span class="part">Gateway × Identity</span></p>
+  <h2 class="h2" id="s12t">治理單位從「讀取權限」變成「<strong>每個動作的授權</strong>」</h2>
+  <div class="chain">
+    <div class="link">User <span class="lk">使用者</span></div><div class="carrow">→</div>
+    <div class="link">Agent <span class="lk">主 Agent</span></div><div class="carrow">→</div>
+    <div class="link">Sub-Agent <span class="lk">子 Agent</span></div><div class="carrow">→</div>
+    <div class="link">MCP / Tool <span class="lk">工具</span></div>
+  </div>
+  <div class="warnbox">⚠️ 每個 hop 都要<b>權限卡控＋身份傳遞</b>（Zero Trust per hop）：User → Agent → Sub-Agent → Tool，每一段都驗證，不能在「大門口」檢查一次就放行。</div>
+  <div class="cols2" style="margin-top:14px">
+    <div class="card">
+      <h4 class="d">雙重身份（GAIA 2.0）</h4>
+      <ul>
+        <li><b>系統自身權限（M2M）</b>：固定任務、與登入者無關（排程爬蟲）</li>
+        <li><b>使用者委派權限</b>：代表當下使用者 → 依使用者權限，<b>禁止權限放大</b></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 class="g">OWASP：Excessive Agency</h4>
+      <ul>
+        <li>Agent 能做的事<b>超過任務所需</b>，是 2025 LLM Top 10 風險</li>
+        <li>意外或被操縱的輸出，也能造成真實損害</li>
+        <li>解法：最小工具集＋動作級授權＋human-in-the-loop</li>
+      </ul>
+    </div>
+  </div>
+  <div class="take">我們已在做一半：Trino Proxy＋OPA 是集中卡控點（gateway），pipeline SA 是 M2M。缺的是<b>「代表使用者執行」的委派語意</b>——AI 時代這會變成硬需求。</div>
+  <p class="src">來源：AADay 2026 Neo（雙重身份、Gateway）；OWASP LLM06 Excessive Agency https://genai.owasp.org/llmrisk/llm062025-excessive-agency/</p>
+</section>
+
+<!-- ============ 13 THREE BREAKS ============ -->
+<section class="slide" id="s13" aria-labelledby="s13t">
+  <p class="meta"><span class="num">13</span><span class="part">類比斷點</span></p>
+  <h2 class="h2" id="s13t">三個不能硬套的斷點——<strong>但正是它們，反過來給我們設計靈感</strong></h2>
+  <div class="break-panels">
+    <div class="bp"><div class="bn">01</div><h4>Non-determinism</h4>
+      <ul><li>相同輸入 ≠ 相同輸出</li><li>測試從 pass/fail → <b>分布與 SLO</b></li><li>治理對象：正確性 → <b>行為可靠性</b></li></ul>
+    </div>
+    <div class="bp"><div class="bn">02</div><h4>Context</h4>
+      <ul><li>lineage 從欄位血緣 → <b>認知上下文</b></li><li>prompt、檢索、記憶、tool 結果都要入圖</li><li>要能重現「<b>為什麼這樣答</b>」</li></ul>
+    </div>
+    <div class="bp"><div class="bn">03</div><h4>Agency</h4>
+      <ul><li>從「人查資料、人做決定」→「<b>agent 自己查、自己決定、自己執行</b>」</li><li>授權從 read → <b>write / action</b></li><li>責任歸屬：誰對 agent 的行動負責</li></ul>
+    </div>
+  </div>
+  <div class="take">把 AI 回答當 SQL 結果、把 prompt 當 ETL、把 agent 當 dashboard——<b>這三個誤導會把 AI 治理降級成舊治理的換皮</b>。認出斷點，才能設計真正的控制面。</div>
+  <p class="src">來源：內部研討架構（自製斷點分析）；風險面參考 OWASP / NIST AI RMF</p>
+</section>
+
+<!-- ============ 14 CONVERGENCE ============ -->
+<section class="slide" id="s14" aria-labelledby="s14t">
+  <p class="meta"><span class="num">14</span><span class="part">收斂架構</span></p>
+  <h2 class="h2" id="s14t">未來不是「Data Platform + Model API」，是 <strong>Data Plane 之上長出 Behavior Control Plane</strong></h2>
+  <div class="stack">
+    <div class="layer control"><div class="lt">AI Control Plane（新增）</div><div class="li">prompts · agents · tools · evals · policies · traces · approvals</div></div>
+    <div class="layer shared"><div class="lt">共用治理基座</div><div class="li"><b>Catalog</b>（資料＋模型＋Agent 資產）· <b>Identity</b>（雙重身份）· <b>Policy</b>（OPA 擴張）· <b>Telemetry</b>（trace 統一收）</div></div>
+    <div class="layer data"><div class="lt">Data Plane（既有 Lakehouse）</div><div class="li">tables · files · features · metadata · ACL · lineage（Iceberg / HMS / MinIO / Trino）</div></div>
+  </div>
+  <div class="note" style="margin-top:14px">兩個 plane 共用同一套 <b>catalog、identity、policy、telemetry</b>——AI 資產與 Data 資產在同一個治理語言下管理，而不是另起爐灶。</div>
+  <div class="take">這正是 GAIA 的架構直覺：<b>把合規成本留在平台層，把開發速度還給業務團隊</b>。我們已經有下半層，缺的是上半層的資產模型。</div>
+  <p class="src">來源：內部研討架構（自製收斂模型）；啟發自 GAIA 2.0 Workspace／Marketplace／Gateway 三核心</p>
+</section>
+
+<!-- ============ 15 CURRENT ARCHITECTURE ============ -->
+<section class="slide" id="s15" aria-labelledby="s15t">
+  <p class="meta"><span class="num">15</span><span class="part">對照現況</span></p>
+  <h2 class="h2" id="s15t">我們的 Lakehouse 已經是「<strong>半個 GAIA</strong>」</h2>
+  <div class="arch">
+    <div class="arch-row"><div class="what">Workspace 隔離</div><div class="desc"><b>團隊邊界＝資產邊界</b>（對應 GAIA Workspace）</div><div class="st ok">已有</div></div>
+    <div class="arch-row"><div class="what">Pipeline 平台化</div><div class="desc">Console → YAML → <b>Airflow Dynamic DAG</b> → Spark JAR 雙重驗證</div><div class="st ok">已有</div></div>
+    <div class="arch-row"><div class="what">開放格式＋Catalog</div><div class="desc"><b>Iceberg / HMS / MinIO</b>：snapshot、time travel、schema evolution</div><div class="st ok">已有</div></div>
+    <div class="arch-row"><div class="what">查詢 Gateway</div><div class="desc"><b>Trino Proxy + OPA + JWT</b>：統一入口＋集中授權＋完整 query log（Doris 共用治理路徑）</div><div class="st ok">已有</div></div>
+    <div class="arch-row"><div class="what">Telemetry</div><div class="desc">CPU / wall / throughput / shuffle——<b>計算層健康度有，資產層健康度缺</b></div><div class="st part">部分</div></div>
+    <div class="arch-row"><div class="what">訂閱審批流程</div><div class="desc">權限申請仍偏人工作業，未資產化、未分級自動化</div><div class="st no">缺口</div></div>
+    <div class="arch-row"><div class="what">Deprecation 依賴分析</div><div class="desc">下架／改表前無法自動知道誰在用、會打掛誰</div><div class="st no">缺口</div></div>
+    <div class="arch-row"><div class="what">嚴格雙重身份</div><div class="desc">有 M2M（pipeline SA），缺「<b>代表使用者執行</b>」的委派語意</div><div class="st part">部分</div></div>
+  </div>
+  <div class="take">缺的不是新工具，是<b>生命週期的最後兩段＋身份模型</b>——這三個缺口，剛好都是 AI 生態系第一個會撞上的牆。</div>
+  <p class="src">來源：內部架構盤點（已知事實，待 Review 確認細節）</p>
+</section>
+
+<!-- ============ 16 ROADMAP ============ -->
+<section class="slide" id="s16" aria-labelledby="s16t">
+  <p class="meta"><span class="num">16</span><span class="part">行動方案</span></p>
+  <h2 class="h2" id="s16t">從「管理資料」升級到「<strong>管理資料＋行為</strong>」：三階段</h2>
+  <div class="bands">
+    <div class="band d30"><div class="when"><span class="wd">0–30 天</span>打底</div>
+      <div class="items"><b>資產註冊模板</b>：owner／SLA／機敏度分級入 catalog metadata<br><b>Deprecation 政策</b>：下架 SOP 文件＋審核流程<br><b>雙重身份盤點</b>：清點所有 M2M service account 與真實使用者路徑</div>
+    </div>
+    <div class="band d90"><div class="when"><span class="wd">30–90 天</span>MVP</div>
+      <div class="items"><b>訂閱審批 MVP</b>：Console 申請 → 分級審批 → 自動開權限（機敏度矩陣）<br><b>依賴分析擋下架</b>：query log 重建 table 依賴圖，deprecation 前自動通知<br><b>資產健康度指標</b>：freshness／volume／品質閘門，接進現有 telemetry</div>
+    </div>
+    <div class="band dp"><div class="when"><span class="wd">90+ 天</span>平台化</div>
+      <div class="items"><b>Marketplace 體驗</b>：搜尋＋訂閱＋SLA 儀表板（DataHub/OpenMetadata 起步）<br><b>行為型 SLA</b>：eval-style 品質指標進 SLA 契約<br><b>成本歸因＋feedback 閉環</b>：用得好壞看得見，回饋進平台優化</div>
+    </div>
+  </div>
+  <div class="take">每一步都可<b>獨立驗證、獨立交付</b>——不需要先上 AI 才做；這些是 Data Platform 自己就該補的功課。</div>
+  <p class="src">來源：內部研討架構（自製 roadmap，待與團隊 Review 排程）</p>
+</section>
+
+<!-- ============ 17 CLOSING ============ -->
+<section class="slide" id="s17" aria-labelledby="s17t">
+  <p class="meta"><span class="num">17</span><span class="part">結論</span></p>
+  <h2 class="h2" id="s17t">AI 生態系是 Data 生態系的<strong>「未來回顧鏡」</strong></h2>
+  <div class="closing">
+    <div class="cl"><b>看懂 AI 平台的結構，等於預覽 Data Platform 的下一個十年；</b>把 AI 的治理設計帶回 Lakehouse，則讓我們不用等十年。</div>
+    <div class="dg col" style="gap:10px">
+      <div class="node hl" style="align-items:flex-start;text-align:left"><div class="t">① 同構 — 老問題，新主角</div><div class="s">資產生命週期、控制面、依賴圖、評估閉環：AIOps / AI Governance / AI Lineage 通通認得出來</div></div>
+      <div class="node warn" style="align-items:flex-start;text-align:left"><div class="t">② 斷點 — 不能硬套，但要接住</div><div class="s">Non-determinism、Context、Agency：三個新維度，定義了「行為控制面」的設計空間</div></div>
+      <div class="node ok" style="align-items:flex-start;text-align:left"><div class="t">③ 行動 — 先補功課，再談新工具</div><div class="s">訂閱審批、deprecation 依賴分析、雙重身份：0–30／30–90／90+ 三階段，每一段都獨立交付</div></div>
+    </div>
+  </div>
+  <div class="take" style="margin-top:30px">我們不是在「追 AI」——我們是在把 Data Platform 升級到「<b>決策與行動</b>」的治理時代。謝謝大家，歡迎討論。</div>
+  <p class="src">來源：本次研討架構彙整 · 主要參考 AADay 2026 國泰世華 GAIA 2.0 治理實務</p>
+</section>
+
+<!-- ============ CHROME ============ -->
+<div class="progress"><div class="progress-bar" id="progressbar"></div></div>
+<div class="counter" id="counter">01 / 17</div>
+<div class="hint">← → 換頁 · O 總覽 · F 全螢幕 · ? 說明</div>
+<div class="nav">
+  <button class="navbtn" id="prevBtn" aria-label="上一頁">‹</button>
+  <button class="navbtn" id="nextBtn" aria-label="下一頁">›</button>
+</div>
+
+<div id="overview" aria-hidden="true">
+  <h2>總覽</h2>
+  <div class="ovgrid" id="ovgrid"></div>
+</div>
+<div id="help" aria-hidden="true">
+  <b>操作說明</b><br>
+  <kbd>←</kbd> <kbd>→</kbd> / <kbd>Space</kbd> 換頁<br>
+  <kbd>Home</kbd> 第一頁 · <kbd>End</kbd> 最後一頁<br>
+  <kbd>O</kbd> 總覽 · <kbd>F</kbd> 全螢幕 · <kbd>Esc</kbd> 關閉<br>
+  手機：左右滑動換頁
+</div>
+
+</div><!-- /stage -->
+</div><!-- /viewport -->
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  var current = 0;
+  var progress = document.getElementById('progressbar');
+  var counter = document.getElementById('counter');
+  var overview = document.getElementById('overview');
+  var help = document.getElementById('help');
+  var ovgrid = document.getElementById('ovgrid');
+
+  function show(n, updateHash){
+    if(n < 0) n = 0;
+    if(n > total - 1) n = total - 1;
+    current = n;
+    slides.forEach(function(s, i){ s.classList.toggle('is-active', i === n); });
+    if(progress) progress.style.width = ((n + 1) / total * 100) + '%';
+    if(counter) counter.textContent = String(n + 1).padStart(2,'0') + ' / ' + String(total).padStart(2,'0');
+    if(updateHash !== false){
+      try{ history.replaceState(null, '', '#s' + (n + 1)); }catch(e){}
+    }
+    if(overview) overview.classList.remove('open');
+    if(help) help.classList.remove('open');
+  }
+
+  function next(){ show(current + 1); }
+  function prev(){ show(current - 1); }
+
+  // build overview grid
+  slides.forEach(function(s, i){
+    var t = s.querySelector('.h2');
+    var title = t ? t.textContent.trim() : ('第 ' + (i+1) + ' 頁');
+    var btn = document.createElement('button');
+    btn.className = 'ovbtn';
+    btn.innerHTML = '<div class="on">' + String(i+1).padStart(2,'0') + '</div><div class="ot">' + title + '</div>';
+    btn.addEventListener('click', function(){ show(i); });
+    ovgrid.appendChild(btn);
+  });
+
+  // keyboard
+  document.addEventListener('keydown', function(e){
+    if(overview && overview.classList.contains('open') && e.key === 'Escape'){ show(current, false); return; }
+    switch(e.key){
+      case 'ArrowRight': case 'ArrowDown': case 'PageDown': case ' ': next(); e.preventDefault(); break;
+      case 'ArrowLeft': case 'ArrowUp': case 'PageUp': prev(); e.preventDefault(); break;
+      case 'Home': show(0); e.preventDefault(); break;
+      case 'End': show(total - 1); e.preventDefault(); break;
+      case 'o': case 'O': overview.classList.toggle('open'); e.preventDefault(); break;
+      case 'f': case 'F':
+        if(document.requestFullscreen){ if(document.fullscreenElement){ document.exitFullscreen(); } else { document.documentElement.requestFullscreen(); } }
+        e.preventDefault(); break;
+      case '?': help.classList.toggle('open'); e.preventDefault(); break;
+    }
+  });
+
+  // click zones
+  document.querySelector('.stage').addEventListener('click', function(e){
+    if(overview && overview.classList.contains('open')) return;
+    var x = e.clientX / window.innerWidth;
+    if(x < 0.28){ prev(); }
+    else if(x > 0.72){ next(); }
+  });
+
+  // touch swipe
+  var tx = null;
+  document.addEventListener('touchstart', function(e){ tx = e.changedTouches[0].clientX; }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    if(tx === null) return;
+    var dx = e.changedTouches[0].clientX - tx;
+    if(Math.abs(dx) > 60){ dx < 0 ? next() : prev(); }
+    tx = null;
+  }, {passive:true});
+
+  // nav buttons
+  var nb = document.getElementById('nextBtn');
+  var pb = document.getElementById('prevBtn');
+  if(nb) nb.addEventListener('click', function(e){ e.stopPropagation(); next(); });
+  if(pb) pb.addEventListener('click', function(e){ e.stopPropagation(); prev(); });
+
+  // hash
+  window.addEventListener('hashchange', function(){
+    var m = location.hash.match(/^#s(\d+)$/);
+    if(m){ show(parseInt(m[1],10) - 1, false); }
+  });
+  var m0 = location.hash.match(/^#s(\d+)$/);
+  show(m0 ? parseInt(m0[1],10) - 1 : 0, false);
+})();
+</script>
+</body>
+</html>
