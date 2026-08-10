@@ -801,7 +801,7 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
 <!-- ============ 15 FEEDBACK ============ -->
 <section class="slide" id="s15" aria-labelledby="s15t">
   <p class="meta"><span class="num">15</span><span class="part">PART 3 · 萃取 AI 改良設計 ③</span></p>
-  <h2 class="h2" id="s15t">改良 02：從觀測走到處置——<strong>Auto-healing 是終點之一，不是起點</strong></h2>
+  <h2 class="h2" id="s15t">改良 02：從觀測走到處置——<strong>AI 不只報警，還能自動修正</strong></h2>
   <div class="pairflow">
     <div class="pfnode"><div class="ft">偵測</div><div class="fd">監控訊號發現異常</div></div><div class="arrow" style="font-size:24px">→</div>
     <div class="pfnode"><div class="ft">定位</div><div class="fd">找出 job／資產／版本</div></div><div class="arrow" style="font-size:24px">→</div>
@@ -812,49 +812,51 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
   </div>
   <div class="cols2">
     <div class="card">
-      <h4 class="d">低風險：可以自動處置</h4>
-      <div class="ct">RETRY · QUARANTINE · FALLBACK · NOTIFY</div>
+      <h4 class="a">AI 生態系怎麼做：trace → 觀測 → 自動修正</h4>
+      <div class="ct">TRACE · AUTO-CORRECT · FEEDBACK</div>
       <ul>
-        <li>失敗 job 依條件重跑</li>
-        <li>隔離壞資料，避免污染下游</li>
-        <li>切換 fallback 資源或通知 owner</li>
+        <li>每次推理＋行動都有軌跡（GenAI trace conventions）</li>
+        <li>異常自動修正：重試、換工具、fallback 回覆</li>
+        <li>失敗案例回饋進 eval 與 prompt 版本，越修越好</li>
+        <li>高風險動作仍保留人工覆核（HITL）</li>
       </ul>
     </div>
     <div class="card">
-      <h4 class="a">高風險：系統建議，人來核准</h4>
-      <div class="ct">DIAGNOSE · EXPLAIN · APPROVE · EXECUTE</div>
+      <h4 class="d">Data 世界現在怎麼做：報而不修</h4>
+      <div class="ct">MONITORING · ALERTS · QUERY LOG</div>
       <ul>
-        <li>改 schema、回滾版本、撤銷權限前先解釋影響</li>
-        <li>人工核准後才執行，並保留完整稽核紀錄</li>
-        <li>成熟後只把重複、可逆的處置升級為 Auto-healing</li>
+        <li>監控訊號與告警很齊全</li>
+        <li>但多半停在「報」：告警 → 人 → 手動處理</li>
+        <li>處置與驗證沒有形成閉環</li>
       </ul>
     </div>
   </div>
-  <div class="pband cur"><span class="pbl">差距</span>監控與執行紀錄已有，常缺的是「定位後如何安全處置、處置後如何確認恢復」。</div>
-  <div class="pband borrow"><span class="pbl">借回</span>先把告警接成可審核的處置流程，再逐步自動化低風險、可逆的動作。</div>
+  <div class="pband cur"><span class="pbl">差距</span>我們有 signal，缺的是把 signal 變成 action 的回饋迴路。</div>
+  <div class="pband borrow"><span class="pbl">借回</span>先把告警接成可審核的處置流程：重跑、隔離、fallback 可自動化；改 schema、回滾留給人核准，再逐步升級 Auto-healing。</div>
 </section>
 
 <!-- ============ 16 POLICY ============ -->
 <section class="slide" id="s16" aria-labelledby="s16t">
   <p class="meta"><span class="num">16</span><span class="part">PART 3 · 萃取 AI 改良設計 ③</span></p>
-  <h2 class="h2" id="s16t">改良 03：Policy as Code——<strong>Agent 場景才新增「工作負載＋發起人」身份</strong></h2>
+  <h2 class="h2" id="s16t">改良 03：Policy as Code——<strong>從「誰能讀」延伸到「誰能讓 Agent 做什麼」</strong></h2>
   <div class="cols2">
     <div class="card">
-      <h4 class="d">現在的 Data 存取模型</h4>
-      <div class="ct">PERSON · M2M · WORKSPACE · OPA</div>
+      <h4 class="a">AI 生態系怎麼做：guardrails 是政策引擎</h4>
+      <div class="ct">GUARDRAILS · POLICY ENGINE · EVERY-HOP · HITL</div>
       <ul>
-        <li>人或 M2M 身份帶 JWT 進 Workspace</li>
-        <li>OPA 依 Workspace、schema、table 判斷是否可讀</li>
-        <li>這套模型對目前 Query Gateway 已經足夠</li>
+        <li>行為邊界用<b>程式碼</b>表達，可測試、可稽核</li>
+        <li>三態決策：allow／deny／<b>require_approval</b></li>
+        <li>每 hop 驗證：User → Agent → Sub-Agent → Tool</li>
+        <li>高風險動作制度化人工覆核（HITL）</li>
       </ul>
     </div>
     <div class="card">
-      <h4 class="a">Agent 代表人執行工具時</h4>
-      <div class="ct">SERVICE ACCOUNT + INITIATING USER</div>
+      <h4 class="d">Data 世界現在怎麼做：OPA 已有，但只有「讀」</h4>
+      <div class="ct">OPA · JWT · WORKSPACE · SCHEMA/TABLE</div>
       <ul>
-        <li>Agent 用平台 service account 連接工具</li>
-        <li>每次動作仍要帶上<b>發起人身份</b>與本次授權範圍</li>
-        <li>不能因 service account 能讀很多表，就把完整能力放大給使用者</li>
+        <li>查詢層政策已程式碼化——<b>這塊我們已經有了</b></li>
+        <li>政策 input 目前只有：發起人身份、Workspace、schema/table</li>
+        <li>缺的是「動作」與「委派」語意</li>
       </ul>
     </div>
   </div>
@@ -864,8 +866,8 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
     <div class="pfnode"><div class="ft">Policy Check</div><div class="fd">同時檢查 Agent 能力＋Alice 權限</div></div><div class="arrow" style="font-size:24px">→</div>
     <div class="pfnode"><div class="ft">Schema / Table / Tool</div><div class="fd">只允許本次任務所需動作</div></div>
   </div>
-  <div class="pband cur"><span class="pbl">邊界</span>這不是現有 Data Platform 的既有缺口；只有導入「Agent 代表人操作工具」時才需要。</div>
-  <div class="pband borrow"><span class="pbl">借回</span>保留 OPA 的 Policy as Code 優勢；未來再把「工作負載身份＋發起人身份＋動作範圍」一起送進政策判斷。</div>
+  <div class="pband cur"><span class="pbl">差距</span>不是缺 policy engine——OPA 就是；是政策 input 還只有「讀取」語意，沒有動作與委派維度。</div>
+  <div class="pband borrow"><span class="pbl">借回</span>同一台 OPA 擴張 input：發起人身份＋工作負載＋動作範圍。現在先把 query log 的發起人語意記好，未來 Agent 進來不用換引擎。</div>
 </section>
 
 <!-- ============ 17 LIFECYCLE ============ -->
@@ -938,7 +940,7 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
     <span class="ab-main"><b>Agentic Lakehouse</b>：資料平台從「給人查」變成「給 Agent 用」——自己發現資料、生成查詢、解讀結果</span>
     <span class="ab-sub">語意層｜Snowflake Semantic Views · dbt Semantic Layer · WrenAI（開源）<br>MCP 介面｜Dremio MCP · Databricks MCP Server　治理｜Databricks Unity AI Gateway · Apache Polaris（開源）</span>
   </div>
-  <div class="take" style="margin-top:18px">路徑不是現在就追 Agentic Lakehouse，而是<b>先把基礎打穩</b>——今天盤點的每個缺口（下架依賴分析、資產消費流程、結果回歸門檻），都是未來敢走這一步的底氣。謝謝大家，歡迎討論。</div>
+  <div class="take" style="margin-top:18px">結論：<b>把 Data 做好，才有機會延伸到 Agent</b>——今天盤點的每個缺口（下架依賴分析、資產消費流程、結果回歸門檻），都是 Agentic Lakehouse 的入場券。謝謝大家，歡迎討論。</div>
 </section>
 
 <!-- ============ CHROME ============ -->
