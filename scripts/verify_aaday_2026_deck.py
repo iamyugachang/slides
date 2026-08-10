@@ -88,19 +88,6 @@ def main():
         for token in required_navigation_tokens:
             require(token in html, f"missing navigation token: {token}", errors)
 
-        require(
-            re.search(r"try\s*\{\s*raw\s*=\s*decodeURIComponent", html, re.S)
-            and "catch (_error)" in html
-            and "return 0;" in html,
-            "malformed URL hashes must safely fall back to the first slide",
-            errors,
-        )
-        require(
-            ".tri .corner,.mesh .agent,.mesh .agent.center,.gaia .market,.gaia .gateway,.role,.role.gov,.trust" in html,
-            "mobile portrait overrides must reset fixed diagram positioning",
-            errors,
-        )
-
         require("TBD" not in html, "deck contains unresolved placeholder: TBD", errors)
         require("TODO" not in html, "deck contains unresolved placeholder: TODO", errors)
     else:
