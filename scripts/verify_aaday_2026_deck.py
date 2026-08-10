@@ -31,7 +31,8 @@ for token in required_deck_tokens:
     assert token in html, f"missing deck token: {token}"
 
 for session in range(1, 13):
-    assert f"S{session}" in html, f"session S{session} is not represented"
+    pattern = rf"(?<![A-Za-z0-9])S{session}(?!\d)"
+    assert re.search(pattern, html), f"session S{session} is not represented"
 
 required_navigation_tokens = [
     'id="prevBtn"', 'id="nextBtn"', 'id="slideCounter"',
