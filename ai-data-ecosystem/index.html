@@ -1021,9 +1021,17 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
       case 'Home': show(0); e.preventDefault(); break;
       case 'End': show(total - 1); e.preventDefault(); break;
       case 'o': case 'O': overview.classList.toggle('open'); e.preventDefault(); break;
-      case 'f': case 'F':
-        if(document.requestFullscreen){ if(document.fullscreenElement){ document.exitFullscreen(); } else { document.documentElement.requestFullscreen(); } }
+      case 'f': case 'F': {
+        var de = document.documentElement;
+        var req = de.requestFullscreen || de.webkitRequestFullscreen;
+        var exit = document.exitFullscreen || document.webkitExitFullscreen;
+        var isFs = document.fullscreenElement || document.webkitFullscreenElement;
+        if(req){
+          if(isFs){ if(exit){ exit.call(document); } }
+          else { var pr = req.call(de); if(pr && pr.catch){ pr.catch(function(){}); } }
+        }
         e.preventDefault(); break;
+      }
       case '?': help.classList.toggle('open'); e.preventDefault(); break;
     }
   });
