@@ -81,17 +81,17 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <nav class="toc" aria-label="目錄">
   <p class="toc-title">議程總覽 · 目錄</p>
   <a class="toc-main" href="#議程總覽">議程總覽</a>
-  <a href="#當-ai-自己醒來工作github-copilot-agentic-workflow-與-automations-實戰-duran-hsieh">2 · Copilot Agentic Workflow（Duran Hsieh）</a>
-  <a href="#從一張票到一個-pr用-sdd-把後端團隊的-ai-開發自動化-楊騏-ci">3 · SDD 自動化（楊騏 Ci）</a>
-  <a href="#ai-can-generate-tests-for-you-now-what-maya-shavin">4 · AI 測試策略（Maya Shavin）</a>
-  <a href="#從-poc-到生產企業-agentic-automation-落地的-5-個架構陷阱與紅藍對抗-fngi">5 · 架構陷阱與紅藍對抗（Fngi）</a>
-  <a href="#雲端退場評估自動化利用-agent-打造開源儲存架構的診斷探測器-eric-ho">6 · Cloud Exit 診斷（Eric Ho）</a>
-  <a href="#讓-ai-agent-好好幹活的-harness-工程-高見龍">7 · Harness 工程（高見龍）</a>
-  <a href="#規章辦法搜尋平台的自動化維運-侯詩彥-james">8 · iSearch 維運（侯詩彥）</a>
-  <a href="#ai-agent-上線的最後一哩路金融業-agentops-與權限治理設計-neo">9 · GAIA 2.0（Neo）</a>
-  <a href="#agent-跑起來之後才是問題的開始agent-governance-的工程實踐-hazel">10 · Agent Governance（Hazel）</a>
-  <a href="#讓-ai-不只回答更能完成工作企業-ai-工作流程的落地實務-tony-chung">11 · Work Agent（Tony Chung）</a>
-  <a href="#從-cio-大調查看企業-ai-自動化現況與挑戰-王宏仁">12 · CIO 大調查（王宏仁）</a>
+  <a href="#2-當-ai-自己醒來工作-github-copilot-agentic-workflow-與-automations-實戰-duran-hsieh">2 · Copilot Agentic Workflow（Duran Hsieh）</a>
+  <a href="#3-從一張票到一個-pr-用-sdd-把後端團隊的-ai-開發自動化-楊騏-ci">3 · SDD 自動化（楊騏 Ci）</a>
+  <a href="#4-ai-can-generate-tests-for-you-now-what-maya-shavin">4 · AI 測試策略（Maya Shavin）</a>
+  <a href="#5-從-poc-到生產-企業-agentic-automation-落地的-5-個架構陷阱與紅藍對抗-fngi">5 · 架構陷阱與紅藍對抗（Fngi）</a>
+  <a href="#6-雲端退場評估自動化-利用-agent-打造開源儲存架構的診斷探測器-eric-ho">6 · Cloud Exit 診斷（Eric Ho）</a>
+  <a href="#7-讓-ai-agent-好好幹活的-harness-工程-高見龍">7 · Harness 工程（高見龍）</a>
+  <a href="#8-規章辦法搜尋平台的自動化維運-侯詩彥-james">8 · iSearch 維運（侯詩彥）</a>
+  <a href="#9-ai-agent-上線的最後一哩路-金融業-agentops-與權限治理設計-neo">9 · GAIA 2.0（Neo）</a>
+  <a href="#10-agent-跑起來之後才是問題的開始-agent-governance-的工程實踐-hazel">10 · Agent Governance（Hazel）</a>
+  <a href="#11-讓-ai-不只回答-更能完成工作-企業-ai-工作流程的落地實務-tony-chung">11 · Work Agent（Tony Chung）</a>
+  <a href="#12-從-cio-大調查看企業-ai-自動化現況與挑戰-王宏仁">12 · CIO 大調查（王宏仁）</a>
   <a href="#會後心得-行動清單">會後心得 · 行動清單</a>
 </nav>
 <p># AADay 2026 — Agentic Automation Day 筆記</p>
@@ -135,7 +135,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <li>適合規格明確的開發任務</li>
 <li>觀察重點：<strong>人從駕駛座退到 review 席</strong></li>
 </ul>
-<figure class="slide-fig"><img src="assets/s2-demo2.svg" alt="s2-demo2" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s2-demo2.svg" alt="s2-demo2"></figure>
 <p><strong>ROADMAP 三階自動化之路</strong></p>
 <ul>
 <li>① Agent Mode：互動式 — 你一步步引導，即時對話、逐步確認</li>
@@ -143,7 +143,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <li>③ Automations：自主式 — 排程與事件觸發，<strong>沒有人按下開始鍵</strong></li>
 <li>金句：<strong>自主程度越高，事前設計就要越重</strong></li>
 </ul>
-<figure class="slide-fig"><img src="assets/s2-roadmap.svg" alt="s2-roadmap" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s2-roadmap.svg" alt="s2-roadmap"></figure>
 <p><strong>COMPARISON 三階地圖：自主程度怎麼看</strong></p>
 <table><tbody>
 <tr><td></td><td>① Agent Mode</td><td>② Cloud Agent</td><td>③ Automation</td></tr>
@@ -156,7 +156,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <ul>
 <li>總結：<strong>選擇取決於：什麼任務放哪一階</strong></li>
 </ul>
-<figure class="slide-fig"><img src="assets/s2-comparison.svg" alt="s2-comparison" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s2-comparison.svg" alt="s2-comparison"></figure>
 <p><strong>CONCEPT 給 Agent 自主權，但限制影響範圍</strong></p>
 <ul>
 <li>✗ 每一步都要人工核准 → <strong>核准疲勞</strong>：第 1 次仔細看完才按 → 第 20 次瞄一眼就按 → 第 100 次一路 Approve → 審核形同虛設</li>
@@ -164,7 +164,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <li>重點不是禁止 Agent 動手 — 是<strong>「足夠的自主權 × 受控的影響範圍」</strong></li>
 <li>放飛自我的慘案，問題都不在自主，而在<strong>沒有邊界</strong></li>
 </ul>
-<figure class="slide-fig"><img src="assets/s2-concept.svg" alt="s2-concept" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s2-concept.svg" alt="s2-concept"></figure>
 <p><strong>心得（Yuga）</strong></p>
 <ul>
 <li>封閉環境很重要：企業落地一定要在封閉環境開發驗證完，最後<strong>只有可交付的東西可以進 production</strong></li>
@@ -181,7 +181,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <li>Agentic Workflow：上限 = <strong>你的預算</strong>；線 — 專家 Agent 常駐每個環節，事件與排程喚醒</li>
 <li>類比：手動 build → build server → CI/CD 常駐 ⇒ <strong>這就是 Continuous AI：AI 任務的 CI/CD</strong></li>
 </ul>
-<figure class="slide-fig"><img src="assets/s2-scale.svg" alt="s2-scale" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s2-scale.svg" alt="s2-scale"></figure>
 <p><strong>GOVERNANCE 上線前，最該在意的四件事</strong></p>
 <ul>
 <li>🔒 最小權限：獨立身分，限縮 scope；<strong>每人一准 PR</strong>（每次核准只授權一個 PR）</li>
@@ -190,7 +190,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <li>👁️ 可觀測性：每次執行可追溯；異常觸發報告書</li>
 <li>主軸：<strong>事前防 → 事中控 → 事後查</strong></li>
 </ul>
-<figure class="slide-fig"><img src="assets/s2-governance.svg" alt="s2-governance" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s2-governance.svg" alt="s2-governance"></figure>
 <h2 id="3-從一張票到一個-pr-用-sdd-把後端團隊的-ai-開發自動化-楊騏-ci">3. 從一張票到一個 PR：用 SDD 把後端團隊的 AI 開發自動化 — 楊騏 Ci</h2>
 <p><em>09:45–10:15</em></p>
 <p><strong>背景（官網摘要）</strong></p>
@@ -222,7 +222,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <li>信心公式：<strong>Confidence = knowing WHICH risks, HOW to verify &amp; WHEN verification should run</strong></li>
 <li>AI 很會產生測試 → 其實沒太多幫助（因為缺的是風險判斷，不是測試數量）</li>
 </ul>
-<figure class="slide-fig"><img src="assets/s4-confidence.svg" alt="s4-confidence" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s4-confidence.svg" alt="s4-confidence"></figure>
 <p><strong>Potential Validations（先列驗證點，再決定放哪）</strong></p>
 <ul>
 <li>範例（search feature）：Filters posts by title/tag；Clears when query is empty；No results state；Keyboard navigation works；Search stays responsive；Screen reader announces updates；Typo/fuzzy search behavior</li>
@@ -235,7 +235,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <li>Q3 Exploratory — Manual</li>
 <li>Q4 Quality — Tools（效能、非功能）</li>
 </ul>
-<figure class="slide-fig"><img src="assets/s4-quadrants.svg" alt="s4-quadrants" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s4-quadrants.svg" alt="s4-quadrants"></figure>
 <p><strong>心得（Yuga）</strong></p>
 <ul>
 <li>講者簡報很有自己的風格：雖然也是 AI 生出來的，但<strong>很有識別度</strong> — 水彩風＋手寫字＋固定角色元素（robot、plant、mug、paper plane）＋簽名式 @mayashavin，像一套品牌系統</li>
@@ -247,7 +247,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <p class="num-item"><span class="num">•</span><strong>Engineers decide</strong> — What matters / Priorities / Validation strategy / <strong>What not to automate</strong></p>
 <p class="num-item"><span class="num">•</span><strong>AI implements</strong> — Tests / Checks / Automation / Monitoring</p>
 <p class="num-item"><span class="num">•</span><strong>Continuous validation &amp; feedback</strong> — CI gates / Monitoring / Learnings</p>
-<figure class="slide-fig"><img src="assets/s4-aitest.svg" alt="s4-aitest" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s4-aitest.svg" alt="s4-aitest"></figure>
 <p><strong>Scaling the Testing Model Workflow（Team Level，由下往上堆疊）</strong></p>
 <p class="num-item"><span class="num">•</span><strong>Shared strategy template</strong> — 團隊共用一份測試策略範本</p>
 <p class="num-item"><span class="num">•</span><strong>AI-assisted execution</strong> — 工程師在既定策略內用 AI 生成/執行測試</p>
@@ -255,12 +255,12 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <p class="num-item"><span class="num">•</span><strong>Review checklist</strong> — 合併前 checklist 確保 review 完整</p>
 <p class="num-item"><span class="num">•</span><strong>CI gates</strong> — merge 前自動把關品質</p>
 <p class="num-item"><span class="num">•</span><strong>Metrics + learning loop</strong> — 指標驅動可見性與持續學習</p>
-<figure class="slide-fig"><img src="assets/s4-scaling.svg" alt="s4-scaling" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s4-scaling.svg" alt="s4-scaling"></figure>
 <p><strong>總結句</strong></p>
 <ul>
 <li><strong>Better confidence comes from strategy, not just more tests</strong> — 用 AI 寫 scenarios 可以，但策略才是信心來源</li>
 </ul>
-<figure class="slide-fig"><img src="assets/s4-summary.svg" alt="s4-summary" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s4-summary.svg" alt="s4-summary"></figure>
 <h2 id="5-從-poc-到生產-企業-agentic-automation-落地的-5-個架構陷阱與紅藍對抗-fngi">5. 從 POC 到生產：企業 Agentic Automation 落地的 5 個架構陷阱與紅藍對抗 — Fngi</h2>
 <p><em>11:15–11:45</em></p>
 <p><strong>背景（官網摘要）</strong></p>
@@ -277,13 +277,13 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <li><strong>跨系統協作權</strong> → 資料治理失效（身分與記憶跨邊界）</li>
 <li>五個陷阱一一對上這三權三失效；<strong>POC 都看不見，因為 POC 天生繞過它們</strong></li>
 </ul>
-<figure class="slide-fig"><img src="assets/s5-threepowers.svg" alt="s5-threepowers" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s5-threepowers.svg" alt="s5-threepowers"></figure>
 <p><strong>解剖對象：OpenClaw（真實開源 Agent 框架）</strong></p>
 <ul>
 <li>為什麼選它：① 架構跟大多數企業自己搭的 Agent stack 幾乎一樣 ② 學術界已對它做了一整批攻擊研究 — 紅隊是<strong>有人真的打穿過的</strong></li>
 <li>今天不講：LLM 基礎、prompt 工程（model 層）；今天講：<strong>架構層</strong></li>
 </ul>
-<figure class="slide-fig"><img src="assets/s5-openclaw.svg" alt="s5-openclaw" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s5-openclaw.svg" alt="s5-openclaw"></figure>
 <p><strong>現場筆記</strong></p>
 <ul>
 <li>主軸：各自使用/開發的 <strong>harness 在架構面上的 security</strong> — 風險集中在 harness（框架層），不是 model 層</li>
@@ -307,13 +307,13 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <li>六步流程：訪談（目標）→ 盤點（設定）→ 觀察（紀錄）→ 查證（文件）→ 實驗（沙盒）→ 判斷（建議）</li>
 <li>回饋迴圈：「新證據！」→ 補資料、換方向、重新測試（從判斷回捲到盤點）</li>
 </ul>
-<figure class="slide-fig"><img src="assets/s6-method.svg" alt="s6-method" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s6-method.svg" alt="s6-method"></figure>
 <p><strong>背景篇：S3 退場風險，經常在搬完後才出現</strong></p>
 <ul>
 <li>金句：<strong>資料搬得走，不代表架構退得出去</strong></li>
 <li>AWS S3 → S3 替代方案，資料搬出後的<strong>衍生問題</strong>：功能失效／效能退化／硬體錯配／ROI 高估</li>
 </ul>
-<figure class="slide-fig"><img src="assets/s6-s3risk.svg" alt="s6-s3risk" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s6-s3risk.svg" alt="s6-s3risk"></figure>
 <p><strong>Cloud Exit 必須拆解整套雲端相依關係</strong></p>
 <ul>
 <li>雲環境 = 維運／運算／資料／整合／安全 五層；S3 是核心但被四周隱性依賴包圍</li>
@@ -333,7 +333,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <ul>
 <li>圖例：藍 = 固定執行單元；黃 = LLM 相關執行單元（Agentic 有分支決策）</li>
 </ul>
-<figure class="slide-fig"><img src="assets/s6-threegen.svg" alt="s6-threegen" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s6-threegen.svg" alt="s6-threegen"></figure>
 <p><strong>方法論篇：ExitLens 是 Agent 與 Human 的持續決策循環</strong></p>
 <ul>
 <li><strong>Evidence 與 Decision 讓兩個責任環閉合</strong></li>
@@ -342,7 +342,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <li>Human Decision（藍）：Review → Decide → Adjust → Feedback</li>
 <li>Agent 產出 Evidence 餵給人；人的 Decision 餵回 Agent — 兩環互鎖，持續迭代</li>
 </ul>
-<figure class="slide-fig"><img src="assets/s6-exitlens.svg" alt="s6-exitlens" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s6-exitlens.svg" alt="s6-exitlens"></figure>
 <p><strong>方法論篇：Agent 協助決策者，然後呢？</strong></p>
 <ul>
 <li>Evaluate 決定下一步：繼續調查、等待 Human、或結束診斷</li>
@@ -360,7 +360,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
     E --&gt;|I Re-plan| B
     E --&gt;|II Human Act| F[人介入]
     E --&gt;|III Complete| G[輸出報告]</code></pre>
-<figure class="slide-fig"><img src="assets/s6-agentloop.svg" alt="s6-agentloop" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s6-agentloop.svg" alt="s6-agentloop"></figure>
 <h2 id="7-讓-ai-agent-好好幹活的-harness-工程-高見龍">7. 讓 AI Agent 好好幹活的 Harness 工程 — 高見龍</h2>
 <p><em>13:20–13:50</em></p>
 <p><strong>背景（官網摘要）</strong></p>
@@ -566,7 +566,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <li>橫切面：<strong>No logs / tests / metrics</strong></li>
 <li>Reference：NIST AI RMF Core</li>
 </ul>
-<figure class="slide-fig"><img src="assets/s10-govmap.svg" alt="s10-govmap" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s10-govmap.svg" alt="s10-govmap"></figure>
 <p><strong>WHICH：六種可以使用的工具 / 機制 / 方法</strong></p>
 <ul>
 <li>中央：Agent Governance Tools，分兩大類：</li>
@@ -584,14 +584,14 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <ul>
 <li>對應：治理地圖（WHEN）告訴你哪裡有風險；這張（WHICH）告訴你用什麼工具 — 左欄=執行期攔截，右欄=上線前驗證</li>
 </ul>
-<figure class="slide-fig"><img src="assets/s10-whichtools.svg" alt="s10-whichtools" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s10-whichtools.svg" alt="s10-whichtools"></figure>
 <p><strong>DEMO：Policy as Code（OPA/Rego 風格，示意語法非逐字）</strong></p>
 <ul>
 <li>核心：<strong>default-deny 正面表列 + ABAC 三態決策 (allow / deny / require_approval)</strong></li>
 <li>示範案例：admin 寄信到外部 domain → 不硬擋也不放行，升級 <strong>require_approval</strong>（人工核准）— 比單純 allow/deny 更貼真實情境</li>
 <li>落地三要求：版本控管 + PR review／搭配測試／稽核性</li>
 </ul>
-<figure class="slide-fig"><img src="assets/s10-policycode.svg" alt="s10-policycode" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s10-policycode.svg" alt="s10-policycode"></figure>
 <p><strong>心得（Yuga）：Policy as Code 放置位置的取捨</strong></p>
 <ul>
 <li>講者放在 Agent Hooks，但其實也可放 MCP 或 LLM Gateway，放哪決定看得到什麼：</li>
@@ -605,7 +605,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <p class="num-item"><span class="num">•</span><strong>治理要發生在動作前</strong>（事前攔截，不是事後補救）</p>
 <p class="num-item"><span class="num">•</span><strong>治理工程化：Policy as Code</strong>（治理本身要版本化、可測試、可稽核）</p>
 <p class="num-item"><span class="num">•</span><strong>治理是否有效：用測試 + 觀測驗證</strong>（治理也要被驗證，呼應 Session 4「更多的測試≠信心」）</p>
-<figure class="slide-fig"><img src="assets/s10-takeaways.svg" alt="s10-takeaways" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s10-takeaways.svg" alt="s10-takeaways"></figure>
 <h2 id="11-讓-ai-不只回答-更能完成工作-企業-ai-工作流程的落地實務-tony-chung">11. 讓 AI 不只回答，更能完成工作：企業 AI 工作流程的落地實務 — Tony Chung</h2>
 <p><em>16:20–16:50</em></p>
 <p><strong>背景（官網摘要，session/4946）</strong></p>
@@ -640,7 +640,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <li>關鍵差異金句：企業真正需要的不是一段回答，而是<strong>一份可驗證、可交付、可追溯的工作成果</strong></li>
 <li>心得：差別不在 AI 聰不聰明，在<strong>有沒有把工作當流程做</strong> — 批次、結構化、驗證、輸出格式，全是工程問題不是模型問題（與 Session 3 SDD「流程切成有明確產出/驗收的步驟」同頻）</li>
 </ul>
-<figure class="slide-fig"><img src="assets/s11-gap.svg" alt="s11-gap" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s11-gap.svg" alt="s11-gap"></figure>
 <p><strong>06 參考架構：企業 Agentic Workflow 的五層設計</strong></p>
 <ul>
 <li>五層（下→上）：</li>
@@ -658,7 +658,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <li>金句：<strong>模型只是其中一層；正式上線取決於資料、工具、狀態、權限與可觀測性</strong></li>
 <li>心得：把「Agentic Workflow ≠ 模型」講得很清楚 — 上線門檻在五層齊備＋兩側治理/維運；與 GAIA 治理切面、Session 10 可觀測性對齊</li>
 </ul>
-<figure class="slide-fig"><img src="assets/s11-fivelayer.svg" alt="s11-fivelayer" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s11-fivelayer.svg" alt="s11-fivelayer"></figure>
 <p><strong>07 Knowledge Implementation：可信知識中樞如何落地</strong></p>
 <ul>
 <li>三張卡片（知識中樞三要求）：</li>
@@ -668,7 +668,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <li>架構選項：Cloud / Private Cloud / On-Prem — <strong>依資料敏感度選擇不同後端</strong></li>
 <li>心得：知識中樞設計基準不是「RAG 效果多好」，是三個 -able：找得到（多模態混合檢索）、驗得到（引用可回溯原文）、管得住（租戶級權限）；「可驗」若無頁碼/來源回溯，就只是 LLM 在編故事</li>
 </ul>
-<figure class="slide-fig"><img src="assets/s11-knowledgehub.svg" alt="s11-knowledgehub" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s11-knowledgehub.svg" alt="s11-knowledgehub"></figure>
 <p><strong>10 Work Agent 架構：表格即流程、欄位即工具</strong></p>
 <ul>
 <li>核心：<strong>表格即流程、欄位即工具</strong> — Flow Engine 解析欄位相依性，建立可平行、可追蹤、可重跑的執行流程</li>
@@ -681,7 +681,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <li>原文溯源追蹤（回 PDF 原文）</li>
 <li>心得：設計精髓是把 agent 工作結果落在<strong>表格</strong>，每個 cell 是執行單元 — 欄位相依性 = 流程 DAG，可平行/重跑/追蹤；這其實是 <strong>spreadsheet 版的 data pipeline</strong>（Extract/Normalize/Validate = ETL），表格 UI 讓每一步都看得見；呼應 03「可驗證、可交付、可追溯」</li>
 </ul>
-<figure class="slide-fig"><img src="assets/s11-workagent.svg" alt="s11-workagent" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s11-workagent.svg" alt="s11-workagent"></figure>
 <p><strong>15 Roadmap &amp; 結語：從知識到可治理的 Agent Platform</strong></p>
 <ul>
 <li>四階段路線圖：</li>
@@ -693,7 +693,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <li>Progression：Knowledge → Workflow → Agent → <strong>Governed Platform</strong></li>
 <li>心得：四階梯每一階都是今天其他講者的主題（L1=Session 8 iSearch、L2=Session 3 SDD、L3=Session 2、L4=Session 9/10）— 這張其實是整個 AADay 的濃縮版 roadmap</li>
 </ul>
-<figure class="slide-fig"><img src="assets/s11-roadmap.svg" alt="s11-roadmap" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s11-roadmap.svg" alt="s11-roadmap"></figure>
 <h2 id="12-從-cio-大調查看企業-ai-自動化現況與挑戰-王宏仁">12. 從 CIO 大調查看企業 AI 自動化現況與挑戰 — 王宏仁</h2>
 <p><em>17:05–17:35（官網時間，原議程表 16:50）</em></p>
 <p><strong>背景（官網摘要）</strong></p>
@@ -711,7 +711,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <li>心得：數位轉型＝把既有流程加速；AI 轉型＝改變組織做事方式；Session 2 automation 是 Work Faster，Session 11「從回答到完成工作」、Session 6「把專家調查方法工程化」才是 Work Smarter</li>
 </blockquote>
 </ul>
-<figure class="slide-fig"><img src="assets/s12-fastersmarter.svg" alt="s12-fastersmarter" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s12-fastersmarter.svg" alt="s12-fastersmarter"></figure>
 <p><strong>12 各產業 AI 預算金額與成長率（2025→2026，iThome 2026 CIO &amp; CISO 大調查）</strong></p>
 <ul>
 <li>金融業：5,198萬 → 11,309萬（<strong>+118%</strong> 翻倍）</li>
@@ -723,7 +723,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <li>百億營收企業 Top500：1,798萬 → 3,776萬（+111%）</li>
 <li>心得：預算翻倍（金融/政府）＋領先者比率跳升，但落地還在早期 — 錢進來了，正是今天「能 demo ≠ 能上線」的宏觀數據版</li>
 </ul>
-<figure class="slide-fig"><img src="assets/s12-aibudget.svg" alt="s12-aibudget" loading="lazy"></figure>
+<figure class="slide-fig"><img src="assets/s12-aibudget.svg" alt="s12-aibudget"></figure>
 <hr>
 <h2 id="會後心得-行動清單">會後心得 / 行動清單</h2>
 <h3 id="跨-session-綜效-agent-生態-big-data-生態名詞對應">跨 Session 綜效：Agent 生態 ↔ Big Data 生態名詞對應</h3>
