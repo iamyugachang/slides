@@ -35,12 +35,12 @@ def require(condition, message, errors):
 def read_required(path, label, errors):
     if not path.exists():
         errors.append(f"missing {label}: {path}")
-        return ""
+        return None
     try:
         return path.read_text(encoding="utf-8")
     except OSError as exc:
         errors.append(f"cannot read {label}: {path} ({exc})")
-        return ""
+        return None
 
 
 def extract_slide_ids(html):
@@ -56,7 +56,7 @@ def main():
     home = read_required(HOME, "homepage", errors)
     article = read_required(ARTICLE, "AADay article", errors)
 
-    if html:
+    if html is not None:
         slides = extract_slide_ids(html)
         require(len(slides) == 11, f"expected 11 slides, got {len(slides)}", errors)
         require(len(slides) == len(set(slides)), "slide ids must be unique", errors)
@@ -93,13 +93,13 @@ def main():
     else:
         slides = []
 
-    if home:
+    if home is not None:
         require('./aaday-2026/' in home, "article card missing from homepage", errors)
         require('./aaday-2026-deck/' in home, "deck card missing from homepage", errors)
         require("12 場" in home, "article card must remain clearly identified", errors)
         require("11 slides" in home, "deck card must state its length", errors)
 
-    if article:
+    if article is not None:
         require(len(article) > 40000, "existing long-form article appears truncated", errors)
         require(article.count('<img ') == 29, "existing article figure count changed", errors)
 
