@@ -36,8 +36,14 @@ if DECK.exists():
         "固定 DAG", "上線門檻", "持續回歸",
         "偵測", "定位", "人工核准", "執行", "驗證",
         "service account", "發起人身份", "Trino", "Iceberg", "GAIA",
+        "GAIA 2.0", "Marketplace", "訂閱制",
+        "Agentic Lakehouse", "Semantic Layer",
     ]:
         require(term.lower() in html.lower(), f"missing required concept: {term}")
+    cmpbar_count = html.count('class="cmpbar"')
+    require(cmpbar_count == 8, f"expected 8 comparison bars (s5–s12), got {cmpbar_count}")
+    require(html.count("gaiabox") == 1, "governance slide needs one GAIA intro box")
+    require(html.count('class="agenticband"') == 1, "conclusion needs one Agentic Lakehouse band")
     for forbidden in [
         "telemetry",
         "DAG 心智模型直接沿用",

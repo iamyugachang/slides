@@ -83,6 +83,32 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
 .chip.a{background:var(--terra-soft);color:#8a3b1d}
 .chip.g{background:var(--gold-soft);color:#7a5a12}
 
+/* ---- comparison axis bar: 讓每頁「在比較什麼」一眼可見 ---- */
+.cmpbar{
+  margin-top:14px;border-radius:14px;padding:10px 22px;
+  background:linear-gradient(90deg,var(--teal-soft),#fbf7ee 42%,var(--terra-soft));
+  border:1px solid var(--line);
+  display:flex;align-items:center;gap:18px;
+}
+.cmpbar .cbd{font-weight:900;font-size:19px;color:#14554e;white-space:nowrap}
+.cmpbar .cbq{flex:1;font-size:25px;font-weight:900;color:var(--ink);line-height:1.35;text-align:center}
+.cmpbar .cba{font-weight:900;font-size:19px;color:#8a3b1d;white-space:nowrap}
+
+/* ---- Agentic Lakehouse 展望 band ---- */
+.agenticband{
+  margin-top:16px;border-radius:16px;padding:15px 26px;
+  background:linear-gradient(135deg,#2c2418,#4a3a26);
+  color:#f6f0e4;display:flex;flex-direction:column;gap:6px;
+  box-shadow:0 14px 40px #00000022;
+}
+.agenticband .ab-flag{
+  align-self:flex-start;background:var(--terra);color:#fff;font-weight:900;
+  font-size:15px;letter-spacing:.14em;border-radius:999px;padding:2px 14px;
+}
+.agenticband .ab-main{font-size:24px;line-height:1.45;font-weight:800;color:#f6f0e4}
+.agenticband .ab-main b{color:#e9c778}
+.agenticband .ab-sub{font-size:18px;color:#d8cdb8;line-height:1.5}
+
 /* ---- diagram primitives ---- */
 .dg{display:flex;align-items:stretch;gap:14px;margin-top:20px}
 .dg.col{flex-direction:column;align-items:stretch}
@@ -349,6 +375,11 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
   .node .t{font-size:19px}
   .node .s{font-size:16px}
   .cols2{grid-template-columns:1fr;gap:12px}
+  .cmpbar{flex-direction:column;align-items:stretch;gap:3px}
+  .cmpbar .cbq{text-align:left;font-size:20px}
+  .cmpbar .cbd,.cmpbar .cba{font-size:16px}
+  .agenticband .ab-main{font-size:19px}
+  .agenticband .ab-sub{font-size:16px}
   .ops-cycles{grid-template-columns:1fr;gap:12px}
   .opcycle{min-width:0}
   .opcycle svg{max-width:100%;height:auto}
@@ -461,6 +492,7 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
 <section class="slide" id="s5" aria-labelledby="s5t">
   <p class="meta"><span class="num">05</span><span class="part">PART 2 · 逐組對照 01/08</span></p>
   <h2 class="h2" id="s5t">從 Data Operations 到 AI Operations：<strong>營運對象從管線擴張到模型、內容與行動</strong></h2>
+  <div class="cmpbar"><span class="cbd">DataOps</span><span class="cbq">同一個問題：把系統養到可控、可修、成本可見</span><span class="cba">AI Operations</span></div>
   <div class="ops-cycles">
     <div class="opcycle data">
       <div class="ophead"><div class="opname">Data Operations</div><div class="opscope">AIRFLOW · DAG · CI/CD · CAPACITY</div></div>
@@ -493,7 +525,6 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
       <div class="opnote">觀測單位擴張成 <b>一次推理與行動軌跡</b>；除了延遲與成本，還要持續評估品質與安全。</div>
     </div>
   </div>
-  <div class="pband same"><span class="pbl">共同核心</span>兩邊都是「持續交付 → 觀測 → 回饋 → 改善」的營運循環。</div>
   <div class="pband new"><span class="pbl">AI 多出的變因</span>輸出不固定，重試不一定得到同樣結果；營運還要涵蓋 prompt 版本、token 成本與 Agent 動作。</div>
   <div class="take">借鏡：<b>既有排程、告警、執行紀錄與成本歸因仍是地基</b>；AI Operations 是把營運邊界從「管線」往「行為」擴張。</div>
 </section>
@@ -501,47 +532,48 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
 <!-- ============ 6 GOVERNANCE ============ -->
 <section class="slide" id="s6" aria-labelledby="s6t">
   <p class="meta"><span class="num">06</span><span class="part">PART 2 · 逐組對照 02/08</span></p>
-  <h2 class="h2" id="s6t">Governance 的共同骨架：<strong>把資產從上架、訂閱、改版一路管到下架</strong></h2>
+  <h2 class="h2" id="s6t">先看懂國泰 <strong>GAIA 2.0</strong> 把 Agent 當資產管，再對回 Data Governance</h2>
+  <div class="cmpbar"><span class="cbd">Data Governance</span><span class="cbq">同一個問題：多團隊規模化時，資產與權限不失控</span><span class="cba">AI Governance</span></div>
   <div class="cols2">
-    <div class="card">
-      <h4 class="d">Data Asset：以「客戶 360 表」為例</h4>
-      <div class="ct">CATALOG · WORKSPACE · OPA · ICEBERG</div>
+    <div class="card gaiabox">
+      <h4 class="a">GAIA 2.0：國泰銀行的企業級 Agent 管理平台</h4>
+      <div class="ct">不是做單一 Agent——是讓多個團隊「開發、部署、申請、維運、下架」Agent 的共通平台能力</div>
       <ul>
-        <li><b>Publish</b>：登錄 owner、schema、SLA、用途與機敏等級</li>
-        <li><b>Subscribe</b>：使用者替 Workspace 申請；核准後由 OPA 開放 schema/table</li>
-        <li><b>Versioning</b>：schema／data contract 演進，Iceberg snapshot 保留資料版本</li>
-        <li><b>Deprecation</b>：從 query log 找受影響 Workspace，通知遷移後再下架</li>
+        <li><b>Workspace</b>：團隊隔離邊界，各自開發互不踩線</li>
+        <li><b>Marketplace</b>：Agent／MCP／工具上架，全行檢索、申請訂閱</li>
+        <li><b>Gateway</b>：集中權限檢查、路由與執行紀錄——治理中樞</li>
       </ul>
     </div>
     <div class="card">
-      <h4 class="a">AI Asset：模型、Prompt、Agent、Tool</h4>
-      <div class="ct">MARKETPLACE · POLICY · GUARDRAILS · APPROVAL</div>
+      <h4 class="a">核心做法：Agent 也是「資產」</h4>
+      <div class="ct">AGENTOPS 生命週期 · 訂閱制 · SoD 三角色</div>
       <ul>
-        <li>同樣要有 owner、用途、版本、權限要求與相依資產</li>
-        <li>Subscribe 不只是「能不能讀」，還包含「能不能執行動作」</li>
-        <li>版本改動要做行為回歸；下架前要知道哪些 Agent 正在使用</li>
-        <li>國泰 GAIA 2.0 的價值，在於把這條生命週期做成平台能力</li>
+        <li>瓶頸不是 PoC，是<b>多團隊規模化</b>的失控</li>
+        <li>資產化＋<b>訂閱制</b>：不得私下串接</li>
+        <li>雙重身份：Agent 系統權限 vs 使用者委派（防權限放大）</li>
+        <li>Provider／Consumer／Governance 分離（SoD）</li>
       </ul>
     </div>
   </div>
   <div class="pairflow">
-    <div class="pfnode"><div class="ft">Publish</div><div class="fd">資產註冊＋契約：<b>誰負責、能做什麼</b></div></div>
+    <div class="pfnode"><div class="ft">Publish</div><div class="fd">能力＋權限要求<b>註冊進 Marketplace</b></div></div>
     <div class="arrow" style="font-size:24px">→</div>
-    <div class="pfnode"><div class="ft">Subscribe</div><div class="fd">申請＋授權：<b>Workspace＋OPA 已有</b></div></div>
+    <div class="pfnode"><div class="ft">Subscribe</div><div class="fd"><b>不得私下串接</b>，一律平台審批授權</div></div>
     <div class="arrow" style="font-size:24px">→</div>
-    <div class="pfnode"><div class="ft">Versioning</div><div class="fd">多版本並存＋相容性／回歸驗證</div></div>
+    <div class="pfnode"><div class="ft">Versioning</div><div class="fd">多版本並存，給呼叫端<b>遷移緩衝</b></div></div>
     <div class="arrow" style="font-size:24px">→</div>
-    <div class="pfnode"><div class="ft">Deprecation</div><div class="fd">依賴分析＋通知＋遷移期限</div></div>
+    <div class="pfnode"><div class="ft">Deprecation</div><div class="fd"><b>依賴分析</b>＋強制通知＋平滑下線</div></div>
   </div>
-  <div class="pband same"><span class="pbl">共同核心</span>治理不是只有 Catalog 或權限，而是讓資產在整個生命週期中可控、可升級、可退場。</div>
-  <div class="pband new"><span class="pbl">AI 多出的變因</span>資產可能主動執行動作，因此還要管動作級授權、決策紀錄與高風險人工覆核。</div>
-  <div class="take">借鏡：GAIA 的「資產化＋訂閱制」可以直接套回 Data Asset；<b>我們前半段已具備，真正缺口是改版相容性與下架依賴分析</b>。</div>
+  <div class="pband same"><span class="pbl">對回 Data Asset（客戶 360 表）</span>同一條生命週期：Iceberg catalog 註冊（Publish）／Workspace＋OPA 申請授權（Subscribe）／snapshot 多版本（Versioning）／query log 依賴分析後下架（Deprecation）。</div>
+  <div class="pband new"><span class="pbl">AI 多出的變因</span>資產會主動執行動作：還要動作級授權、決策紀錄與高風險人工覆核。</div>
+  <div class="take">借鏡：GAIA 把「資產化＋訂閱制」做成了平台能力——<b>我們前半段已有（Workspace＋OPA＋Iceberg），缺口是改版相容性與下架依賴分析</b>。</div>
 </section>
 
 <!-- ============ 7 LINEAGE ============ -->
 <section class="slide" id="s7" aria-labelledby="s7t">
   <p class="meta"><span class="num">07</span><span class="part">PART 2 · 逐組對照 03/08</span></p>
   <h2 class="h2" id="s7t">從資料血緣到決策血緣：<strong>追蹤範圍從欄位擴張到上下文與行動</strong></h2>
+  <div class="cmpbar"><span class="cbd">Data Lineage</span><span class="cbq">同一個問題：產出從哪來、壞了影響誰</span><span class="cba">AI Lineage</span></div>
   <div class="cols2">
     <div class="card">
       <h4 class="d">Data Lineage：追「資料的血緣」</h4>
@@ -562,7 +594,6 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
       </ul>
     </div>
   </div>
-  <div class="pband same"><span class="pbl">同一個問題</span>產出從哪來、壞了影響誰、合規要能交代。</div>
   <div class="pband new"><span class="pbl">AI 新增</span>追蹤對象擴張到「上下文與決策」；同樣的底層資料，不同的 prompt／模型／工具組合就是不同答案。</div>
   <div class="take">借鏡：<b>依賴圖可以共用</b>——把 AI trace 掛進同一個圖，AI 資產就能享受 Data 資產的衝擊分析。</div>
 </section>
@@ -571,6 +602,7 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
 <section class="slide" id="s8" aria-labelledby="s8t">
   <p class="meta"><span class="num">08</span><span class="part">PART 2 · 逐組對照 04/08</span></p>
   <h2 class="h2" id="s8t">從資料是否健康到行為是否可靠：<strong>Observability 的觀測對象變寬了</strong></h2>
+  <div class="cmpbar"><span class="cbd">Data Observability</span><span class="cbq">同一個問題：壞了要第一個知道</span><span class="cba">AI Observability</span></div>
   <div class="cols2">
     <div class="card">
       <h4 class="d">Data Observability：壞了第一個知道</h4>
@@ -591,7 +623,6 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
       </ul>
     </div>
   </div>
-  <div class="pband same"><span class="pbl">同一個問題</span>系統進生產後，debug 不能靠看單筆 log，要靠 trace、metrics、lineage。</div>
   <div class="pband new"><span class="pbl">AI 新增</span>「生成內容好不好」本身就是觀測對象；quality score 與 safety 違規要進同一套告警。</div>
   <div class="take">借鏡：<b>signal → context → decision → action 的閉環可以共用</b>——平台提供 trace 通道與 feedback 迴路，而不是多一個孤島儀表板。</div>
 </section>
@@ -600,6 +631,7 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
 <section class="slide" id="s9" aria-labelledby="s9t">
   <p class="meta"><span class="num">09</span><span class="part">PART 2 · 逐組對照 05/08</span></p>
   <h2 class="h2" id="s9t">從規則檢查到結果評估：<strong>品質判斷從 pass／fail 走向分布與風險</strong></h2>
+  <div class="cmpbar"><span class="cbd">Data Quality</span><span class="cbq">同一個問題：產出可不可信——都要品質閘門</span><span class="cba">AI Evaluation</span></div>
   <div class="cols2">
     <div class="card">
       <h4 class="d">Data Quality：規則可驗證</h4>
@@ -620,7 +652,6 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
       </ul>
     </div>
   </div>
-  <div class="pband same"><span class="pbl">同一個問題</span>產出可不可信——都要品質閘門、都要持續監控。</div>
   <div class="pband new"><span class="pbl">AI 新增</span>正確性 → 行為可靠性；測試從 pass/fail 變成分布與風險邊界。</div>
   <div class="take">借鏡：Data 品質可以從「規則閘門」升級成「<b>行為型 SLA</b>」——不只檢查 schema，還追「資產被用得怎樣、下游結果好不好」。</div>
 </section>
@@ -629,6 +660,7 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
 <section class="slide" id="s10" aria-labelledby="s10t">
   <p class="meta"><span class="num">10</span><span class="part">PART 2 · 逐組對照 06/08</span></p>
   <h2 class="h2" id="s10t">從 Catalog 到 Registry：<strong>資產不只要登錄，還要能被正確選用</strong></h2>
+  <div class="cmpbar"><span class="cbd">Data Catalog</span><span class="cbq">同一個問題：資產找得到、選得對、用得上</span><span class="cba">Model Registry</span></div>
   <div class="cols2">
     <div class="card">
       <h4 class="d">Data Catalog：找資料＋申請使用</h4>
@@ -650,7 +682,6 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
       </ul>
     </div>
   </div>
-  <div class="pband same"><span class="pbl">同一個問題</span>有哪些資產、誰擁有、品質如何、誰能用——機制幾乎一致。</div>
   <div class="pband new"><span class="pbl">AI 新增</span>行為資產也要註冊：policy、eval、trace 不只是 metadata，是資產的一部分。</div>
   <div class="take">借鏡：下一步不是再做一個 Catalog，而是補齊「<b>搜尋 → 適用性判斷 → 申請 → 可用</b>」的資產消費體驗。</div>
 </section>
@@ -659,6 +690,7 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
 <section class="slide" id="s11" aria-labelledby="s11t">
   <p class="meta"><span class="num">11</span><span class="part">PART 2 · 逐組對照 07/08</span></p>
   <h2 class="h2" id="s11t">從查詢入口到動作入口：<strong>Gateway 把權限、路由與稽核留在平台層</strong></h2>
+  <div class="cmpbar"><span class="cbd">Query Gateway</span><span class="cbq">同一個問題：合規成本留在平台層</span><span class="cba">Agent Gateway</span></div>
   <div class="cols2">
     <div class="card">
       <h4 class="d">Query Gateway：統一查詢入口</h4>
@@ -679,7 +711,6 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
       </ul>
     </div>
   </div>
-  <div class="pband same"><span class="pbl">同一個問題</span>把合規成本留在平台層，把開發速度還給業務團隊——樞紐化的價值一模一樣。</div>
   <div class="pband new"><span class="pbl">AI 新增</span>治理單位從「讀取權限」變成「每個動作的授權」；agent 能做的事超過任務所需（過度自主）是 2025 年十大 AI 風險。</div>
   <div class="take">借鏡：我們已有 gateway 心智模型——<b>MCP 時代的「工具目錄」也該走同一道門</b>，而不是讓每個團隊各自對接。</div>
 </section>
@@ -688,6 +719,7 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
 <section class="slide" id="s12" aria-labelledby="s12t">
   <p class="meta"><span class="num">12</span><span class="part">PART 2 · 逐組對照 08/08</span></p>
   <h2 class="h2" id="s12t">從固定 Pipeline 到動態 Workflow：<strong>可沿用的是工程紀律，不是固定路徑</strong></h2>
+  <div class="cmpbar"><span class="cbd">ETL Pipeline</span><span class="cbq">同一個問題：把原料加工成可信產出</span><span class="cba">Agent Workflow</span></div>
   <div class="cols2">
     <div class="card">
       <h4 class="d">ETL Pipeline：加工原料</h4>
@@ -708,7 +740,6 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
       </ul>
     </div>
   </div>
-  <div class="pband same"><span class="pbl">同一個問題</span>把原料加工成可信產出；都要調度、重試、監控、版本、成本可見。</div>
   <div class="pband new"><span class="pbl">AI 新增</span>context 既是輸入也是狀態——失敗不能簡單重放，要重放「決策過程」。</div>
   <div class="take">借鏡：沿用的是<b>流程資產化、版本化、每次執行可追蹤、失敗有 checkpoint</b>；不能硬套固定 DAG，因為 Agent 可能動態決定下一步。</div>
 </section>
@@ -902,7 +933,12 @@ html.js .slide.is-active{opacity:1;pointer-events:auto}
       <div class="node ok" style="align-items:flex-start;text-align:left"><div class="t">③ 借回五項改良，先補最明確的缺口</div><div class="s">上線門檻、觀測到處置、政策即程式碼、資產生命週期、trace 標準——P0 下架依賴分析優先</div></div>
     </div>
   </div>
-  <div class="take" style="margin-top:28px">我們不是在「追 AI」——是在把 Data Platform 升級到「<b>決策與行動</b>」的治理時代。謝謝大家，歡迎討論。</div>
+  <div class="agenticband">
+    <span class="ab-flag">下一站</span>
+    <span class="ab-main"><b>Agentic Lakehouse</b>：Agent 成為資料平台的新消費者——自己發現資料、生成查詢、解讀結果</span>
+    <span class="ab-sub">平台要補的三件事：語意層（Semantic Layer）／ MCP 介面 ／ Agent 身份治理——正好是前面借鏡的延伸</span>
+  </div>
+  <div class="take" style="margin-top:18px">我們不是在「追 AI」——是在把 Data Platform 升級到「<b>決策與行動</b>」的治理時代。謝謝大家，歡迎討論。</div>
 </section>
 
 <!-- ============ CHROME ============ -->
