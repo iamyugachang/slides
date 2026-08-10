@@ -19,27 +19,37 @@ require(HOME.exists(), f"missing {HOME}")
 if DECK.exists():
     html = DECK.read_text(encoding="utf-8")
     ids = re.findall(r'<section\s+class="slide(?:\s[^\"]*)?"\s+id="(s\d+)"', html)
-    require(len(ids) == 17, f"expected 17 slides, got {len(ids)}")
-    require(ids == [f"s{i}" for i in range(1, 18)], f"slide IDs are not s1–s17: {ids}")
-    require(html.count('aria-labelledby="s') >= 17, "every slide needs aria-labelledby")
+    require(len(ids) == 19, f"expected 19 slides, got {len(ids)}")
+    require(ids == [f"s{i}" for i in range(1, 20)], f"slide IDs are not s1–s19: {ids}")
+    require(html.count('aria-labelledby="s') >= 19, "every slide needs aria-labelledby")
     require('class="progress-bar"' in html, "missing progress bar")
     require('id="overview"' in html, "missing overview")
     require('touchstart' in html and 'touchend' in html, "missing touch navigation")
     require('location.hash' in html, "missing hash navigation")
     require('requestFullscreen' in html, "missing fullscreen support")
     require('prefers-reduced-motion' in html, "missing reduced-motion support")
-    for term in ["Publish", "Subscribe", "Version", "Deprecat", "Non-determinism", "Context", "Agency", "Trino", "Iceberg", "OPA", "GAIA"]:
-        require(term in html, f"missing required concept: {term}")
-    for url in [
-        "nist.gov/itl/ai-risk-management-framework",
-        "openlineage.io/docs/spec/object-model",
-        "opentelemetry.io/blog/2024/otel-generative-ai",
-        "mlflow.org/docs/latest/ml/model-registry",
-        "docs.getdbt.com/docs/mesh/govern/model-versions",
-        "iceberg.apache.org/docs/latest/branching",
-        "genai.owasp.org/llmrisk/llm062025-excessive-agency",
+    for term in [
+        "Publish", "Subscribe", "Versioning", "Deprecation",
+        "Data Operations", "MLOps / LLMOps / AgentOps",
+        "客戶 360 表", "Workspace", "OPA",
+        "找得到", "判斷是否適用", "申請後直接使用",
+        "固定 DAG", "上線門檻", "持續回歸",
+        "偵測", "定位", "人工核准", "執行", "驗證",
+        "service account", "發起人身份", "Trino", "Iceberg", "GAIA",
     ]:
-        require(url in html, f"missing source URL: {url}")
+        require(term.lower() in html.lower(), f"missing required concept: {term}")
+    for forbidden in [
+        "telemetry",
+        "DAG 心智模型直接沿用",
+        "Airflow 的調度與監控經驗不用重學",
+        "身份只有 M2M 與人",
+        "三步驟落地",
+        "評估管線化",
+    ]:
+        require(forbidden.lower() not in html.lower(), f"forbidden stale wording remains: {forbidden}")
+    require(not re.search(r'<h2[^>]*>.*?<span class="chip d">.*?↔.*?<span class="chip a">', html, re.S),
+            "pair slide headings must use natural-language theses, not X ↔ Y")
+    require('class="src"' not in html, "source footers removed per review")
 
 if HOME.exists():
     home = HOME.read_text(encoding="utf-8")
