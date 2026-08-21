@@ -1,0 +1,1263 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agentic Workflow：任務自動化的一道光譜</title>
+<meta name="description" content="從「誰決定下一步」開始，看懂 workflow 與 agent 的差別、共用的 harness 結構，以及 LangGraph / Pydantic AI / CrewAI / n8n 四種實作。17 slides。">
+<style>
+/* ============================================================
+   STYLE D · BLUEPRINT × TYPE LOUD — fixed 1920×1080 stage
+   A 的技術藍圖底（深藍、schematic、註冊標記、FIG. 標籤）
+   C 的字型編輯感（超大字、sticker、粗規則線、ghost numeral）
+   設計來源：Kittl 2026 #3 Blueprint / helion360 tech-conference guide
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&family=IBM+Plex+Mono:wght@400;600&display=swap');
+:root{
+  color-scheme:dark;
+  --blue-deep:#0a1f3f; --blue:#123b6e; --blue-mid:#1d5aa8; --panel:#0d2548cc;
+  --ink:#eef4ff; --dim:#9db8dd; --faint:#6f8db5;
+  --orange:#ff7a3c; --orange-strong:#ff5c1a; --orange-soft:#ff7a3c1f;
+  --line:#ffffff2e; --line-strong:#ffffff77; --line-faint:#ffffff14;
+  --code-bg:#081528;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  display:grid;place-items:center;overflow:hidden;
+  background:radial-gradient(circle at 16% 12%,#123b6e 0,#0a1f3f 45%,#071528 100%);
+  font-family:"Noto Sans TC",ui-sans-serif,system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+  color:var(--ink);
+}
+a{color:var(--orange);text-decoration:underline;text-underline-offset:3px}
+a:hover{color:var(--ink)}
+.mono,.num,.part,.figlbl,.ct,.kicker{font-family:"IBM Plex Mono",monospace}
+
+/* ---- fixed stage ---- */
+.viewport{position:relative;width:100vw;height:100vh;overflow:hidden}
+.stage{
+  position:absolute;left:50%;top:50%;width:1920px;height:1080px;
+  transform:translate(-50%,-50%) scale(calc(100vw / 1920px));
+  transform-origin:center;
+  background:
+    repeating-linear-gradient(0deg,transparent 0 59px,#ffffff06 59px 60px),
+    repeating-linear-gradient(90deg,transparent 0 59px,#ffffff06 59px 60px),
+    radial-gradient(circle at 82% 14%,#ff7a3c12,transparent 38%),
+    linear-gradient(155deg,#163f78 0%,#0a1f3f 58%,#081830 100%);
+  box-shadow:0 0 0 1px #ffffff14,0 36px 120px #00000088;
+  overflow:hidden;
+}
+@media (min-aspect-ratio:16/9){
+  .stage{transform:translate(-50%,-50%) scale(calc(100vh / 1080px))}
+}
+.slide{position:relative;inset:auto;opacity:1;pointer-events:auto}
+html.js .slide{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  padding:60px 84px 54px;opacity:0;pointer-events:none;
+}
+html.js .slide.is-active{opacity:1;pointer-events:auto}
+html.js .slide > :not(.gnum):not(.sticker){position:relative;z-index:1}
+
+/* registration marks on the stage corners */
+.rmark{position:absolute;width:30px;height:30px;border:0 solid var(--line-strong);z-index:4;pointer-events:none}
+.rmark.tl{top:18px;left:18px;border-top:3px solid;border-left:3px solid}
+.rmark.tr{top:18px;right:18px;border-top:3px solid;border-right:3px solid}
+.rmark.bl{bottom:18px;left:18px;border-bottom:3px solid;border-left:3px solid}
+
+/* ghost numeral — blueprint outline, per-slide auto-inserted by JS */
+.sticker{
+  position:absolute;right:130px;top:430px;transform:rotate(4deg);z-index:3;
+  background:var(--orange-strong);color:#fff;font-size:26px;font-weight:900;
+  padding:12px 26px;box-shadow:8px 10px 0 #00000055;border-radius:4px;
+  letter-spacing:.04em;font-family:"Noto Sans TC",sans-serif;
+}
+.sticker::before{content:"▸ ";font-family:"IBM Plex Mono",monospace}
+
+.gnum{
+  position:absolute;top:30px;right:44px;font-weight:900;font-size:400px;line-height:1;
+  color:transparent;-webkit-text-stroke:2px #ffffff0c;letter-spacing:-.05em;
+  user-select:none;pointer-events:none;z-index:0;
+}
+
+/* ---- shared type ---- */
+.meta{display:flex;align-items:center;gap:16px;font-size:17px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
+.num{color:var(--orange);font-weight:600}
+.part{color:var(--dim);font-weight:600}
+.h2{font-size:56px;line-height:1.22;margin:16px 0 0;font-weight:900;letter-spacing:-.015em;max-width:1760px;color:var(--ink)}
+.h2 strong{color:var(--orange-strong)}
+.title-h2{font-size:96px;line-height:1.16;margin-top:52px}
+.title-sub{font-size:28px;margin-top:24px}
+.take-title{margin-top:56px}
+.sub{max-width:1640px;font-size:26px;line-height:1.62;color:var(--dim);margin:20px 0 0}
+.sub b{color:var(--ink)}
+.note{margin-top:16px;color:var(--dim);font-size:21px;line-height:1.6;max-width:1760px}
+.note b{color:var(--ink)}
+.take{
+  margin-top:22px;padding:14px 26px;border-top:3px solid var(--ink);border-bottom:3px solid var(--ink);
+  font-size:25px;line-height:1.5;color:var(--ink);font-weight:900;max-width:1800px;letter-spacing:.01em;
+}
+.take b{color:var(--orange-strong)}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line-strong);
+  padding:6px 18px;font-size:18px;font-weight:700;color:var(--ink);white-space:nowrap;
+  background:#0d254866;letter-spacing:.04em;
+}
+.chip.d{border-color:var(--line-strong);color:var(--ink)}
+.chip.a{border-color:var(--orange);color:var(--orange)}
+.chip.g{border-color:var(--line-strong);color:var(--dim)}
+
+/* ---- spectrum bar: 光譜主視覺 (blueprint schematic) ---- */
+.specbar{
+  margin-top:26px;border:1px solid var(--line);border-radius:4px;padding:30px 40px 26px;
+  background:#0a1f3f66;position:relative;
+}
+.specbar::before{
+  content:"FIG.01 — CONTROL FLOW · 控制流由誰決定";
+  position:absolute;top:-12px;left:26px;background:#0d2a55;
+  padding:0 12px;font-family:"IBM Plex Mono",monospace;font-size:15px;
+  letter-spacing:.14em;color:var(--orange);
+}
+.specbar .sp-track{position:relative;height:10px;border-radius:2px;background:linear-gradient(90deg,var(--ink),#7f9ec9 45%,#7f9ec9 55%,var(--orange-strong))}
+.specbar .sp-track::after{
+  content:"";position:absolute;left:50%;top:50%;width:16px;height:16px;border-radius:50%;
+  background:var(--blue-deep);border:5px solid var(--orange-strong);transform:translate(-50%,-50%);
+  box-shadow:0 0 0 4px #ff7a3c2e;
+}
+.specbar .sp-mid{
+  position:absolute;left:50%;top:-34px;transform:translateX(-50%);
+  font-size:17px;font-weight:700;color:var(--orange);letter-spacing:.12em;white-space:nowrap;
+}
+.specbar .sp-end{font-size:28px;font-weight:900;color:var(--ink);letter-spacing:.05em}
+.specbar .sp-end small{display:block;font-size:15px;font-weight:600;color:var(--dim);letter-spacing:.1em}
+.specbar .sp-ends{display:flex;justify-content:space-between;margin-top:14px}
+
+/* ---- comparison axis bar (blueprint style) ---- */
+.cmpbar{
+  margin-top:18px;border:1px solid var(--line);border-radius:4px;padding:14px 24px;
+  background:#0a1f3f66;display:flex;align-items:center;gap:20px;position:relative;
+}
+.cmpbar::before{
+  content:"";position:absolute;left:20px;right:20px;top:0;height:2px;
+  background:linear-gradient(90deg,var(--ink),var(--line) 48%,var(--line) 52%,var(--orange-strong));
+}
+.cmpbar .cbd{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:18px;color:var(--ink);white-space:nowrap;letter-spacing:.08em}
+.cmpbar .cbq{flex:1;font-size:24px;font-weight:900;color:var(--ink);line-height:1.4;text-align:center}
+.cmpbar .cba{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:18px;color:var(--orange-strong);white-space:nowrap;letter-spacing:.08em}
+
+/* ---- diagram primitives (blueprint panels) ---- */
+.dg{display:flex;align-items:stretch;gap:16px;margin-top:26px}
+.dg.col{flex-direction:column;align-items:stretch}
+.dg.center{align-items:center}
+.dg.wrap{flex-wrap:wrap}
+.node{
+  background:var(--panel);border:1px solid var(--line);border-radius:6px;
+  padding:20px 24px;min-width:0;text-align:center;
+  display:flex;flex-direction:column;justify-content:center;gap:8px;
+  box-shadow:0 14px 40px #00000044;position:relative;
+}
+.node::before{
+  content:"";position:absolute;left:10px;right:10px;top:0;height:2px;
+  background:linear-gradient(90deg,transparent,#ffffff2e,transparent);
+}
+.node .t{font-size:25px;font-weight:900;color:var(--ink);line-height:1.3}
+.node .s{font-size:18.5px;color:var(--dim);line-height:1.55}
+.node .s b{color:var(--ink)}
+.node.hl{border-color:var(--line-strong);background:linear-gradient(160deg,#123b6e88,#0d2548cc)}
+.node.warn{border-color:#ff7a3c66;background:linear-gradient(160deg,#12315fcc,#0d2548cc)}
+.node.ok{border-color:#8fd0b566;background:linear-gradient(160deg,#0f3a4ecc,#0d2548cc)}
+.arrow{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  color:var(--orange);font-size:32px;font-weight:900;flex:0 0 auto;padding:0 2px;line-height:1;
+}
+.arrow .lbl{font-size:15px;color:var(--dim);font-weight:700;white-space:nowrap;line-height:1.25;text-align:center;font-family:"IBM Plex Mono",monospace;letter-spacing:.06em}
+
+/* ---- flow nodes (sequence) ---- */
+.pairflow{display:flex;align-items:stretch;gap:8px;margin-top:22px}
+.pfnode{
+  flex:1;background:var(--panel);border:1px solid var(--line);border-radius:6px;
+  padding:15px 18px;box-shadow:0 10px 28px #0000003d;
+  display:flex;flex-direction:column;justify-content:center;position:relative;
+}
+.pfnode .ft{font-size:20px;font-weight:900;color:var(--orange);line-height:1.3}
+.pfnode .fd{font-size:16px;color:var(--dim);line-height:1.55;margin-top:4px}
+.pfnode .fd b{color:var(--ink)}
+.pfnode.hl{border-color:var(--line-strong);background:linear-gradient(160deg,#123b6e88,#0d2548cc)}
+.pfnode.hl .ft{color:var(--ink)}
+
+/* ---- 2-col comparison cards ---- */
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px}
+.card{
+  background:var(--panel);border:1px solid var(--line);border-radius:6px;
+  padding:20px 24px;box-shadow:0 14px 40px #0000003d;
+  display:flex;flex-direction:column;gap:8px;justify-content:center;position:relative;
+}
+.card::before{
+  content:"";position:absolute;left:12px;right:12px;top:0;height:2px;
+  background:linear-gradient(90deg,transparent,#ffffff2e,transparent);
+}
+.card h4{font-size:25px;font-weight:900;margin:0;line-height:1.3}
+.card h4.d{color:var(--ink)}
+.card h4.a{color:var(--orange-strong)}
+.card .ct{font-size:15px;color:var(--faint);font-weight:600;letter-spacing:.12em}
+.card ul{margin:0;padding-left:20px;font-size:19px;line-height:1.6;color:var(--dim)}
+.card ul li{margin-top:5px}
+.card ul b{color:var(--ink)}
+.pband{
+  margin-top:16px;border-radius:4px;padding:13px 22px;font-size:20px;line-height:1.55;
+  display:flex;gap:14px;align-items:baseline;border:1px solid var(--line);background:#0a1f3f66;
+}
+.pband .pbl{flex:0 0 auto;font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:17px;letter-spacing:.1em}
+.pband.same{border-left:4px solid var(--ink)}
+.pband.same .pbl{color:var(--ink)}
+.pband.new{border-left:4px solid var(--orange-strong)}
+.pband.new .pbl{color:var(--orange-strong)}
+.pband.cur{border-left:4px solid #f4b23d}
+.pband.cur .pbl{color:#f4b23d}
+.pband.borrow{border-left:4px solid #8fd0b5}
+.pband.borrow .pbl{color:#8fd0b5}
+.pband b{color:var(--ink)}
+
+/* ---- quadrant (2×2 with axis labels) ---- */
+.quad{display:grid;grid-template-columns:120px 1fr 1fr;grid-template-rows:52px 1fr 1fr;gap:12px;margin-top:22px}
+.qblank{}
+.qcolhead{
+  display:flex;align-items:center;justify-content:center;
+  font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:17px;
+  color:var(--faint);letter-spacing:.1em;border-bottom:1px dashed var(--line);
+  padding-bottom:4px;white-space:nowrap;
+}
+.qrowhead{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:16px;
+  color:var(--faint);letter-spacing:.08em;border-right:1px dashed var(--line);
+  line-height:1.45;text-align:center;padding-right:6px;
+}
+.qcell{
+  background:var(--panel);border:1px solid var(--line);border-radius:6px;
+  padding:18px 22px;box-shadow:0 12px 34px #0000003d;
+  display:flex;flex-direction:column;gap:8px;position:relative;
+}
+.qcell .qh{font-size:23px;font-weight:900}
+.qcell .qe{font-size:18px;color:var(--dim);line-height:1.6}
+.qcell .qe b{color:var(--ink)}
+.qcell .qv{font-size:16px;font-family:"IBM Plex Mono",monospace;font-weight:600;color:var(--orange);margin-top:auto;letter-spacing:.06em}
+.qcell.wf{border-color:var(--line-strong);background:linear-gradient(160deg,#123b6e88,#0d2548cc)}
+.qcell.wf .qh{color:var(--ink)}
+.qcell.ag{border-color:#ff7a3c66;background:linear-gradient(160deg,#12315fcc,#0d2548cc)}
+.qcell.ag .qh{color:var(--orange-strong)}
+
+/* ---- agent loop ---- */
+.loopbox{
+  margin-top:24px;border:1px solid var(--line);border-radius:6px;
+  background:#0a1f3f66;box-shadow:0 14px 40px #0000003d;
+  padding:24px 28px 18px;position:relative;
+}
+.looprow{display:flex;align-items:stretch;gap:10px;position:relative}
+.loopnode{
+  flex:1;border-radius:6px;padding:17px 18px;text-align:center;
+  display:flex;flex-direction:column;justify-content:center;gap:6px;
+  border:1px solid var(--line);background:var(--panel);
+}
+.loopnode .lt{font-size:22px;font-weight:900;line-height:1.3}
+.loopnode .ls{font-size:16px;color:var(--dim);line-height:1.55}
+.loopnode.llm{border-color:#ff7a3c66;background:linear-gradient(160deg,#12315fcc,#0d2548cc)}
+.loopnode.llm .lt{color:var(--orange-strong)}
+.loopnode.tool{border-color:var(--line-strong);background:linear-gradient(160deg,#123b6e88,#0d2548cc)}
+.loopnode.tool .lt{color:var(--ink)}
+.loopback{
+  margin-top:12px;border-top:2px dashed #f4b23d88;padding-top:10px;
+  text-align:center;color:#f4b23d;font-size:17px;font-weight:700;letter-spacing:.06em;
+}
+
+/* ---- code blocks ---- */
+.code{
+  margin-top:20px;border-radius:6px;overflow:hidden;
+  background:var(--code-bg);box-shadow:0 14px 40px #00000055;border:1px solid var(--line);
+}
+.code pre{
+  margin:0;padding:20px 26px;overflow-x:auto;
+  font:15px/1.66 ui-monospace,"SF Mono",Menlo,Consolas,"Courier New",monospace;
+  color:#dbe7f5;
+}
+.code.small pre{font:13px/1.62 ui-monospace,"SF Mono",Menlo,Consolas,"Courier New",monospace}
+.code .cm{color:#6f8db5;font-style:italic}
+.code .kw{color:#ffb27d;font-weight:700}
+.code .fn{color:#8fd0ff}
+.code .st{color:#9fd0b5}
+.code .nu{color:#ffd9a8}
+.code .cmt{color:#5f7ba3}
+
+/* ---- 5-layer stack ---- */
+.stack{display:flex;flex-direction:column;gap:10px;margin-top:24px;justify-content:center}
+.srow{
+  display:grid;grid-template-columns:210px 1fr;gap:18px;align-items:center;
+  background:var(--panel);border:1px solid var(--line);border-radius:6px;
+  padding:14px 22px;box-shadow:0 8px 24px #0000002e;
+}
+.srow .sl{font-size:23px;font-weight:900;line-height:1.3}
+.srow .sd{font-size:17px;color:var(--dim);line-height:1.6}
+.srow .sd b{color:var(--ink)}
+.srow.on{border-color:#ff7a3c66;background:linear-gradient(160deg,#12315fcc,#0d2548cc)}
+.srow.on .sl{color:var(--orange-strong)}
+.srow.off{opacity:.42}
+
+/* ---- ladder (escalation) ---- */
+.ladder{display:flex;flex-direction:column;gap:0;margin-top:26px;justify-content:center}
+.lstep{
+  display:grid;grid-template-columns:160px 1fr 1.1fr;gap:16px;align-items:center;
+  border:1px solid var(--line);border-left:6px solid var(--ink);
+  border-radius:6px;background:var(--panel);box-shadow:0 10px 30px #00000030;
+  padding:17px 22px;margin-top:-1px;
+}
+.lstep:nth-child(2){border-left-color:#f4b23d}
+.lstep:nth-child(3){border-left-color:var(--orange-strong)}
+.lstep .ln{font-size:22px;font-weight:900;color:var(--dim);font-family:"IBM Plex Mono",monospace;letter-spacing:.04em}
+.lstep:nth-child(2) .ln{color:#f4b23d}
+.lstep:nth-child(3) .ln{color:var(--orange-strong)}
+.lstep .lt2{font-size:22px;font-weight:900;line-height:1.3}
+.lstep .ld{font-size:17px;color:var(--dim);line-height:1.6}
+.lstep .ld b{color:var(--ink)}
+
+/* ---- appendix table ---- */
+.apptable{margin-top:14px;border:1px solid var(--line);border-radius:6px;overflow:hidden;box-shadow:0 12px 34px #0000003d;flex-shrink:0}
+.approw{display:grid;grid-template-columns:160px 1.05fr 1fr .9fr .95fr;gap:12px;align-items:stretch;background:var(--panel)}
+.approw:nth-child(even){background:#0b2144}
+.approw:first-child{background:var(--ink);color:#0a1f3f}
+.approw>div{padding:13px 15px;font-size:16.5px;line-height:1.5}
+.approw .ah{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:15px;letter-spacing:.1em;color:#0a1f3f}
+.approw .an{font-weight:900;font-size:19px;display:flex;align-items:center;color:var(--orange-strong)}
+.approw .ac{color:var(--dim)}
+.approw .ac b{color:var(--ink)}
+
+/* ---- closing ---- */
+.closing{display:flex;flex-direction:column;gap:16px;margin-top:28px;justify-content:center}
+.closing .cl{font-size:25px;line-height:1.65;color:var(--dim);max-width:1720px}
+.closing .cl b{color:var(--ink)}
+.closing .cl strong{color:var(--orange-strong)}
+
+/* ---- circuit animation (P6 harness loop) ---- */
+.circuit svg{max-width:100%}
+.st{animation:stFlash 5s infinite}
+.st.st1{animation-delay:0s}
+.st.st2{animation-delay:1.1s}
+.st.st3{animation-delay:2.1s}
+.st.st4{animation-delay:3.2s}
+.st.st4b{animation-delay:3.8s}
+@keyframes stFlash{
+  0%, 100%{opacity:1}
+  6%, 13%{opacity:.45}
+}
+
+/* ---- reveal animations: play on slide entry (staggered) ---- */
+@keyframes revealIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes revealFade{from{opacity:0}to{opacity:1}}
+
+/* P4 quadrant: axis labels first, then cells light up one by one */
+html.js .slide.rv-quad.is-active .qcolhead:nth-child(2){animation:revealFade .4s ease both;animation-delay:.1s}
+html.js .slide.rv-quad.is-active .qcolhead:nth-child(3){animation:revealFade .4s ease both;animation-delay:.2s}
+html.js .slide.rv-quad.is-active .qrowhead:nth-child(4){animation:revealFade .4s ease both;animation-delay:.35s}
+html.js .slide.rv-quad.is-active .qrowhead:nth-child(7){animation:revealFade .4s ease both;animation-delay:.5s}
+html.js .slide.rv-quad.is-active .qcell:nth-child(5){animation:revealIn .5s ease both;animation-delay:.7s}
+html.js .slide.rv-quad.is-active .qcell:nth-child(6){animation:revealIn .5s ease both;animation-delay:.9s}
+html.js .slide.rv-quad.is-active .qcell:nth-child(8){animation:revealIn .5s ease both;animation-delay:1.1s}
+html.js .slide.rv-quad.is-active .qcell:nth-child(9){animation:revealIn .5s ease both;animation-delay:1.3s}
+html.js .slide.rv-quad.is-active .pband{animation:revealFade .4s ease both;animation-delay:1.6s}
+html.js .slide.rv-quad.is-active .take{animation:revealFade .4s ease both;animation-delay:1.9s}
+
+/* P5 loop: nodes light up in sequence, loopback after */
+html.js .slide.rv-loop.is-active .loopnode:nth-child(1){animation:revealIn .45s ease both;animation-delay:.1s}
+html.js .slide.rv-loop.is-active .loopbox .arrow:nth-child(2){animation:revealFade .3s ease both;animation-delay:.4s}
+html.js .slide.rv-loop.is-active .loopnode:nth-child(3){animation:revealIn .45s ease both;animation-delay:.55s}
+html.js .slide.rv-loop.is-active .loopbox .arrow:nth-child(4){animation:revealFade .3s ease both;animation-delay:.85s}
+html.js .slide.rv-loop.is-active .loopnode:nth-child(5){animation:revealIn .45s ease both;animation-delay:1s}
+html.js .slide.rv-loop.is-active .loopbox .arrow:nth-child(6){animation:revealFade .3s ease both;animation-delay:1.3s}
+html.js .slide.rv-loop.is-active .loopnode:nth-child(7){animation:revealIn .45s ease both;animation-delay:1.45s}
+html.js .slide.rv-loop.is-active .loopback{animation:revealFade .4s ease both;animation-delay:1.9s}
+html.js .slide.rv-loop.is-active .cols2 .card:nth-child(1){animation:revealIn .45s ease both;animation-delay:1.15s}
+html.js .slide.rv-loop.is-active .cols2 .card:nth-child(2){animation:revealIn .45s ease both;animation-delay:1.35s}
+html.js .slide.rv-loop.is-active .take{animation:revealFade .4s ease both;animation-delay:1.8s}
+
+/* P7/P8 five-layer stack: rows reveal top to bottom */
+html.js .slide.rv-stack.is-active .srow:nth-child(1){animation:revealIn .45s ease both;animation-delay:.1s}
+html.js .slide.rv-stack.is-active .srow:nth-child(2){animation:revealIn .45s ease both;animation-delay:.28s}
+html.js .slide.rv-stack.is-active .srow:nth-child(3){animation:revealIn .45s ease both;animation-delay:.46s}
+html.js .slide.rv-stack.is-active .srow:nth-child(4){animation:revealIn .45s ease both;animation-delay:.64s}
+html.js .slide.rv-stack.is-active .srow:nth-child(5){animation:revealIn .45s ease both;animation-delay:.82s}
+html.js .slide.rv-stack.is-active .cols2 .card:nth-child(1){animation:revealIn .45s ease both;animation-delay:1.05s}
+html.js .slide.rv-stack.is-active .cols2 .card:nth-child(2){animation:revealIn .45s ease both;animation-delay:1.25s}
+html.js .slide.rv-stack.is-active .pband{animation:revealFade .4s ease both;animation-delay:1.1s}
+html.js .slide.rv-stack.is-active .take{animation:revealFade .4s ease both;animation-delay:1.5s}
+
+/* P10 patterns: top concepts → case → three layers in sequence */
+html.js .slide.rv-pattern.is-active .dg.center .node:nth-child(1){animation:revealIn .45s ease both;animation-delay:.1s}
+html.js .slide.rv-pattern.is-active .dg.center .arrow:nth-child(2){animation:revealFade .3s ease both;animation-delay:.28s}
+html.js .slide.rv-pattern.is-active .dg.center .node:nth-child(3){animation:revealIn .45s ease both;animation-delay:.35s}
+html.js .slide.rv-pattern.is-active .dg.col .node.hl{animation:revealIn .45s ease both;animation-delay:.6s}
+html.js .slide.rv-pattern.is-active .pairflow .pfnode:nth-child(1){animation:revealIn .45s ease both;animation-delay:.85s}
+html.js .slide.rv-pattern.is-active .pairflow .arrow:nth-child(2){animation:revealFade .3s ease both;animation-delay:1.05s}
+html.js .slide.rv-pattern.is-active .pairflow .pfnode:nth-child(3){animation:revealIn .45s ease both;animation-delay:1.15s}
+html.js .slide.rv-pattern.is-active .pairflow .arrow:nth-child(4){animation:revealFade .3s ease both;animation-delay:1.35s}
+html.js .slide.rv-pattern.is-active .pairflow .pfnode:nth-child(5){animation:revealIn .45s ease both;animation-delay:1.45s}
+html.js .slide.rv-pattern.is-active .pband{animation:revealFade .4s ease both;animation-delay:1.75s}
+html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;animation-delay:2.05s}
+
+/* ---- chrome ---- */
+.nav{position:absolute;right:44px;bottom:32px;display:flex;gap:10px;z-index:5}
+.navbtn{
+  width:46px;height:46px;border-radius:6px;border:1px solid var(--line-strong);
+  background:#0d2548cc;color:var(--ink);font-size:22px;font-weight:900;cursor:pointer;
+  box-shadow:0 6px 18px #00000055;transition:transform 120ms ease,background 120ms ease;
+}
+.navbtn:hover{background:#123b6e;transform:translateY(-2px)}
+.progress{position:absolute;left:0;bottom:0;height:4px;background:#ffffff0d;z-index:6;width:100%}
+.progress-bar{height:100%;width:5.88%;background:linear-gradient(90deg,var(--orange),#f4b23d);transition:width 300ms ease}
+.counter{
+  position:absolute;right:106px;bottom:44px;font-size:16px;color:var(--faint);
+  font-weight:600;letter-spacing:.14em;z-index:5;font-family:"IBM Plex Mono",monospace;
+}
+.hint{
+  position:absolute;left:42px;bottom:38px;z-index:5;
+  display:inline-flex;align-items:center;gap:10px;
+  background:#0d2548cc;border:1px solid var(--line);border-radius:6px;
+  padding:8px 18px;font-size:15px;color:var(--dim);font-weight:600;
+  box-shadow:0 6px 18px #00000044;
+}
+.hint .hsep{color:var(--line-strong);font-weight:400}
+#overview{
+  position:absolute;inset:0;background:#050d1f f2;background:#050d1ff2;z-index:50;display:none;
+  overflow:auto;padding:54px 64px;
+}
+#overview.open{display:block}
+#overview h2{color:#eef4ff;font-size:34px;margin:0 0 26px;font-weight:900}
+.ovgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.ovbtn{
+  background:#0d254866;border:1px solid #ffffff22;border-radius:6px;color:#eef4ff;
+  padding:16px 14px;text-align:left;cursor:pointer;font-family:inherit;
+}
+.ovbtn:hover{background:#123b6e88;border-color:#ff7a3c88}
+.ovbtn .on{font-size:14px;color:#ff7a3c;font-weight:600;letter-spacing:.1em;font-family:"IBM Plex Mono",monospace}
+.ovbtn .ot{font-size:17px;font-weight:800;line-height:1.4;margin-top:6px;color:#dbe7f5}
+#help{
+  position:absolute;right:34px;bottom:100px;width:560px;
+  background:#0d2548;color:#eef4ff;border:1px solid var(--line);
+  border-radius:8px;padding:22px 26px;z-index:60;display:none;
+  box-shadow:0 24px 70px #00000099;
+}
+#help.open{display:block}
+.help-title{font-size:22px;font-weight:900;color:#ff7a3c;margin-bottom:14px;letter-spacing:.04em}
+.help-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hcard{
+  display:flex;align-items:center;gap:12px;background:#ffffff0d;
+  border:1px solid #ffffff1c;border-radius:6px;padding:10px 14px;
+}
+.hcard .hicon{font-size:24px;line-height:1}
+.hcard .hkey{font-weight:900;font-size:16px;color:#eef4ff;white-space:nowrap}
+.hcard .hkey kbd{
+  background:#ffffff1a;border-radius:4px;padding:2px 10px;font-family:"IBM Plex Mono",monospace;
+  border:1px solid #ffffff2a;font-size:14px;
+}
+.hcard .hdesc{font-size:14px;color:#9db8dd;margin-left:auto;white-space:nowrap}
+
+/* reduced motion */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none !important;scroll-behavior:auto !important}
+  .st{animation:none !important}
+  .pulse-halo,.pulse-core{display:none}
+}
+
+/* ---- mobile portrait: readable scroll mode ---- */
+@media (max-width:900px) and (orientation:portrait){
+  body{display:block;overflow:auto;background:#0a1f3f}
+  .viewport{height:auto;overflow:visible}
+  .stage{position:relative;left:auto;top:auto;width:100%;height:auto;transform:none;box-shadow:none;
+    background:repeating-linear-gradient(0deg,transparent 0 59px,#ffffff05 59px 60px),
+    repeating-linear-gradient(90deg,transparent 0 59px,#ffffff05 59px 60px),
+    linear-gradient(155deg,#163f78 0%,#0a1f3f 58%,#081830 100%)}
+  html.js .slide{position:relative;inset:auto;opacity:1;pointer-events:auto;display:flex;flex-direction:column;
+    height:auto;padding:28px 20px;margin-bottom:18px;border-bottom:1px solid var(--line)}
+  .gnum{display:none}
+  .rmark{display:none}
+  .nav,.counter,.hint,.progress{display:none}
+  .meta{font-size:14px;gap:10px;letter-spacing:.12em}
+  .h2{font-size:28px}
+  .title-h2{font-size:38px;margin-top:30px}
+  .title-sub{font-size:19px;margin-top:16px}
+  .sub{font-size:19px}
+  .note{font-size:18px}
+  .take{font-size:17px;padding:11px 14px;border-width:2px}
+  .dg{flex-direction:column;align-items:stretch}
+  .node .t{font-size:19px}
+  .node .s{font-size:16px}
+  .cols2{grid-template-columns:1fr;gap:12px}
+  .cmpbar{flex-direction:column;align-items:stretch;gap:4px}
+  .cmpbar .cbq{text-align:left;font-size:20px}
+  .cmpbar .cbd,.cmpbar .cba{font-size:15px}
+  .specbar{padding:22px 18px}
+  .specbar::before{left:14px;font-size:12px}
+  .specbar .sp-mid{position:static;transform:none;margin-bottom:8px;text-align:center}
+  .specbar .sp-end{font-size:21px}
+  .pband{flex-direction:column;gap:3px;padding:11px 14px}
+  .pairflow{flex-direction:column;gap:6px}
+  .quad{grid-template-columns:1fr;gap:10px}
+  .qaxis{flex-direction:column;gap:3px}
+  .looprow{flex-direction:column;gap:6px}
+  .loopback{border-top:none;border-left:2px dashed #f4b23d88;padding-top:0;padding-left:12px;text-align:left}
+  .code pre{font-size:12px;padding:12px 14px}
+  .srow{grid-template-columns:1fr;gap:3px;padding:10px 14px}
+  .lstep{grid-template-columns:1fr;gap:3px;padding:11px 14px}
+  .approw{grid-template-columns:1fr 1fr;gap:4px 8px;padding:10px 14px}
+  .approw .ah{display:none}
+  .approw .an{grid-column:1/3;font-size:17px}
+  .node .s,.card ul,.pfnode .fd,.loopnode .ls,.srow .sd,.lstep .ld,.approw .ac{overflow-wrap:anywhere}
+  .closing .cl{font-size:19px}
+  #overview{position:fixed;padding:28px 18px}
+  .ovgrid{grid-template-columns:1fr 1fr}
+  #help{position:fixed;left:16px;right:16px;bottom:16px;width:auto;padding:18px}
+}
+
+</style>
+</head>
+<body>
+<script>document.documentElement.classList.add('js')</script>
+
+<div class="viewport">
+<div class="stage" id="stage">
+<div class="rmark tl"></div><div class="rmark tr"></div><div class="rmark bl"></div>
+
+<!-- ============ 1 TITLE ============ -->
+<section class="slide" id="s1" aria-labelledby="s1t">
+  <p class="meta"><span class="num">01</span><span class="part">AGENTIC WORKFLOW · 概念入門</span></p>
+  <h2 class="h2 title-h2" id="s1t">Agentic Workflow：<br><strong>任務自動化的一道光譜</strong></h2>
+  <p class="sub title-sub">從「<b>誰決定下一步</b>」開始——看懂 Workflow 與 Agent 的差別、共用的 Harness 結構，<br>以及 <b>LangGraph · Pydantic AI · CrewAI · n8n</b> 四種實作的長相。</p>
+  <div class="specbar">
+    <span class="sp-mid">控制流由誰決定？</span>
+    <span class="sp-end">Workflow<small>code 決定流程</small></span>
+    <span class="sp-end" style="text-align:right">Agent<small>模型決定下一步</small></span>
+  </div>
+  <div class="dg wrap center" style="margin-top:34px;gap:10px">
+    <span class="chip d">LangGraph</span><span class="chip a">Pydantic AI</span><span class="chip a">CrewAI</span><span class="chip g">n8n</span>
+    <span class="chip" style="background:#e9e2d2;color:#6f6350">附錄：同一件事，四種寫法</span>
+  </div>
+  <div class="sticker">誰決定下一步？</div>
+  <div class="take take-title"><b>模型負責想，你負責決定它能在什麼框架裡想。</b></div>
+</section>
+
+<!-- ============ 2 WHAT IS AGENTIC ============ -->
+<section class="slide" id="s2" aria-labelledby="s2t">
+  <p class="meta"><span class="num">02</span><span class="part">PART 1 · 光譜與判準</span></p>
+  <h2 class="h2" id="s2t">任務自動化不是新東西——<strong>LLM 加入後多了一道光譜</strong></h2>
+  <p class="sub">「自動化」早就有了：ETL、CI/CD、排程、DAG。LLM 帶來的不是自動化本身，而是<b>讓「不知道確切步驟」的任務也能自動化</b>。</p>
+  <div class="dg center" style="margin-top:26px">
+    <div class="node ok"><div class="t">舊自動化</div><div class="s">步驟寫死<br>ETL · CI/CD · Airflow</div></div>
+    <div class="arrow">＋ LLM<label class="lbl">多了一格</label></div>
+    <div class="node warn"><div class="t">自然語言任務</div><div class="s">「幫我研究 XX 市場」<br>步驟無法預先列完</div></div>
+    <div class="arrow">→<label class="lbl">選項變多</label></div>
+    <div class="node hl"><div class="t">光譜</div><div class="s">Workflow ↔ Agent<br>固定路徑 ↔ 動態決策</div></div>
+  </div>
+  <div class="cols2">
+    <div class="card">
+      <h4 class="d">解決的瓶頸</h4>
+      <div class="ct">AUTOMATION 的邊界擴張</div>
+      <ul>
+        <li>過去要<b>寫程式</b>才能自動化的任務，現在一句話就能起頭</li>
+        <li>中間的「不確定性」由模型補上，不用人先窮舉所有分支</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 class="a">仍沒解決</h4>
+      <div class="ct">NEW PROBLEMS</div>
+      <ul>
+        <li>模型會<b>出錯、繞路、胡謅</b>——產出不能直接當真</li>
+        <li>每跑一輪都在<b>燒 token</b>，失敗重試也燒</li>
+        <li>執行路徑不固定 → 除錯與稽核變難</li>
+      </ul>
+    </div>
+  </div>
+  <div class="take">真正的問題不是「要不要自動化」，而是「<b>自動化到什麼程度</b>」。</div>
+</section>
+
+<!-- ============ 3 SPECTRUM NOT BINARY ============ -->
+<section class="slide" id="s3" aria-labelledby="s3t">
+  <p class="meta"><span class="num">03</span><span class="part">PART 1 · 光譜與判準</span></p>
+  <h2 class="h2" id="s3t">不是 workflow 或 agent 二選一——<strong>是「誰決定下一步」</strong></h2>
+  <div class="cmpbar"><span class="cbd">Workflow</span><span class="cbq">同一個問題：任務自動化</span><span class="cba">Agent</span></div>
+  <div class="cols2">
+    <div class="card">
+      <h4 class="d">Workflow：控制流在 code</h4>
+      <div class="ct">N8N · HOOKS · AIRFLOW · 純 CODE</div>
+      <ul>
+        <li>步驟順序<b>寫死</b>：這步做完換下一步，不因模型心情改變</li>
+        <li>LLM 只是其中一個 function call——<b>被關在固定步驟裡</b></li>
+        <li>可測試、可 resume、失敗模式明確（第 3 步掛了就是第 3 步）</li>
+        <li>工具由 <b>code 呼叫</b>，不是模型挑</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 class="a">Agent：控制流在模型</h4>
+      <div class="ct">LANGGRAPH · PYDANTIC AI · CREWAI · ADK</div>
+      <ul>
+        <li>模型看到<b>工具清單</b>，自己挑、自己組合、自己定順序</li>
+        <li>在<a><b>你畫的框架</b>裡選</a>：工具集、狀態、停止條件都是你定義</li>
+        <li>路徑不固定，繞路、重試是常態</li>
+        <li>底層就是一個 loop，直到它不再呼叫工具</li>
+      </ul>
+    </div>
+  </div>
+  <div class="pband same"><span class="pbl">關鍵澄清</span>兩端都可以有 LLM——<b>deterministic 不是「沒有 LLM」，是「LLM 被放在固定步驟裡」</b>。</div>
+  <div class="take">分界線只有一條：<b>誰決定執行哪個工具</b>——寫死的程式碼，還是模型的推理。</div>
+</section>
+
+<!-- ============ 4 PREDICTABILITY ============ -->
+<section class="slide rv-quad" id="s4" aria-labelledby="s4t">
+  <p class="meta"><span class="num">04</span><span class="part">PART 1 · 光譜與判準</span></p>
+  <h2 class="h2" id="s4t">選哪一端，看<strong>「步驟能不能事先列出來」</strong>——不是複雜度</h2>
+  <div class="quad">
+    <div class="qblank"></div>
+    <div class="qcolhead">← 不可預測</div>
+    <div class="qcolhead">可預測 →</div>
+    <div class="qrowhead">高<br>複雜度</div>
+    <div class="qcell ag"><div class="qh">高複雜 × 不可預測</div><div class="qe">企業級研究、<b>多領域專家協作</b>、開放式探索</div><div class="qv">→ Agent</div></div>
+    <div class="qcell wf"><div class="qh">高複雜 × 可預測</div><div class="qe">ETL、CI/CD、月結報表——步驟全知道</div><div class="qv">→ Workflow（照樣能用）</div></div>
+    <div class="qrowhead">低<br>複雜度</div>
+    <div class="qcell ag"><div class="qh">低複雜 × 不可預測</div><div class="qe">「查這家公司創辦人，來源要可靠」</div><div class="qv">→ Agent（輕量）</div></div>
+    <div class="qcell wf"><div class="qh">低複雜 × 可預測</div><div class="qe">定時任務、固定格式轉檔</div><div class="qv">→ Script 就夠</div></div>
+  </div>
+  <div class="pband cur"><span class="pbl">次要考量</span><b>成本</b>（agent 每輪燒 token）· <b>失敗模式</b>（可預測 vs 繞 20 輪做錯）· <b>可審計性</b>——都會把選擇往 workflow 拉。</div>
+  <div class="take"><b>複雜度決定「要不要自動化」，可預測性決定「自動化到什麼程度」。</b></div>
+</section>
+
+<!-- ============ 5 ONE LOOP ============ -->
+<section class="slide rv-loop" id="s5" aria-labelledby="s5t">
+  <p class="meta"><span class="num">05</span><span class="part">PART 2 · Harness 心智模型</span></p>
+  <h2 class="h2" id="s5t">所有 Agent 框架，底下都是<strong>同一個 loop</strong></h2>
+  <div class="loopbox">
+    <div class="looprow">
+      <div class="loopnode"><div class="lt">使用者</div><div class="ls">一句話任務</div></div>
+      <div class="arrow" style="font-size:26px">→</div>
+      <div class="loopnode llm"><div class="lt">LLM（帶工具清單）</div><div class="ls">決定：呼叫工具 or 直接回覆</div></div>
+      <div class="arrow" style="font-size:26px">→</div>
+      <div class="loopnode tool"><div class="lt">執行工具</div><div class="ls">search / calc / API……</div></div>
+      <div class="arrow" style="font-size:26px">→</div>
+      <div class="loopnode"><div class="lt">結果回填</div><div class="ls">塞回 messages 再問一次</div></div>
+    </div>
+    <div class="loopback">↺ 迴圈 —— 直到模型不再呼叫工具（或超過你設的步數上限）→ 輸出答案</div>
+  </div>
+  <div class="cols2">
+    <div class="card">
+      <h4 class="a">核心 loop（約 20 行）</h4>
+      <div class="ct">WHILE NOT DONE</div>
+      <ul>
+        <li>模型回傳的可能不是文字，是<b>工具呼叫請求</b></li>
+        <li>執行結果以 <b>tool role</b> 回填，模型再看一次</li>
+        <li>「不再呼叫」或「超過上限」＝結束</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 class="d">框架做的事</h4>
+      <div class="ct">LANGGRAPH · PYDANTIC AI · CREWAI · ADK</div>
+      <ul>
+        <li>把這個 loop 包成 API＋工具註冊＋狀態管理</li>
+        <li>加上可觀測性、checkpoint、暫停恢復</li>
+        <li><b>差別在編排方式，不在 loop 本身</b></li>
+      </ul>
+    </div>
+  </div>
+  <div class="take">看懂這 20 行，就看得懂所有框架——<b>框架是幫你把 loop 的細節藏起來</b>。</div>
+</section>
+
+<!-- ============ 6 HARNESS ============ -->
+<section class="slide" id="s6" aria-labelledby="s6t">
+  <p class="meta"><span class="num">06</span><span class="part">PART 2 · Harness 心智模型</span></p>
+  <h2 class="h2" id="s6t">模型吐「意圖」，Harness 執行——<strong>分工就這兩句</strong></h2>
+  <div class="circuit" style="margin-top:20px">
+    <svg viewBox="0 0 1750 430" role="img" aria-label="機器人：指令進大腦、經身體到手的動畫迴路" style="width:100%;height:auto;display:block">
+      <defs>
+        <marker id="cirArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#ff7a3c"/></marker>
+        <marker id="cirArrowDim" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#9db8dd"/></marker>
+      </defs>
+      <!-- 主線：指令 → 大腦 -->
+      <line x1="300" y1="190" x2="568" y2="120" stroke="#ff7a3c" stroke-width="4" marker-end="url(#cirArrow)"/>
+      <!-- 手臂：身體 → 手 -->
+      <line x1="790" y1="305" x2="1170" y2="305" stroke="#ff7a3c" stroke-width="5" marker-end="url(#cirArrow)"/>
+      <!-- 手 → 工具 -->
+      <line x1="1320" y1="305" x2="1440" y2="305" stroke="#ff7a3c" stroke-width="4" marker-end="url(#cirArrow)"/>
+      <!-- 回饋虛線：工具 → 底部 → 身體左側 → 大腦 -->
+      <line x1="1440" y1="375" x2="680" y2="375" stroke="#9db8dd" stroke-width="3" stroke-dasharray="9 7"/>
+      <line x1="680" y1="375" x2="552" y2="375" stroke="#9db8dd" stroke-width="3" stroke-dasharray="9 7"/>
+      <line x1="552" y1="375" x2="552" y2="235" stroke="#9db8dd" stroke-width="3" stroke-dasharray="9 7"/>
+      <line x1="552" y1="235" x2="585" y2="215" stroke="#9db8dd" stroke-width="3" stroke-dasharray="9 7" marker-end="url(#cirArrowDim)"/>
+      <!-- 回應：大腦 → 使用者 -->
+      <line x1="585" y1="95" x2="300" y2="120" stroke="#6f8db5" stroke-width="3" stroke-dasharray="5 7" marker-end="url(#cirArrowDim)"/>
+      <!-- 流程標籤 -->
+      <text x="418" y="130" text-anchor="middle" font-size="17" font-weight="700" fill="#ff7a3c" font-family="'Noto Sans TC',sans-serif">① 指令</text>
+      <text x="752" y="230" text-anchor="middle" font-size="16" font-weight="700" fill="#ff7a3c" font-family="'Noto Sans TC',sans-serif">② 意圖</text>
+      <text x="980" y="288" text-anchor="middle" font-size="17" font-weight="700" fill="#ff7a3c" font-family="'Noto Sans TC',sans-serif">③ tool call</text>
+      <text x="1060" y="400" text-anchor="middle" font-size="16" font-weight="700" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">④ 執行結果回填</text>
+      <text x="440" y="78" text-anchor="middle" font-size="16" font-weight="700" fill="#6f8db5" font-family="'Noto Sans TC',sans-serif">⑤ 回應使用者</text>
+      <!-- 使用者 -->
+      <g class="st st1">
+        <rect x="20" y="120" width="280" height="140" rx="8" fill="#0d2548cc" stroke="#ffffff77" stroke-width="2"/>
+        <text x="160" y="172" text-anchor="middle" font-size="26" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">👤 使用者</text>
+        <text x="160" y="210" text-anchor="middle" font-size="17" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">一句話任務</text>
+        <text x="160" y="238" text-anchor="middle" font-size="15" fill="#6f8db5" font-family="'Noto Sans TC',sans-serif">收到回應</text>
+      </g>
+      <!-- 機器人：頭＝大腦 -->
+      <g class="st st2">
+        <circle cx="680" cy="120" r="95" fill="#12315fcc" stroke="#ff7a3c" stroke-width="2.5"/>
+        <line x1="680" y1="25" x2="680" y2="52" stroke="#ff7a3c" stroke-width="3"/>
+        <circle cx="680" cy="22" r="6" fill="#ff7a3c"/>
+        <circle cx="645" cy="98" r="9" fill="#eef4ff" opacity=".9"/>
+        <circle cx="715" cy="98" r="9" fill="#eef4ff" opacity=".9"/>
+        <text x="680" y="152" text-anchor="middle" font-size="20" font-weight="900" fill="#ff7a3c" font-family="'Noto Sans TC',sans-serif">大腦＝模型</text>
+        <text x="680" y="180" text-anchor="middle" font-size="15" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">吐意圖</text>
+      </g>
+      <!-- 機器人：身體＝Harness -->
+      <g class="st st3">
+        <rect x="570" y="235" width="220" height="140" rx="14" fill="#0d2548cc" stroke="#ffffff77" stroke-width="2"/>
+        <circle cx="680" cy="305" r="26" fill="none" stroke="#ffffff44" stroke-width="2"/>
+        <circle cx="680" cy="305" r="8" fill="#ffffff55"/>
+        <text x="680" y="282" text-anchor="middle" font-size="19" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">Harness＝身體</text>
+        <text x="680" y="340" text-anchor="middle" font-size="14" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">解析 → 執行 → 回填</text>
+      </g>
+      <!-- 機器人：手 -->
+      <g class="st st4">
+        <rect x="1170" y="265" width="150" height="80" rx="10" fill="#0d2548cc" stroke="#ffffff77" stroke-width="2"/>
+        <text x="1245" y="300" text-anchor="middle" font-size="19" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">🖐️ 手</text>
+        <text x="1245" y="326" text-anchor="middle" font-size="14" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">執行工具</text>
+      </g>
+      <!-- 工具目標 -->
+      <g class="st st4b">
+        <rect x="1440" y="235" width="240" height="140" rx="8" fill="#0d2548cc" stroke="#8fd0b566" stroke-width="2"/>
+        <text x="1560" y="290" text-anchor="middle" font-size="20" font-weight="900" fill="#8fd0b5" font-family="'Noto Sans TC',sans-serif">工具世界</text>
+        <text x="1560" y="322" text-anchor="middle" font-size="15" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">search · API · DB</text>
+        <text x="1560" y="350" text-anchor="middle" font-size="13" fill="#6f8db5" font-family="'Noto Sans TC',sans-serif">真實副作用都在這裡發生</text>
+      </g>
+      <!-- 流動光點：橙＝前進（指令→工具），藍＝回饋（結果→大腦→回應） -->
+      <circle class="pulse-halo" r="13" fill="#ff7a3c33">
+        <animateMotion dur="5s" repeatCount="indefinite" path="M300,190 L568,120 L680,215 L680,235 L790,305 L1170,305 L1320,305 L1440,305"/>
+      </circle>
+      <circle class="pulse-core" r="6.5" fill="#ff7a3c">
+        <animateMotion dur="5s" repeatCount="indefinite" path="M300,190 L568,120 L680,215 L680,235 L790,305 L1170,305 L1320,305 L1440,305"/>
+      </circle>
+      <circle class="pulse-halo" r="11" fill="#9db8dd33">
+        <animateMotion dur="3.6s" begin="5s" repeatCount="indefinite" path="M1440,375 L680,375 L552,375 L552,235 L585,215 L585,95 L300,120"/>
+      </circle>
+      <circle class="pulse-core" r="5.5" fill="#9db8dd">
+        <animateMotion dur="3.6s" begin="5s" repeatCount="indefinite" path="M1440,375 L680,375 L552,375 L552,235 L585,215 L585,95 L300,120"/>
+      </circle>
+    </svg>
+  </div>
+  <div class="note" style="font-size:19px;margin-top:8px;text-align:center"><b>動畫示意</b>：<span style="color:#ff7a3c">橙點</span>＝指令進大腦 → 經身體 → 到手執行工具；<span style="color:#9db8dd">藍點</span>＝執行結果回填大腦 → 回應使用者。</div>
+  <div class="cols2">
+    <div class="card">
+      <h4 class="d">為什麼這個模型有用</h4>
+      <div class="ct">TEXT IN / TEXT OUT</div>
+      <ul>
+        <li>模型是純文字函式——<b>可以任意替換</b>，harness 不動</li>
+        <li>「給模型工具」＝在 prompt 塞 JSON schema＋在 harness 註冊 function</li>
+        <li>工具即協議，沒有魔法</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 class="a">所以安全住在哪</h4>
+      <div class="ct">NOT IN THE MODEL</div>
+      <ul>
+        <li>所有安全機制都是<b>你的 code</b>：權限、sandbox、參數驗證</li>
+        <li>模型只能「建議」動作，能不能做是 harness 說了算</li>
+        <li>你每天用的 AI 助手本身就是一個 harness</li>
+      </ul>
+    </div>
+  </div>
+  <div class="take">tool call 只是一段 JSON——<b>真正執行的是你的程式，別把信任交給模型</b>。</div>
+</section>
+
+<!-- ============ 7 FIVE LAYERS 1 ============ -->
+<section class="slide rv-stack" id="s7" aria-labelledby="s7t">
+  <p class="meta"><span class="num">07</span><span class="part">PART 3 · 落地檢查表（上）</span></p>
+  <h2 class="h2" id="s7t">落地檢查表 ①：<strong>定義層＋執行層</strong>——動手前先想清楚</h2>
+  <div class="stack">
+    <div class="srow on"><div class="sl">定義層</div><div class="sd"><b>工具設計</b>：粒度、description 品質（模型靠 description 選工具）· <b>副作用聲明</b>：會寫 DB？會花錢？· <b>狀態 schema</b>：哪些要跨步驟保留</div></div>
+    <div class="srow on"><div class="sl">執行層</div><div class="sd"><b>Loop 上限</b>：max iterations、timeout——沒有上限是燒錢無底洞 · <b>冪等性</b>：retry 工具＝重複副作用 · <b>成本</b>：token 預算、快取、model tiering · <b>context 管理</b>：摘要、壓縮、RAG</div></div>
+    <div class="srow off"><div class="sl">信任層</div><div class="sd">最小權限 · prompt injection · HITL 人審</div></div>
+    <div class="srow off"><div class="sl">觀測層</div><div class="sd">trace · evals · 驗證機制</div></div>
+    <div class="srow off"><div class="sl">營運層</div><div class="sd">版本管理 · CI · 升級路徑</div></div>
+  </div>
+  <div class="cols2">
+    <div class="card">
+      <h4 class="a">最常漏的執行層坑</h4>
+      <div class="ct">RETRY = SIDE EFFECT AGAIN</div>
+      <ul>
+        <li>agent 對工具 retry＝<b>重複執行副作用</b>（重複刷卡、重複發信）</li>
+        <li>工具要有冪等設計（idempotency key）或明確禁止重試</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 class="d">例子：取名的 10 步 chain</h4>
+      <div class="ct">定義層 × 執行層</div>
+      <ul>
+        <li>定義層：每步的輸入輸出、評分標準、衝突規則</li>
+        <li>執行層：每步一次 LLM 呼叫，失敗只重跑該步</li>
+      </ul>
+    </div>
+  </div>
+  <div class="take">沒有上限與冪等性的 agent，<b>是 production 的隱形炸彈</b>。</div>
+</section>
+
+<!-- ============ 8 FIVE LAYERS 2 ============ -->
+<section class="slide rv-stack" id="s8" aria-labelledby="s8t">
+  <p class="meta"><span class="num">08</span><span class="part">PART 3 · 落地檢查表（下）</span></p>
+  <h2 class="h2" id="s8t">落地檢查表 ②：<strong>信任＋觀測＋營運</strong>——demo 到 production 的分水嶺</h2>
+  <div class="stack">
+    <div class="srow off"><div class="sl">定義層</div><div class="sd">工具設計 · 副作用 · 狀態 schema</div></div>
+    <div class="srow off"><div class="sl">執行層</div><div class="sd">loop 上限 · 冪等性 · 成本 · context</div></div>
+    <div class="srow on"><div class="sl">信任層</div><div class="sd"><b>最小權限</b>：blast radius 越小越好 · <b>Prompt injection</b>：工具回傳可能夾帶指令（網頁內容寫「忽略之前指示」）· <b>HITL</b>：付錢、部署、刪資料強制人批准</div></div>
+    <div class="srow on"><div class="sl">觀測層</div><div class="sd"><b>trace</b>：每步工具、token、成本，出問題能回放 · <b>evals</b>：評軌跡不只評答案 · <b>驗證機制</b>：self-report ≠ truth</div></div>
+    <div class="srow on"><div class="sl">營運層</div><div class="sd"><b>版本管理</b>：prompt、模型、工具都有版本 · <b>CI for agents</b>：改 prompt 前先跑 eval · <b>升級／降級路徑</b></div></div>
+  </div>
+  <div class="pband new"><span class="pbl">agent 特有的攻擊面</span>它會讀外部資料再行動——<b>網頁、文件、API 回傳都可以是注入載體</b>；輸出也要驗證才能當真。</div>
+  <div class="take"><b>demo 與 production 的分水嶺，是 evals 與驗證機制</b>——不是模型選得多好。</div>
+</section>
+
+<!-- ============ 9 TWO PITFALLS ============ -->
+<section class="slide" id="s9" aria-labelledby="s9t">
+  <p class="meta"><span class="num">09</span><span class="part">PART 3 · 落地檢查表</span></p>
+  <h2 class="h2" id="s9t">兩個最常漏的坑：<strong>冪等性、驗證機制</strong></h2>
+  <div class="cols2" style="margin-top:36px">
+    <div class="card">
+      <h4 class="a">坑 1：retry 會重複副作用</h4>
+      <div class="ct">IDEMPOTENCY</div>
+      <ul>
+        <li>agent 掛了重試＝<b>同一個動作再做一次</b></li>
+        <li>重複刷卡、重複發信、重複建帳號</li>
+        <li>解法：idempotency key、先查後寫、副作用工具禁止 retry</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 class="a">坑 2：self-report ≠ truth</h4>
+      <div class="ct">VERIFICATION</div>
+      <ul>
+        <li>agent 說「完成了」<b>不代表真的完成</b></li>
+        <li>對有副作用的動作做<b>獨立驗證</b>：讀回檔案、查 API 確認</li>
+        <li>子 agent 的報告也要驗——它可能搞錯或自我感覺良好</li>
+      </ul>
+    </div>
+  </div>
+  <div class="pairflow" style="margin-top:56px">
+    <div class="pfnode"><div class="ft">Agent 回報</div><div class="fd">「已寄出、已寫入、已完成」</div></div>
+    <div class="arrow" style="font-size:24px">→</div>
+    <div class="pfnode hl"><div class="ft">獨立驗證</div><div class="fd">查 API／讀回檔案／檢查 DB row</div></div>
+    <div class="arrow" style="font-size:24px">→</div>
+    <div class="pfnode"><div class="ft">確認或補救</div><div class="fd">真的成功才往下走</div></div>
+  </div>
+  <div class="take" style="margin-top:44px">對有副作用的動作，<b>永遠假設它會重複、會說謊</b>——驗證是你的保險。</div>
+</section>
+
+<!-- ============ 10 PATTERNS ============ -->
+<section class="slide rv-pattern" id="s10" aria-labelledby="s10t">
+  <p class="meta"><span class="num">10</span><span class="part">PART 4 · 模式與框架</span></p>
+  <h2 class="h2" id="s10t">組合拳：<strong>chain 逐步問答，orchestrator 多專家合成</strong></h2>
+  <div class="dg center" style="margin-top:18px">
+    <div class="node ok"><div class="t">Prompt Chaining</div><div class="s">10 步問答：問→答→問→答<br>每步 context 乾淨、可驗證、可修正</div></div>
+    <div class="arrow">＋<label class="lbl">搭配</label></div>
+    <div class="node warn"><div class="t">Orchestrator-Workers</div><div class="s">多領域專家各自產出摘要<br>再合成統一決策框架</div></div>
+  </div>
+  <div class="dg col" style="gap:10px;margin-top:16px">
+    <div class="node hl" style="align-items:flex-start;text-align:left;padding:13px 20px">
+      <div class="t" style="font-size:21px">案例：幫小孩取名（三層結構）</div>
+    </div>
+    <div class="pairflow">
+      <div class="pfnode"><div class="ft">層 1 · 各領域成專家（可並行）</div><div class="fd">生肖／易經／紫微斗數／占星 → 各自的<b>領域摘要</b></div></div>
+      <div class="arrow" style="font-size:24px">→</div>
+      <div class="pfnode"><div class="ft">層 2 · 合成</div><div class="fd">融合成<b>統一命理決策框架</b>：優先序、衝突規則、評分標準</div></div>
+      <div class="arrow" style="font-size:24px">→</div>
+      <div class="pfnode"><div class="ft">層 3 · 執行 chain</div><div class="fd">命名 10 步逐步問答，<b>只吃框架</b>跑</div></div>
+    </div>
+  </div>
+  <div class="pband borrow"><span class="pbl">關鍵洞察</span>chain 之間傳遞的是<b>精煉的介面文件</b>，不是全部知識——完整知識是 state，流入下一層的只有框架。</div>
+  <div class="take">專家建構與執行鏈分開：<b>知識可重用、可 debug、每步可驗證</b>。</div>
+</section>
+
+<!-- ============ 11 FRAMEWORKS ============ -->
+<section class="slide" id="s11" aria-labelledby="s11t">
+  <p class="meta"><span class="num">11</span><span class="part">PART 4 · 模式與框架</span></p>
+  <h2 class="h2" id="s11t">框架都是<strong>預組好的 harness</strong>——選的是編排方式</h2>
+  <div class="cols2">
+    <div class="card">
+      <h4 class="a">LangGraph</h4>
+      <div class="ct">圖結構 · CHECKPOINT · INTERRUPT</div>
+      <ul>
+        <li>流程畫成 <b>node + edge</b>；edge 可固定、可由 LLM 選</li>
+        <li>checkpoint 可 resume、interrupt 可人審中斷</li>
+        <li>適合多步驟、要人介入的複雜流程</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 class="a">Pydantic AI</h4>
+      <div class="ct">單 AGENT · TYPE-SAFE · 上手平緩</div>
+      <ul>
+        <li>輸出用 <b>Pydantic 定義</b>，錯型別直接報錯</li>
+        <li>工具用 <b>@agent.tool</b> 註冊，最少的樣板</li>
+        <li>適合「一個 agent + 幾個工具」的規模</li>
+      </ul>
+    </div>
+  </div>
+  <div class="dg" style="margin-top:48px">
+    <div class="node warn"><div class="t">CrewAI</div><div class="s">角色分工：agent 有 role/goal/backstory，任務串成 crew</div></div>
+    <div class="node warn"><div class="t">ADK（Google）</div><div class="s">多 agent 編排、session 持久化、Gemini 生態</div></div>
+    <div class="node ok"><div class="t">n8n</div><div class="s">視覺化 workflow，LLM 只是其中一個節點</div></div>
+  </div>
+  <div class="take" style="margin-top:44px">每個框架都給你：<b>loop + 狀態 + 工具註冊 + 可觀測性</b>——差別在怎麼編排、多重的抽象。</div>
+</section>
+
+<!-- ============ 12 CONCLUSION ============ -->
+<section class="slide" id="s12" aria-labelledby="s12t">
+  <p class="meta"><span class="num">12</span><span class="part">結論</span></p>
+  <h2 class="h2" id="s12t">實務規則：<strong>從最不自主的開始，不夠再升級</strong></h2>
+  <div class="ladder">
+    <div class="lstep"><div class="ln">① 可預測</div><div class="lt2">純 code / n8n</div><div class="ld">步驟寫得死 → <b>最便宜、最好測</b>，不需要框架</div></div>
+    <div class="lstep"><div class="ln">② 單一 agent</div><div class="lt2">Pydantic AI 這類輕框架</div><div class="ld">一個 agent + 幾個工具自主跑 → <b>型別安全、樣板最少</b></div></div>
+    <div class="lstep"><div class="ln">③ 多步多 agent</div><div class="lt2">LangGraph / CrewAI / ADK</div><div class="ld">要人審、要 resume、多角色協作 → <b>圖結構與編排</b></div></div>
+  </div>
+  <div class="closing">
+    <div class="cl"><b>混合最常見：code 定骨架（幾個階段、順序），模型定細節（階段內自己決定）。</b>跑久了發現步驟其實有規律，再把 agent 降級回 workflow。</div>
+  </div>
+  <div class="agenticband" style="margin-top:16px;border-radius:16px;padding:15px 26px;background:linear-gradient(135deg,#2c2418,#4a3a26);color:#f6f0e4;display:flex;flex-direction:column;gap:6px;box-shadow:0 14px 40px #00000022">
+    <span class="ab-main" style="font-size:24px;line-height:1.45;font-weight:800;color:#f6f0e4"><b style="color:#e9c778">一句話總結：</b>模型負責想，你負責決定它能在什麼框架裡想。</span>
+    <span class="ab-sub" style="font-size:18px;color:#d8cdb8;line-height:1.5">下一步：附錄用同一個「三步研究任務」，看 LangGraph / Pydantic AI / CrewAI / n8n 的程式與架構。</span>
+  </div>
+  <div class="take" style="margin-top:16px">實務口訣：<b>可預測的用 code 寫死，不可預測的才放模型自己決定</b>——先跑起來，再升級。</div>
+</section>
+
+<!-- ============ 13 APPENDIX OPENING ============ -->
+<section class="slide" id="s13" aria-labelledby="s13t">
+  <p class="meta"><span class="num">13</span><span class="part">附錄 · 同一件事，四種寫法</span></p>
+  <h2 class="h2" id="s13t">共用範例：<strong>三步研究任務</strong></h2>
+  <p class="sub" style="margin-top:26px">「<b>爬資料 → 整理成專家知識 → 產出報告</b>」——同一個任務，四個框架各寫一遍，對照「狀態、工具、流程」誰負責。</p>
+  <div class="pairflow" style="margin-top:44px">
+    <div class="pfnode"><div class="ft">① 爬資料</div><div class="fd">web_search(query)</div></div>
+    <div class="arrow" style="font-size:24px">→</div>
+    <div class="pfnode"><div class="ft">② 整理成專家知識</div><div class="fd">LLM 摘要成知識</div></div>
+    <div class="arrow" style="font-size:24px">→</div>
+    <div class="pfnode"><div class="ft">③ 產出報告</div><div class="fd">LLM 寫成 final report</div></div>
+  </div>
+  <div class="dg wrap center" style="margin-top:48px;gap:12px">
+    <span class="chip d" style="font-size:21px;padding:6px 20px">LangGraph · 圖</span>
+    <span class="chip a" style="font-size:21px;padding:6px 20px">Pydantic AI · 型別安全 agent</span>
+    <span class="chip a" style="font-size:21px;padding:6px 20px">CrewAI · 角色分工</span>
+    <span class="chip g" style="font-size:21px;padding:6px 20px">n8n · 視覺節點</span>
+  </div>
+  <div class="note" style="font-size:22px;margin-top:36px">程式碼為<b>最小可跑骨架</b>，語法以官方文件為準（框架改版快）；重點在看每個框架把 harness 的哪些元件替你包好了。</div>
+  <div class="pband same" style="margin-top:20px"><span class="pbl">對照重點</span>同一份知識與任務，<b>四種不同的 harness 編排</b>——圖、型別、角色、畫布，選貼近你團隊的那種。</div>
+  <div class="take" style="margin-top:26px">對照四欄就懂框架差異：<b>狀態、工具註冊、人審中斷、型別安全</b>。</div>
+</section>
+
+<!-- ============ 14 LANGGRAPH ============ -->
+<section class="slide" id="s14" aria-labelledby="s14t">
+  <p class="meta"><span class="num">14</span><span class="part">附錄 01/04 · LANGGRAPH</span></p>
+  <h2 class="h2" id="s14t">LangGraph：<strong>流程畫成圖，狀態是共享 dict</strong></h2>
+  <div class="dg" style="margin-top:14px;gap:22px">
+    <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+      <div class="node hl" style="padding:11px 14px"><div class="t" style="font-size:19px">State（共享狀態）</div><div class="s" style="font-size:15px">query / research / report</div></div>
+      <div class="dg" style="margin-top:0;gap:6px">
+        <div class="node" style="flex:1;padding:10px 8px"><div class="t" style="font-size:17px">gather</div><div class="s" style="font-size:14px">爬資料</div></div>
+        <div class="arrow" style="font-size:20px">→</div>
+        <div class="node" style="flex:1;padding:10px 8px"><div class="t" style="font-size:17px">synthesize</div><div class="s" style="font-size:14px">整理知識</div></div>
+        <div class="arrow" style="font-size:20px">→</div>
+        <div class="node" style="flex:1;padding:10px 8px"><div class="t" style="font-size:17px">write</div><div class="s" style="font-size:14px">寫報告</div></div>
+      </div>
+      <div class="note" style="margin-top:4px;font-size:17px"><b>你寫</b>：node function＋edge 順序<br><b>框架給</b>：state 管理、checkpoint（可 resume）、interrupt（人審中斷）、trace</div>
+    </div>
+    <div class="code" style="flex:1.5;margin-top:0">
+<pre><span class="cm"># pip install langgraph</span>
+<span class="kw">from</span> typing <span class="kw">import</span> TypedDict
+<span class="kw">from</span> langgraph.graph <span class="kw">import</span> StateGraph, START, END
+
+<span class="kw">class</span> <span class="fn">State</span>(TypedDict):          <span class="cm"># 共享狀態</span>
+    query: <span class="fn">str</span>
+    research: <span class="fn">list</span>[<span class="fn">str</span>]
+    report: <span class="fn">str</span>
+
+<span class="kw">def</span> <span class="fn">gather</span>(state):      <span class="cm"># 節點 1</span>
+    <span class="kw">return</span> {<span class="st">"research"</span>: web_search(state[<span class="st">"query"</span>])}
+<span class="kw">def</span> <span class="fn">synthesize</span>(state): <span class="cm"># 節點 2</span>
+    <span class="kw">return</span> {<span class="st">"report"</span>: llm(<span class="st">"整理成專家知識"</span>, state[<span class="st">"research"</span>])}
+<span class="kw">def</span> <span class="fn">write</span>(state):      <span class="cm"># 節點 3</span>
+    <span class="kw">return</span> {<span class="st">"report"</span>: llm(<span class="st">"寫最終報告"</span>, state[<span class="st">"report"</span>])}
+
+g = StateGraph(State)
+g.add_node(<span class="st">"gather"</span>, gather)
+g.add_node(<span class="st">"synthesize"</span>, synthesize)
+g.add_node(<span class="st">"write"</span>, write)
+g.add_edge(START, <span class="st">"gather"</span>)
+g.add_edge(<span class="st">"gather"</span>, <span class="st">"synthesize"</span>)
+g.add_edge(<span class="st">"synthesize"</span>, <span class="st">"write"</span>)
+g.add_edge(<span class="st">"write"</span>, END)
+app = g.compile()
+<span class="fn">print</span>(app.invoke({<span class="st">"query"</span>: <span class="st">"XX 市場現況"</span>})[<span class="st">"report"</span>])</pre>
+    </div>
+  </div>
+  <div class="take">固定 edge 是 workflow，<b>edge 讓 LLM 選就是 agent</b>——一個框架兩種模式都有。</div>
+</section>
+
+<!-- ============ 15 PYDANTIC AI ============ -->
+<section class="slide" id="s15" aria-labelledby="s15t">
+  <p class="meta"><span class="num">15</span><span class="part">附錄 02/04 · PYDANTIC AI</span></p>
+  <h2 class="h2" id="s15t">Pydantic AI：<strong>單一 agent，輸出型別安全</strong></h2>
+  <div class="dg" style="margin-top:14px;gap:22px">
+    <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+      <div class="node warn" style="padding:12px 16px"><div class="t" style="font-size:19px">Agent</div><div class="s" style="font-size:15px">model ＋ system_prompt ＋ result_type</div></div>
+      <div class="node" style="padding:10px 14px"><div class="t" style="font-size:17px">@agent.tool_plain</div><div class="s" style="font-size:14px">web_search —— 工具註冊</div></div>
+      <div class="node hl" style="padding:10px 14px"><div class="t" style="font-size:17px">run_sync()</div><div class="s" style="font-size:14px">一次 agent loop，回傳 typed result</div></div>
+      <div class="note" style="margin-top:4px;font-size:17px"><b>你寫</b>：agent 定義、工具、輸出模型<br><b>框架給</b>：整個 loop、工具註冊、輸出驗證、usage 統計</div>
+    </div>
+    <div class="code" style="flex:1.5;margin-top:0">
+<pre><span class="cm"># pip install pydantic-ai</span>
+<span class="kw">from</span> pydantic <span class="kw">import</span> BaseModel
+<span class="kw">from</span> pydantic_ai <span class="kw">import</span> Agent
+
+<span class="kw">class</span> <span class="fn">Report</span>(BaseModel):      <span class="cm"># 輸出型別</span>
+    summary: <span class="fn">str</span>
+    key_points: <span class="fn">list</span>[<span class="fn">str</span>]
+
+agent = Agent(
+    <span class="st">"openai:gpt-4o"</span>,
+    system_prompt=<span class="st">"你是市場研究助理：先爬資料、整理成專家知識，再寫報告。"</span>,
+    result_type=Report,        <span class="cm"># 錯型別直接報錯</span>
+)
+
+<span class="kw">@agent.tool_plain</span>
+<span class="kw">def</span> <span class="fn">web_search</span>(query: <span class="fn">str</span>) -&gt; <span class="fn">str</span>:
+    <span class="kw">return</span> search_api(query)  <span class="cm"># 註冊給模型選</span>
+
+result = agent.run_sync(<span class="st">"研究 XX 市場現況"</span>)
+<span class="fn">print</span>(result.output.summary)      <span class="cm"># 型別安全輸出</span>
+<span class="fn">print</span>(result.usage())             <span class="cm"># token 用量</span></pre>
+    </div>
+  </div>
+  <div class="take">型別安全是最大賣點——<b>輸出不符 schema 就失敗</b>，錯誤不會默默往下流。</div>
+</section>
+
+<!-- ============ 16 CREWAI ============ -->
+<section class="slide" id="s16" aria-labelledby="s16t">
+  <p class="meta"><span class="num">16</span><span class="part">附錄 03/04 · CREWAI</span></p>
+  <h2 class="h2" id="s16t">CrewAI：<strong>角色分工，任務串成 crew</strong></h2>
+  <div class="dg" style="margin-top:14px;gap:22px">
+    <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+      <div class="node warn" style="padding:11px 14px"><div class="t" style="font-size:18px">Agent 研究員</div><div class="s" style="font-size:14px">role / goal / backstory / tools</div></div>
+      <div class="node" style="padding:11px 14px"><div class="t" style="font-size:18px">Task ①</div><div class="s" style="font-size:14px">爬取並整理市場資料</div></div>
+      <div class="arrow" style="font-size:20px">↓ sequential</div>
+      <div class="node warn" style="padding:11px 14px"><div class="t" style="font-size:18px">Agent 撰稿人</div><div class="s" style="font-size:14px">role / goal / backstory</div></div>
+      <div class="node" style="padding:11px 14px"><div class="t" style="font-size:18px">Task ②</div><div class="s" style="font-size:14px">寫成報告</div></div>
+      <div class="note" style="margin-top:4px;font-size:17px"><b>你寫</b>：agent 角色＋task 描述<br><b>框架給</b>：編排順序、任務間產出傳遞、kickoff 執行</div>
+    </div>
+    <div class="code" style="flex:1.5;margin-top:0">
+<pre><span class="cm"># pip install crewai</span>
+<span class="kw">from</span> crewai <span class="kw">import</span> Agent, Task, Crew, Process
+
+researcher = Agent(
+    role=<span class="st">"市場研究員"</span>,
+    goal=<span class="st">"爬取並整理市場資料"</span>,
+    backstory=<span class="st">"資深分析師，擅長收集與歸納"</span>,
+    tools=[web_search],          <span class="cm"># 給這個角色的工具</span>
+)
+writer = Agent(
+    role=<span class="st">"撰稿人"</span>,
+    goal=<span class="st">"把研究整理成報告"</span>,
+    backstory=<span class="st">"擅長把複雜資訊寫清楚"</span>,
+)
+
+t1 = Task(description=<span class="st">"研究 XX 市場現況"</span>,
+          expected_output=<span class="st">"專家知識摘要"</span>, agent=researcher)
+t2 = Task(description=<span class="st">"寫成最終報告"</span>,
+          expected_output=<span class="st">"markdown 報告"</span>, agent=writer)
+
+crew = Crew(agents=[researcher, writer],
+            tasks=[t1, t2],
+            process=Process.sequential)  <span class="cm"># 或 hierarchical</span>
+result = crew.kickoff()</pre>
+    </div>
+  </div>
+  <div class="take">角色分工寫在 agent 定義裡，<b>任務描述是 agent 之間的合約</b>——分工清楚，責任才清楚。</div>
+</section>
+
+<!-- ============ 17 N8N + TABLE ============ -->
+<section class="slide" id="s17" aria-labelledby="s17t">
+  <p class="meta"><span class="num">17</span><span class="part">附錄 04/04 · N8N ＋ 對照總表</span></p>
+  <h2 class="h2" id="s17t">n8n：<strong>視覺化畫布，workflow 就是節點串</strong></h2>
+  <div class="dg" style="margin-top:12px;gap:18px">
+    <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+      <div class="dg" style="margin-top:0;gap:5px;flex-wrap:wrap">
+        <div class="node" style="flex:1;padding:9px 6px"><div class="t" style="font-size:15px">Manual Trigger</div></div>
+        <div class="arrow" style="font-size:18px">→</div>
+        <div class="node" style="flex:1;padding:9px 6px"><div class="t" style="font-size:15px">HTTP Request 搜尋</div></div>
+        <div class="arrow" style="font-size:18px">→</div>
+        <div class="node" style="flex:1;padding:9px 6px"><div class="t" style="font-size:15px">OpenAI 整理知識</div></div>
+        <div class="arrow" style="font-size:18px">→</div>
+        <div class="node" style="flex:1;padding:9px 6px"><div class="t" style="font-size:15px">OpenAI 寫報告</div></div>
+      </div>
+      <div class="note" style="margin-top:4px;font-size:17px">視覺工具，無 code——<b>workflow 本身是 JSON</b>（nodes + connections），可版本控管、可匯出。<br>LLM 節點內可掛工具；人類審核用 <b>Wait 節點</b>暫停等批准。</div>
+    </div>
+    <div class="code small" style="flex:1.35;margin-top:0">
+<pre>{ <span class="cm">// n8n workflow 骨架</span>
+  <span class="st">"name"</span>: <span class="st">"三步研究"</span>,
+  <span class="st">"nodes"</span>: [
+    { <span class="st">"name"</span>: <span class="st">"Manual Trigger"</span>,
+      <span class="st">"type"</span>: <span class="st">"n8n-nodes-base.manualTrigger"</span> },
+    { <span class="st">"name"</span>: <span class="st">"搜尋"</span>,
+      <span class="st">"type"</span>: <span class="st">"n8n-nodes-base.httpRequest"</span> },
+    { <span class="st">"name"</span>: <span class="st">"整理知識"</span>,
+      <span class="st">"type"</span>: <span class="st">"@n8n/n8n-nodes-langchain.openAi"</span> },
+    { <span class="st">"name"</span>: <span class="st">"寫報告"</span>,
+      <span class="st">"type"</span>: <span class="st">"@n8n/n8n-nodes-langchain.openAi"</span> }
+  ],
+  <span class="st">"connections"</span>: {
+    <span class="st">"Manual Trigger"</span>: { <span class="st">"main"</span>: [[{ <span class="st">"node"</span>: <span class="st">"搜尋"</span>, <span class="st">"type"</span>: <span class="st">"main"</span>, <span class="st">"index"</span>: <span class="nu">0</span> }]] },
+    <span class="st">"搜尋"</span>: { <span class="st">"main"</span>: [[{ <span class="st">"node"</span>: <span class="st">"整理知識"</span>, <span class="st">"type"</span>: <span class="st">"main"</span>, <span class="st">"index"</span>: <span class="nu">0</span> }]] },
+    <span class="st">"整理知識"</span>: { <span class="st">"main"</span>: [[{ <span class="st">"node"</span>: <span class="st">"寫報告"</span>, <span class="st">"type"</span>: <span class="st">"main"</span>, <span class="st">"index"</span>: <span class="nu">0</span> }]] }
+  }
+}</pre>
+    </div>
+  </div>
+  <div class="apptable" style="margin-top:10px">
+    <div class="approw"><div class="ah">框架</div><div class="ah">狀態</div><div class="ah">工具註冊</div><div class="ah">人審中斷</div><div class="ah">型別安全</div></div>
+    <div class="approw"><div class="an">LangGraph</div><div class="ac">共享 state dict</div><div class="ac">add_node 節點</div><div class="ac"><b>interrupt() 內建</b></div><div class="ac">TypedDict</div></div>
+    <div class="approw"><div class="an">Pydantic AI</div><div class="ac">agent 內建</div><div class="ac">@agent.tool_plain</div><div class="ac">無內建</div><div class="ac"><b>Pydantic result_type</b></div></div>
+    <div class="approw"><div class="an">CrewAI</div><div class="ac">task 產出傳遞</div><div class="ac">tools=[...]</div><div class="ac">無內建</div><div class="ac">output_pydantic</div></div>
+    <div class="approw"><div class="an">n8n</div><div class="ac">節點間資料</div><div class="ac">視覺節點</div><div class="ac">Wait 節點</div><div class="ac">無（JSON）</div></div>
+  </div>
+  <div class="take" style="margin-top:16px">沒有最好的框架——選「<b>harness 編排最貼近你任務</b>」的那個，先跑起來，再升級。</div>
+</section>
+
+<!-- ============ CHROME ============ -->
+<div class="progress"><div class="progress-bar" id="progressbar"></div></div>
+<div class="counter" id="counter">01 / 17</div>
+<div class="hint">⬅️➡️ 換頁 <span class="hsep">·</span> 🗺️ O 總覽 <span class="hsep">·</span> ⛶ F 全螢幕 <span class="hsep">·</span> ❓ 說明</div>
+<div class="nav">
+  <button class="navbtn" id="prevBtn" aria-label="上一頁">‹</button>
+  <button class="navbtn" id="nextBtn" aria-label="下一頁">›</button>
+</div>
+
+<div id="overview" aria-hidden="true">
+  <h2>總覽</h2>
+  <div class="ovgrid" id="ovgrid"></div>
+</div>
+<div id="help" aria-hidden="true">
+  <div class="help-title">操作說明 ✨</div>
+  <div class="help-grid">
+    <div class="hcard"><span class="hicon">⬅️➡️</span><span class="hkey"><kbd>←</kbd> <kbd>→</kbd></span><span class="hdesc">換頁</span></div>
+    <div class="hcard"><span class="hicon">🖱️</span><span class="hkey">點左右兩側</span><span class="hdesc">換頁</span></div>
+    <div class="hcard"><span class="hicon">📱</span><span class="hkey">左右滑動</span><span class="hdesc">換頁</span></div>
+    <div class="hcard"><span class="hicon">🗺️</span><span class="hkey"><kbd>O</kbd></span><span class="hdesc">總覽</span></div>
+    <div class="hcard"><span class="hicon">⛶</span><span class="hkey"><kbd>F</kbd></span><span class="hdesc">全螢幕</span></div>
+    <div class="hcard"><span class="hicon">🏠</span><span class="hkey"><kbd>Home</kbd></span><span class="hdesc">第一頁</span></div>
+    <div class="hcard"><span class="hicon">🏁</span><span class="hkey"><kbd>End</kbd></span><span class="hdesc">最後一頁</span></div>
+    <div class="hcard"><span class="hicon">❌</span><span class="hkey"><kbd>Esc</kbd></span><span class="hdesc">關閉</span></div>
+  </div>
+</div>
+
+</div><!-- /stage -->
+</div><!-- /viewport -->
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  var current = 0;
+  var progress = document.getElementById('progressbar');
+  var counter = document.getElementById('counter');
+  var overview = document.getElementById('overview');
+  var help = document.getElementById('help');
+  var ovgrid = document.getElementById('ovgrid');
+
+  function show(n, updateHash){
+    if(n < 0) n = 0;
+    if(n > total - 1) n = total - 1;
+    current = n;
+    slides.forEach(function(s, i){ s.classList.toggle('is-active', i === n); });
+    if(progress) progress.style.width = ((n + 1) / total * 100) + '%';
+    if(counter) counter.textContent = String(n + 1).padStart(2,'0') + ' / ' + String(total).padStart(2,'0');
+    if(updateHash !== false){
+      try{ history.replaceState(null, '', '#s' + (n + 1)); }catch(e){}
+    }
+    if(overview) overview.classList.remove('open');
+    if(help) help.classList.remove('open');
+  }
+
+  function next(){ show(current + 1); }
+  function prev(){ show(current - 1); }
+
+  slides.forEach(function(s, i){
+    var t = s.querySelector('.h2');
+    var title = t ? t.textContent.trim() : ('第 ' + (i+1) + ' 頁');
+    var btn = document.createElement('button');
+    btn.className = 'ovbtn';
+    btn.innerHTML = '<div class="on">' + String(i+1).padStart(2,'0') + '</div><div class="ot">' + title + '</div>';
+    btn.addEventListener('click', function(){ show(i); });
+    ovgrid.appendChild(btn);
+  });
+
+  slides.forEach(function(s, i){
+    var numEl = s.querySelector('.num');
+    var num = numEl ? numEl.textContent.trim() : String(i + 1).padStart(2, '0');
+    var g = document.createElement('span');
+    g.className = 'gnum';
+    g.textContent = num;
+    s.insertBefore(g, s.firstChild);
+  });
+
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && ((overview && overview.classList.contains('open')) || (help && help.classList.contains('open')))){
+      show(current, false); return;
+    }
+    switch(e.key){
+      case 'ArrowRight': case 'ArrowDown': case 'PageDown': case ' ': next(); e.preventDefault(); break;
+      case 'ArrowLeft': case 'ArrowUp': case 'PageUp': prev(); e.preventDefault(); break;
+      case 'Home': show(0); e.preventDefault(); break;
+      case 'End': show(total - 1); e.preventDefault(); break;
+      case 'o': case 'O': overview.classList.toggle('open'); e.preventDefault(); break;
+      case 'f': case 'F': {
+        var de = document.documentElement;
+        var req = de.requestFullscreen || de.webkitRequestFullscreen;
+        var exit = document.exitFullscreen || document.webkitExitFullscreen;
+        var isFs = document.fullscreenElement || document.webkitFullscreenElement;
+        if(req){
+          if(isFs){ if(exit){ exit.call(document); } }
+          else { var pr = req.call(de); if(pr && pr.catch){ pr.catch(function(){}); } }
+        }
+        e.preventDefault(); break;
+      }
+      case '?': help.classList.toggle('open'); e.preventDefault(); break;
+    }
+  });
+
+  document.querySelector('.stage').addEventListener('click', function(e){
+    if(overview && overview.classList.contains('open')) return;
+    var x = e.clientX / window.innerWidth;
+    if(x < 0.28){ prev(); }
+    else if(x > 0.72){ next(); }
+  });
+
+  var tx = null;
+  document.addEventListener('touchstart', function(e){ tx = e.changedTouches[0].clientX; }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    if(tx === null) return;
+    var dx = e.changedTouches[0].clientX - tx;
+    if(Math.abs(dx) > 60){ dx < 0 ? next() : prev(); }
+    tx = null;
+  }, {passive:true});
+
+  var nb = document.getElementById('nextBtn');
+  var pb = document.getElementById('prevBtn');
+  if(nb) nb.addEventListener('click', function(e){ e.stopPropagation(); next(); });
+  if(pb) pb.addEventListener('click', function(e){ e.stopPropagation(); prev(); });
+
+  window.addEventListener('hashchange', function(){
+    var m = location.hash.match(/^#s(\d+)$/);
+    if(m){ show(parseInt(m[1],10) - 1, false); }
+  });
+  var m0 = location.hash.match(/^#s(\d+)$/);
+  show(m0 ? parseInt(m0[1],10) - 1 : 0, false);
+})();
+</script>
+</body>
+</html>
