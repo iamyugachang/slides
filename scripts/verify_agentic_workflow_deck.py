@@ -2,7 +2,7 @@
 """Verifier for the Agentic Workflow deck.
 
 Asserts the structural + editorial rules this user cares about:
-- 17 slides, all with .take takeaway band
+- 18 slides, all with .take takeaway band
 - No .src footnotes at slide bottoms
 - No TA/audience-identification slide (no such marker)
 - Every slide has a diagram-ish block (dg / quad / stack / loopbox / ladder / specbar / pairflow / apptable / code)
@@ -20,8 +20,8 @@ errors = []
 
 # 1. slide count
 slides = re.findall(r'<section class="slide', text)
-if len(slides) != 17:
-    errors.append(f"slide count = {len(slides)}, expected 17")
+if len(slides) != 18:
+    errors.append(f"slide count = {len(slides)}, expected 18")
 
 # 2. every slide has a take band
 sections = re.split(r'<section class="slide"', text)[1:]

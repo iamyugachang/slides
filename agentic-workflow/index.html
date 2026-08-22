@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Agentic Workflow：任務自動化的一道光譜</title>
-<meta name="description" content="從「誰決定下一步」開始，看懂 workflow 與 agent 的差別、共用的 harness 結構，以及 LangGraph / Pydantic AI / CrewAI / n8n 四種實作。17 slides。">
+<meta name="description" content="從「誰決定下一步」開始，看懂 workflow 與 agent 的差別、共用的 harness 結構，以及 LangGraph / Pydantic AI / CrewAI / n8n 四種實作。18 slides。">
 <style>
 /* ============================================================
    STYLE D · BLUEPRINT × TYPE LOUD — fixed 1920×1080 stage
@@ -183,6 +183,8 @@ html.js .slide > :not(.gnum):not(.sticker){position:relative;z-index:1}
 .pfnode .fd b{color:var(--ink)}
 .pfnode.hl{border-color:var(--line-strong);background:linear-gradient(160deg,#123b6e88,#0d2548cc)}
 .pfnode.hl .ft{color:var(--ink)}
+.pfnode.ok{border-color:#4ec9a0aa;background:linear-gradient(160deg,#0e3a2f66,#0d2548cc)}
+.pfnode.ok .ft{color:#4ec9a0}
 
 /* ---- 2-col comparison cards ---- */
 .cols2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px}
@@ -877,10 +879,40 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take">診斷與修復分開：<b>診斷知識可重用、可 debug、每步可驗證</b>。</div>
 </section>
 
-<!-- ============ 11 FRAMEWORKS ============ -->
+<!-- ============ 11 CASE 2 LAKEHOUSE ASSISTANT ============ -->
 <section class="slide" id="s11" aria-labelledby="s11t">
   <p class="meta"><span class="num">11</span><span class="part">PART 4 · 模式與框架</span></p>
-  <h2 class="h2" id="s11t">框架都是<strong>預組好的 harness</strong>——選的是編排方式</h2>
+  <h2 class="h2" id="s11t">案例 2：Lakehouse 自助助理——<strong>agent 只碰 console API</strong></h2>
+  <p class="sub" style="margin-top:14px">內部自助平台的對話介面：查資料、排錯、診斷、優化、權限——<b>agent 不知道各廠怎麼連，只會呼叫 console API</b>。</p>
+  <div class="dg" style="margin-top:20px;gap:9px">
+    <div class="node" style="flex:1;padding:12px 10px"><div class="t" style="font-size:18px">使用者</div><div class="s" style="font-size:14px">自然語言一句話</div></div>
+    <div class="arrow" style="font-size:22px">→</div>
+    <div class="node warn" style="flex:1.2;padding:12px 10px"><div class="t" style="font-size:18px">Lakehouse Agent</div><div class="s" style="font-size:14px">視野只有 console API<br>（JWT workspace 綁定）</div></div>
+    <div class="arrow" style="font-size:22px">→</div>
+    <div class="node hl" style="flex:1.3;padding:12px 10px"><div class="t" style="font-size:18px">Console API（唯一入口）</div><div class="s" style="font-size:14px">authn / OPA 授權 / 驗證 / forwarding</div></div>
+    <div class="arrow" style="font-size:22px">→</div>
+    <div class="node" style="flex:1.3;padding:12px 10px"><div class="t" style="font-size:18px">各廠集群</div><div class="s" style="font-size:14px">Trino · Airflow · HMS · MinIO · OPA</div></div>
+  </div>
+  <div class="dg wrap center" style="margin-top:22px;gap:10px">
+    <span class="chip d" style="font-size:17px;padding:5px 16px">查 schema</span>
+    <span class="chip a" style="font-size:17px;padding:5px 16px">排錯：ingestion failed</span>
+    <span class="chip a" style="font-size:17px;padding:5px 16px">診斷 data model／pipeline</span>
+    <span class="chip a" style="font-size:17px;padding:5px 16px">優化 query performance</span>
+    <span class="chip a" style="font-size:17px;padding:5px 16px">權限自助：開 table 給別的 workspace</span>
+  </div>
+  <div class="pairflow" style="margin-top:22px">
+    <div class="pfnode ok"><div class="ft">查（read-only）</div><div class="fd">query / describe / run_status / lineage / explain → <b>直接放行</b></div></div>
+    <div class="arrow" style="font-size:22px">↕</div>
+    <div class="pfnode"><div class="ft">建（寫）</div><div class="fd">產 YAML → validate → <b>★ HITL 確認</b> → submit（權限變更同：先看 diff 再套用）</div></div>
+  </div>
+  <div class="pband borrow"><span class="pbl">設計原則</span>agent 的視野＝<b>最小 API 面</b>：它沒有各廠鑰匙，安全邊界在 console；HITL 只放<b>風險最高的那一步</b>，不是每一步都問。</div>
+  <div class="take">自助平台的關鍵不是「agent 什麼都會」，是<b>agent 只碰一個入口、權限一次檢查、風險點一次確認</b>。</div>
+</section>
+
+<!-- ============ 12 FRAMEWORKS ============ -->
+<section class="slide" id="s12" aria-labelledby="s12t">
+  <p class="meta"><span class="num">12</span><span class="part">PART 4 · 模式與框架</span></p>
+  <h2 class="h2" id="s12t">框架都是<strong>預組好的 harness</strong>——選的是編排方式</h2>
   <div class="cols2">
     <div class="card">
       <h4 class="a">LangGraph</h4>
@@ -909,10 +941,10 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take" style="margin-top:44px">每個框架都給你：<b>loop + 狀態 + 工具註冊 + 可觀測性</b>——差別在怎麼編排、多重的抽象。</div>
 </section>
 
-<!-- ============ 12 CONCLUSION ============ -->
-<section class="slide" id="s12" aria-labelledby="s12t">
-  <p class="meta"><span class="num">12</span><span class="part">結論</span></p>
-  <h2 class="h2" id="s12t">實務規則：<strong>從最不自主的開始，不夠再升級</strong></h2>
+<!-- ============ 13 CONCLUSION ============ -->
+<section class="slide" id="s13" aria-labelledby="s13t">
+  <p class="meta"><span class="num">13</span><span class="part">結論</span></p>
+  <h2 class="h2" id="s13t">實務規則：<strong>從最不自主的開始，不夠再升級</strong></h2>
   <div class="ladder">
     <div class="lstep"><div class="ln">① 可預測</div><div class="lt2">純 code / n8n</div><div class="ld">步驟寫得死 → <b>最便宜、最好測</b>，不需要框架</div></div>
     <div class="lstep"><div class="ln">② 單一 agent</div><div class="lt2">Pydantic AI 這類輕框架</div><div class="ld">一個 agent + 幾個工具自主跑 → <b>型別安全、樣板最少</b></div></div>
@@ -928,10 +960,10 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take" style="margin-top:16px">實務口訣：<b>可預測的用 code 寫死，不可預測的才放模型自己決定</b>——先跑起來，再升級。</div>
 </section>
 
-<!-- ============ 13 APPENDIX OPENING ============ -->
-<section class="slide" id="s13" aria-labelledby="s13t">
-  <p class="meta"><span class="num">13</span><span class="part">附錄 · 同一件事，四種寫法</span></p>
-  <h2 class="h2" id="s13t">共用範例：<strong>Alert 自動修復</strong></h2>
+<!-- ============ 14 APPENDIX OPENING ============ -->
+<section class="slide" id="s14" aria-labelledby="s14t">
+  <p class="meta"><span class="num">14</span><span class="part">附錄 · 同一件事，四種寫法</span></p>
+  <h2 class="h2" id="s14t">共用範例：<strong>Alert 自動修復</strong></h2>
   <p class="sub" style="margin-top:26px">「<b>偵測到 Airflow／Spark／HMS／MinIO／Trino／JWT／OPA 的異常 log 或 alert → agentic workflow 自動修復 → 產出 issue 報告</b>」——同一個任務，四個框架各寫一遍，對照「狀態、工具、流程」誰負責。</p>
   <div class="pairflow" style="margin-top:44px">
     <div class="pfnode"><div class="ft">① 偵測 alert</div><div class="fd">log 掃描／告警觸發</div></div>
@@ -953,10 +985,10 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take" style="margin-top:26px">對照四欄就懂框架差異：<b>狀態、工具註冊、人審中斷、型別安全</b>。</div>
 </section>
 
-<!-- ============ 14 LANGGRAPH ============ -->
-<section class="slide" id="s14" aria-labelledby="s14t">
-  <p class="meta"><span class="num">14</span><span class="part">附錄 01/04 · LANGGRAPH</span></p>
-  <h2 class="h2" id="s14t">LangGraph：<strong>流程畫成圖，狀態是共享 dict</strong></h2>
+<!-- ============ 15 LANGGRAPH ============ -->
+<section class="slide" id="s15" aria-labelledby="s15t">
+  <p class="meta"><span class="num">15</span><span class="part">附錄 01/04 · LANGGRAPH</span></p>
+  <h2 class="h2" id="s15t">LangGraph：<strong>流程畫成圖，狀態是共享 dict</strong></h2>
   <div class="dg" style="margin-top:14px;gap:22px">
     <div style="flex:1;display:flex;flex-direction:column;gap:8px">
       <div class="node hl" style="padding:11px 14px"><div class="t" style="font-size:19px">State（共享狀態）</div><div class="s" style="font-size:15px">alert / root_cause / fix / report</div></div>
@@ -1004,10 +1036,10 @@ app = g.compile()
   <div class="take">固定 edge 是 workflow，<b>edge 讓 LLM 選就是 agent</b>——一個框架兩種模式都有。</div>
 </section>
 
-<!-- ============ 15 PYDANTIC AI ============ -->
-<section class="slide" id="s15" aria-labelledby="s15t">
-  <p class="meta"><span class="num">15</span><span class="part">附錄 02/04 · PYDANTIC AI</span></p>
-  <h2 class="h2" id="s15t">Pydantic AI：<strong>單一 agent，輸出型別安全</strong></h2>
+<!-- ============ 16 PYDANTIC AI ============ -->
+<section class="slide" id="s16" aria-labelledby="s16t">
+  <p class="meta"><span class="num">16</span><span class="part">附錄 02/04 · PYDANTIC AI</span></p>
+  <h2 class="h2" id="s16t">Pydantic AI：<strong>單一 agent，輸出型別安全</strong></h2>
   <div class="dg" style="margin-top:14px;gap:22px">
     <div style="flex:1;display:flex;flex-direction:column;gap:8px">
       <div class="node warn" style="padding:12px 16px"><div class="t" style="font-size:19px">Agent</div><div class="s" style="font-size:15px">model ＋ system_prompt ＋ result_type</div></div>
@@ -1043,10 +1075,10 @@ result = agent.run_sync(<span class="st">"Trino 節點 alert"</span>)
   <div class="take">型別安全是最大賣點——<b>輸出不符 schema 就失敗</b>，錯誤不會默默往下流。</div>
 </section>
 
-<!-- ============ 16 CREWAI ============ -->
-<section class="slide" id="s16" aria-labelledby="s16t">
-  <p class="meta"><span class="num">16</span><span class="part">附錄 03/04 · CREWAI</span></p>
-  <h2 class="h2" id="s16t">CrewAI：<strong>角色分工，任務串成 crew</strong></h2>
+<!-- ============ 17 CREWAI ============ -->
+<section class="slide" id="s17" aria-labelledby="s17t">
+  <p class="meta"><span class="num">17</span><span class="part">附錄 03/04 · CREWAI</span></p>
+  <h2 class="h2" id="s17t">CrewAI：<strong>角色分工，任務串成 crew</strong></h2>
   <div class="dg" style="margin-top:14px;gap:22px">
     <div style="flex:1;display:flex;flex-direction:column;gap:8px">
       <div class="node warn" style="padding:11px 14px"><div class="t" style="font-size:18px">Agent 診斷員</div><div class="s" style="font-size:14px">role / goal / backstory / tools</div></div>
@@ -1086,10 +1118,10 @@ result = crew.kickoff()</pre>
   <div class="take">角色分工寫在 agent 定義裡，<b>任務描述是 agent 之間的合約</b>——分工清楚，責任才清楚。</div>
 </section>
 
-<!-- ============ 17 N8N + TABLE ============ -->
-<section class="slide" id="s17" aria-labelledby="s17t">
-  <p class="meta"><span class="num">17</span><span class="part">附錄 04/04 · N8N ＋ 對照總表</span></p>
-  <h2 class="h2" id="s17t">n8n：<strong>視覺化畫布，workflow 就是節點串</strong></h2>
+<!-- ============ 18 N8N + TABLE ============ -->
+<section class="slide" id="s18" aria-labelledby="s18t">
+  <p class="meta"><span class="num">18</span><span class="part">附錄 04/04 · N8N ＋ 對照總表</span></p>
+  <h2 class="h2" id="s18t">n8n：<strong>視覺化畫布，workflow 就是節點串</strong></h2>
   <div class="dg" style="margin-top:12px;gap:18px">
     <div style="flex:1;display:flex;flex-direction:column;gap:8px">
       <div class="dg" style="margin-top:0;gap:5px;flex-wrap:wrap">
