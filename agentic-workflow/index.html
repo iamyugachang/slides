@@ -868,15 +868,16 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 <!-- ============ 10 PATTERNS ============ -->
 <section class="slide rv-pattern" id="s10" aria-labelledby="s10t">
   <p class="meta"><span class="num">10</span><span class="part">PART 4 · 模式與框架</span></p>
-  <h2 class="h2" id="s10t">組合拳：<strong>chain 逐步問答，orchestrator 多專家合成</strong></h2>
+  <h2 class="h2" id="s10t">chain／multi-agent 不是另一種 workflow——<strong>是 workflow 的形狀</strong></h2>
   <div class="dg center" style="margin-top:18px">
-    <div class="node ok"><div class="t">Prompt Chaining</div><div class="s">10 步問答：問→答→問→答<br>每步 context 乾淨、可驗證、可修正</div></div>
-    <div class="arrow">＋<label class="lbl">搭配</label></div>
-    <div class="node warn"><div class="t">Orchestrator-Workers</div><div class="s">多領域專家各自產出摘要<br>再合成統一決策框架</div></div>
+    <div class="node ok"><div class="t">Prompt Chaining</div><div class="s">串連：每步輸出是下一步輸入<br>context 乾淨、可驗證、可修正</div></div>
+    <div class="arrow" style="font-size:24px">↔</div>
+    <div class="node warn"><div class="t">Orchestrator-Workers</div><div class="s">平行＋合成：專家各自產出<br>再合併成統一框架</div></div>
   </div>
-  <div class="dg col" style="gap:10px;margin-top:16px">
+  <div class="pband same" style="margin-top:16px"><span class="pbl">關鍵</span>不管怎麼串，<b>底層都是同一個 harness</b>——node 與 edge 的形狀不同，loop、state、工具註冊、可觀測性全部一樣。</div>
+  <div class="dg col" style="gap:10px;margin-top:14px">
     <div class="node hl" style="align-items:flex-start;text-align:left;padding:13px 20px">
-      <div class="t" style="font-size:21px">案例：Alert 自動修復（三層結構）</div>
+      <div class="t" style="font-size:21px">組合拳的實際示範：Alert 自動修復（三層結構）</div>
     </div>
     <div class="pairflow">
       <div class="pfnode"><div class="ft">層 1 · 各系統診斷（可並行）</div><div class="fd">Airflow／Spark／HMS／MinIO／Trino／JWT／OPA → 各自的<b>異常摘要</b></div></div>
@@ -886,8 +887,8 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
       <div class="pfnode"><div class="ft">層 3 · 執行 chain</div><div class="fd">auto-healing 逐步修復 → 驗證 → <b>產出 issue 報告</b></div></div>
     </div>
   </div>
-  <div class="pband borrow"><span class="pbl">關鍵洞察</span>chain 之間傳遞的是<b>精煉的「事故框架」</b>，不是全部 log——完整診斷是 state，流入下一層的只有修復計畫。</div>
-  <div class="take">診斷與修復分開：<b>診斷知識可重用、可 debug、每步可驗證</b>。</div>
+  <div class="pband borrow"><span class="pbl">對照</span>層 1 平行診斷＝<b>orchestrator-workers</b>；層 3 逐步執行＝<b>prompt chaining</b>——同一張圖同時用了兩種形狀。</div>
+  <div class="take">想串 chain 或 multi-agent？<b>底層 harness 不動，只是 node／edge 的形狀不同</b>。</div>
 </section>
 
 <!-- ============ 11 CASE 2 LAKEHOUSE ASSISTANT ============ -->
