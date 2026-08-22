@@ -550,7 +550,7 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="dg center" style="margin-top:26px">
     <div class="node ok"><div class="t">舊自動化</div><div class="s">步驟寫死<br>ETL · CI/CD · Airflow</div></div>
     <div class="arrow">＋ LLM<label class="lbl">多了一格</label></div>
-    <div class="node warn"><div class="t">自然語言任務</div><div class="s">「幫我研究 XX 市場」<br>步驟無法預先列完</div></div>
+    <div class="node warn"><div class="t">自然語言任務</div><div class="s">「幫我查 Trino 為什麼變慢」<br>步驟無法預先列完</div></div>
     <div class="arrow">→<label class="lbl">選項變多</label></div>
     <div class="node hl"><div class="t">光譜</div><div class="s">Workflow ↔ Agent<br>固定路徑 ↔ 動態決策</div></div>
   </div>
@@ -792,10 +792,10 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
       </ul>
     </div>
     <div class="card">
-      <h4 class="d">例子：取名的 10 步 chain</h4>
+      <h4 class="d">例子：alert 處理的 10 步 chain</h4>
       <div class="ct">定義層 × 執行層</div>
       <ul>
-        <li>定義層：每步的輸入輸出、評分標準、衝突規則</li>
+        <li>定義層：每步的輸入輸出（alert → 診斷 → 修復步驟）、權限範圍、驗證標準</li>
         <li>執行層：每步一次 LLM 呼叫，失敗只重跑該步</li>
       </ul>
     </div>
@@ -863,18 +863,18 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   </div>
   <div class="dg col" style="gap:10px;margin-top:16px">
     <div class="node hl" style="align-items:flex-start;text-align:left;padding:13px 20px">
-      <div class="t" style="font-size:21px">案例：幫小孩取名（三層結構）</div>
+      <div class="t" style="font-size:21px">案例：Alert 自動修復（三層結構）</div>
     </div>
     <div class="pairflow">
-      <div class="pfnode"><div class="ft">層 1 · 各領域成專家（可並行）</div><div class="fd">生肖／易經／紫微斗數／占星 → 各自的<b>領域摘要</b></div></div>
+      <div class="pfnode"><div class="ft">層 1 · 各系統診斷（可並行）</div><div class="fd">Airflow／Spark／HMS／MinIO／Trino／JWT／OPA → 各自的<b>異常摘要</b></div></div>
       <div class="arrow" style="font-size:24px">→</div>
-      <div class="pfnode"><div class="ft">層 2 · 合成</div><div class="fd">融合成<b>統一命理決策框架</b>：優先序、衝突規則、評分標準</div></div>
+      <div class="pfnode"><div class="ft">層 2 · 合成</div><div class="fd">融合成<b>統一事故框架</b>：優先序、衝突規則、修復步驟</div></div>
       <div class="arrow" style="font-size:24px">→</div>
-      <div class="pfnode"><div class="ft">層 3 · 執行 chain</div><div class="fd">命名 10 步逐步問答，<b>只吃框架</b>跑</div></div>
+      <div class="pfnode"><div class="ft">層 3 · 執行 chain</div><div class="fd">auto-healing 逐步修復 → 驗證 → <b>產出 issue 報告</b></div></div>
     </div>
   </div>
-  <div class="pband borrow"><span class="pbl">關鍵洞察</span>chain 之間傳遞的是<b>精煉的介面文件</b>，不是全部知識——完整知識是 state，流入下一層的只有框架。</div>
-  <div class="take">專家建構與執行鏈分開：<b>知識可重用、可 debug、每步可驗證</b>。</div>
+  <div class="pband borrow"><span class="pbl">關鍵洞察</span>chain 之間傳遞的是<b>精煉的「事故框架」</b>，不是全部 log——完整診斷是 state，流入下一層的只有修復計畫。</div>
+  <div class="take">診斷與修復分開：<b>診斷知識可重用、可 debug、每步可驗證</b>。</div>
 </section>
 
 <!-- ============ 11 FRAMEWORKS ============ -->
@@ -923,7 +923,7 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   </div>
   <div class="agenticband" style="margin-top:16px;border-radius:16px;padding:15px 26px;background:linear-gradient(135deg,#2c2418,#4a3a26);color:#f6f0e4;display:flex;flex-direction:column;gap:6px;box-shadow:0 14px 40px #00000022">
     <span class="ab-main" style="font-size:24px;line-height:1.45;font-weight:800;color:#f6f0e4"><b style="color:#e9c778">一句話總結：</b>模型負責想，你負責決定它能在什麼框架裡想。</span>
-    <span class="ab-sub" style="font-size:18px;color:#d8cdb8;line-height:1.5">下一步：附錄用同一個「三步研究任務」，看 LangGraph / Pydantic AI / CrewAI / n8n 的程式與架構。</span>
+    <span class="ab-sub" style="font-size:18px;color:#d8cdb8;line-height:1.5">下一步：附錄用同一個「Alert 自動修復」任務，看 LangGraph / Pydantic AI / CrewAI / n8n 的程式與架構。</span>
   </div>
   <div class="take" style="margin-top:16px">實務口訣：<b>可預測的用 code 寫死，不可預測的才放模型自己決定</b>——先跑起來，再升級。</div>
 </section>
@@ -931,14 +931,16 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 <!-- ============ 13 APPENDIX OPENING ============ -->
 <section class="slide" id="s13" aria-labelledby="s13t">
   <p class="meta"><span class="num">13</span><span class="part">附錄 · 同一件事，四種寫法</span></p>
-  <h2 class="h2" id="s13t">共用範例：<strong>三步研究任務</strong></h2>
-  <p class="sub" style="margin-top:26px">「<b>爬資料 → 整理成專家知識 → 產出報告</b>」——同一個任務，四個框架各寫一遍，對照「狀態、工具、流程」誰負責。</p>
+  <h2 class="h2" id="s13t">共用範例：<strong>Alert 自動修復</strong></h2>
+  <p class="sub" style="margin-top:26px">「<b>偵測到 Airflow／Spark／HMS／MinIO／Trino／JWT／OPA 的異常 log 或 alert → agentic workflow 自動修復 → 產出 issue 報告</b>」——同一個任務，四個框架各寫一遍，對照「狀態、工具、流程」誰負責。</p>
   <div class="pairflow" style="margin-top:44px">
-    <div class="pfnode"><div class="ft">① 爬資料</div><div class="fd">web_search(query)</div></div>
+    <div class="pfnode"><div class="ft">① 偵測 alert</div><div class="fd">log 掃描／告警觸發</div></div>
     <div class="arrow" style="font-size:24px">→</div>
-    <div class="pfnode"><div class="ft">② 整理成專家知識</div><div class="fd">LLM 摘要成知識</div></div>
+    <div class="pfnode"><div class="ft">② 診斷根因</div><div class="fd">LLM 分析異常來源</div></div>
     <div class="arrow" style="font-size:24px">→</div>
-    <div class="pfnode"><div class="ft">③ 產出報告</div><div class="fd">LLM 寫成 final report</div></div>
+    <div class="pfnode"><div class="ft">③ 執行修復</div><div class="fd">auto-healing 動作</div></div>
+    <div class="arrow" style="font-size:24px">→</div>
+    <div class="pfnode"><div class="ft">④ 產出 issue 報告</div><div class="fd">驗證恢復＋開 issue</div></div>
   </div>
   <div class="dg wrap center" style="margin-top:48px;gap:12px">
     <span class="chip d" style="font-size:21px;padding:6px 20px">LangGraph · 圖</span>
@@ -957,13 +959,13 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <h2 class="h2" id="s14t">LangGraph：<strong>流程畫成圖，狀態是共享 dict</strong></h2>
   <div class="dg" style="margin-top:14px;gap:22px">
     <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-      <div class="node hl" style="padding:11px 14px"><div class="t" style="font-size:19px">State（共享狀態）</div><div class="s" style="font-size:15px">query / research / report</div></div>
+      <div class="node hl" style="padding:11px 14px"><div class="t" style="font-size:19px">State（共享狀態）</div><div class="s" style="font-size:15px">alert / root_cause / fix / report</div></div>
       <div class="dg" style="margin-top:0;gap:6px">
-        <div class="node" style="flex:1;padding:10px 8px"><div class="t" style="font-size:17px">gather</div><div class="s" style="font-size:14px">爬資料</div></div>
+        <div class="node" style="flex:1;padding:10px 8px"><div class="t" style="font-size:17px">detect</div><div class="s" style="font-size:14px">偵測 alert</div></div>
         <div class="arrow" style="font-size:20px">→</div>
-        <div class="node" style="flex:1;padding:10px 8px"><div class="t" style="font-size:17px">synthesize</div><div class="s" style="font-size:14px">整理知識</div></div>
+        <div class="node" style="flex:1;padding:10px 8px"><div class="t" style="font-size:17px">diagnose</div><div class="s" style="font-size:14px">診斷根因</div></div>
         <div class="arrow" style="font-size:20px">→</div>
-        <div class="node" style="flex:1;padding:10px 8px"><div class="t" style="font-size:17px">write</div><div class="s" style="font-size:14px">寫報告</div></div>
+        <div class="node" style="flex:1;padding:10px 8px"><div class="t" style="font-size:17px">heal</div><div class="s" style="font-size:14px">修復＋報告</div></div>
       </div>
       <div class="note" style="margin-top:4px;font-size:17px"><b>你寫</b>：node function＋edge 順序<br><b>框架給</b>：state 管理、checkpoint（可 resume）、interrupt（人審中斷）、trace</div>
     </div>
@@ -973,27 +975,30 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 <span class="kw">from</span> langgraph.graph <span class="kw">import</span> StateGraph, START, END
 
 <span class="kw">class</span> <span class="fn">State</span>(TypedDict):          <span class="cm"># 共享狀態</span>
-    query: <span class="fn">str</span>
-    research: <span class="fn">list</span>[<span class="fn">str</span>]
+    alert: <span class="fn">str</span>
+    root_cause: <span class="fn">str</span>
+    fix: <span class="fn">str</span>
     report: <span class="fn">str</span>
 
-<span class="kw">def</span> <span class="fn">gather</span>(state):      <span class="cm"># 節點 1</span>
-    <span class="kw">return</span> {<span class="st">"research"</span>: web_search(state[<span class="st">"query"</span>])}
-<span class="kw">def</span> <span class="fn">synthesize</span>(state): <span class="cm"># 節點 2</span>
-    <span class="kw">return</span> {<span class="st">"report"</span>: llm(<span class="st">"整理成專家知識"</span>, state[<span class="st">"research"</span>])}
-<span class="kw">def</span> <span class="fn">write</span>(state):      <span class="cm"># 節點 3</span>
-    <span class="kw">return</span> {<span class="st">"report"</span>: llm(<span class="st">"寫最終報告"</span>, state[<span class="st">"report"</span>])}
+<span class="kw">def</span> <span class="fn">detect</span>(state):     <span class="cm"># 節點 1：偵測 alert</span>
+    <span class="kw">return</span> {<span class="st">"alert"</span>: check_alerts()}
+<span class="kw">def</span> <span class="fn">diagnose</span>(state):   <span class="cm"># 節點 2：診斷根因</span>
+    <span class="kw">return</span> {<span class="st">"root_cause"</span>: llm(<span class="st">"分析異常來源"</span>, state[<span class="st">"alert"</span>])}
+<span class="kw">def</span> <span class="fn">heal</span>(state):      <span class="cm"># 節點 3：修復＋報告</span>
+    fix = run_fix(state[<span class="st">"root_cause"</span>])
+    <span class="kw">return</span> {<span class="st">"fix"</span>: fix,
+            <span class="st">"report"</span>: llm(<span class="st">"寫 issue 報告"</span>, fix)}
 
 g = StateGraph(State)
-g.add_node(<span class="st">"gather"</span>, gather)
-g.add_node(<span class="st">"synthesize"</span>, synthesize)
-g.add_node(<span class="st">"write"</span>, write)
-g.add_edge(START, <span class="st">"gather"</span>)
-g.add_edge(<span class="st">"gather"</span>, <span class="st">"synthesize"</span>)
-g.add_edge(<span class="st">"synthesize"</span>, <span class="st">"write"</span>)
-g.add_edge(<span class="st">"write"</span>, END)
+g.add_node(<span class="st">"detect"</span>, detect)
+g.add_node(<span class="st">"diagnose"</span>, diagnose)
+g.add_node(<span class="st">"heal"</span>, heal)
+g.add_edge(START, <span class="st">"detect"</span>)
+g.add_edge(<span class="st">"detect"</span>, <span class="st">"diagnose"</span>)
+g.add_edge(<span class="st">"diagnose"</span>, <span class="st">"heal"</span>)
+g.add_edge(<span class="st">"heal"</span>, END)
 app = g.compile()
-<span class="fn">print</span>(app.invoke({<span class="st">"query"</span>: <span class="st">"XX 市場現況"</span>})[<span class="st">"report"</span>])</pre>
+<span class="fn">print</span>(app.invoke({})[<span class="st">"report"</span>])</pre>
     </div>
   </div>
   <div class="take">固定 edge 是 workflow，<b>edge 讓 LLM 選就是 agent</b>——一個框架兩種模式都有。</div>
@@ -1006,7 +1011,7 @@ app = g.compile()
   <div class="dg" style="margin-top:14px;gap:22px">
     <div style="flex:1;display:flex;flex-direction:column;gap:8px">
       <div class="node warn" style="padding:12px 16px"><div class="t" style="font-size:19px">Agent</div><div class="s" style="font-size:15px">model ＋ system_prompt ＋ result_type</div></div>
-      <div class="node" style="padding:10px 14px"><div class="t" style="font-size:17px">@agent.tool_plain</div><div class="s" style="font-size:14px">web_search —— 工具註冊</div></div>
+      <div class="node" style="padding:10px 14px"><div class="t" style="font-size:17px">@agent.tool_plain</div><div class="s" style="font-size:14px">run_fix —— 修復動作註冊</div></div>
       <div class="node hl" style="padding:10px 14px"><div class="t" style="font-size:17px">run_sync()</div><div class="s" style="font-size:14px">一次 agent loop，回傳 typed result</div></div>
       <div class="note" style="margin-top:4px;font-size:17px"><b>你寫</b>：agent 定義、工具、輸出模型<br><b>框架給</b>：整個 loop、工具註冊、輸出驗證、usage 統計</div>
     </div>
@@ -1015,22 +1020,23 @@ app = g.compile()
 <span class="kw">from</span> pydantic <span class="kw">import</span> BaseModel
 <span class="kw">from</span> pydantic_ai <span class="kw">import</span> Agent
 
-<span class="kw">class</span> <span class="fn">Report</span>(BaseModel):      <span class="cm"># 輸出型別</span>
-    summary: <span class="fn">str</span>
-    key_points: <span class="fn">list</span>[<span class="fn">str</span>]
+<span class="kw">class</span> <span class="fn">HealReport</span>(BaseModel):   <span class="cm"># 輸出型別</span>
+    root_cause: <span class="fn">str</span>
+    actions: <span class="fn">list</span>[<span class="fn">str</span>]
+    verified: <span class="fn">bool</span>
 
 agent = Agent(
     <span class="st">"openai:gpt-4o"</span>,
-    system_prompt=<span class="st">"你是市場研究助理：先爬資料、整理成專家知識，再寫報告。"</span>,
-    result_type=Report,        <span class="cm"># 錯型別直接報錯</span>
+    system_prompt=<span class="st">"你是維運工程師：收到 alert 先診斷根因、執行修復、驗證，最後寫成 issue 報告。"</span>,
+    result_type=HealReport,    <span class="cm"># 錯型別直接報錯</span>
 )
 
 <span class="kw">@agent.tool_plain</span>
-<span class="kw">def</span> <span class="fn">web_search</span>(query: <span class="fn">str</span>) -&gt; <span class="fn">str</span>:
-    <span class="kw">return</span> search_api(query)  <span class="cm"># 註冊給模型選</span>
+<span class="kw">def</span> <span class="fn">run_fix</span>(action: <span class="fn">str</span>) -&gt; <span class="fn">str</span>:
+    <span class="kw">return</span> execute_fix(action)  <span class="cm"># 註冊給模型選</span>
 
-result = agent.run_sync(<span class="st">"研究 XX 市場現況"</span>)
-<span class="fn">print</span>(result.output.summary)      <span class="cm"># 型別安全輸出</span>
+result = agent.run_sync(<span class="st">"Trino 節點 alert"</span>)
+<span class="fn">print</span>(result.output.root_cause)    <span class="cm"># 型別安全輸出</span>
 <span class="fn">print</span>(result.usage())             <span class="cm"># token 用量</span></pre>
     </div>
   </div>
@@ -1043,35 +1049,35 @@ result = agent.run_sync(<span class="st">"研究 XX 市場現況"</span>)
   <h2 class="h2" id="s16t">CrewAI：<strong>角色分工，任務串成 crew</strong></h2>
   <div class="dg" style="margin-top:14px;gap:22px">
     <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-      <div class="node warn" style="padding:11px 14px"><div class="t" style="font-size:18px">Agent 研究員</div><div class="s" style="font-size:14px">role / goal / backstory / tools</div></div>
-      <div class="node" style="padding:11px 14px"><div class="t" style="font-size:18px">Task ①</div><div class="s" style="font-size:14px">爬取並整理市場資料</div></div>
+      <div class="node warn" style="padding:11px 14px"><div class="t" style="font-size:18px">Agent 診斷員</div><div class="s" style="font-size:14px">role / goal / backstory / tools</div></div>
+      <div class="node" style="padding:11px 14px"><div class="t" style="font-size:18px">Task ①</div><div class="s" style="font-size:14px">分析 alert 找出根因</div></div>
       <div class="arrow" style="font-size:20px">↓ sequential</div>
-      <div class="node warn" style="padding:11px 14px"><div class="t" style="font-size:18px">Agent 撰稿人</div><div class="s" style="font-size:14px">role / goal / backstory</div></div>
-      <div class="node" style="padding:11px 14px"><div class="t" style="font-size:18px">Task ②</div><div class="s" style="font-size:14px">寫成報告</div></div>
+      <div class="node warn" style="padding:11px 14px"><div class="t" style="font-size:18px">Agent 修復員</div><div class="s" style="font-size:14px">role / goal / backstory</div></div>
+      <div class="node" style="padding:11px 14px"><div class="t" style="font-size:18px">Task ②</div><div class="s" style="font-size:14px">修復＋寫 issue 報告</div></div>
       <div class="note" style="margin-top:4px;font-size:17px"><b>你寫</b>：agent 角色＋task 描述<br><b>框架給</b>：編排順序、任務間產出傳遞、kickoff 執行</div>
     </div>
     <div class="code" style="flex:1.5;margin-top:0">
 <pre><span class="cm"># pip install crewai</span>
 <span class="kw">from</span> crewai <span class="kw">import</span> Agent, Task, Crew, Process
 
-researcher = Agent(
-    role=<span class="st">"市場研究員"</span>,
-    goal=<span class="st">"爬取並整理市場資料"</span>,
-    backstory=<span class="st">"資深分析師，擅長收集與歸納"</span>,
-    tools=[web_search],          <span class="cm"># 給這個角色的工具</span>
+diagnoser = Agent(
+    role=<span class="st">"異常診斷員"</span>,
+    goal=<span class="st">"分析 alert 找出根因"</span>,
+    backstory=<span class="st">"資深維運工程師，熟悉 Airflow/Spark/Trino 生態"</span>,
+    tools=[query_logs],          <span class="cm"># 給這個角色的工具</span>
 )
-writer = Agent(
-    role=<span class="st">"撰稿人"</span>,
-    goal=<span class="st">"把研究整理成報告"</span>,
-    backstory=<span class="st">"擅長把複雜資訊寫清楚"</span>,
+fixer = Agent(
+    role=<span class="st">"修復員"</span>,
+    goal=<span class="st">"執行修復並產出 issue 報告"</span>,
+    backstory=<span class="st">"擅長安全的自動修復與變更記錄"</span>,
 )
 
-t1 = Task(description=<span class="st">"研究 XX 市場現況"</span>,
-          expected_output=<span class="st">"專家知識摘要"</span>, agent=researcher)
-t2 = Task(description=<span class="st">"寫成最終報告"</span>,
-          expected_output=<span class="st">"markdown 報告"</span>, agent=writer)
+t1 = Task(description=<span class="st">"分析 Trino 節點 alert"</span>,
+          expected_output=<span class="st">"根因分析"</span>, agent=diagnoser)
+t2 = Task(description=<span class="st">"執行修復並驗證"</span>,
+          expected_output=<span class="st">"issue 報告"</span>, agent=fixer)
 
-crew = Crew(agents=[researcher, writer],
+crew = Crew(agents=[diagnoser, fixer],
             tasks=[t1, t2],
             process=Process.sequential)  <span class="cm"># 或 hierarchical</span>
 result = crew.kickoff()</pre>
@@ -1087,33 +1093,33 @@ result = crew.kickoff()</pre>
   <div class="dg" style="margin-top:12px;gap:18px">
     <div style="flex:1;display:flex;flex-direction:column;gap:8px">
       <div class="dg" style="margin-top:0;gap:5px;flex-wrap:wrap">
-        <div class="node" style="flex:1;padding:9px 6px"><div class="t" style="font-size:15px">Manual Trigger</div></div>
+        <div class="node" style="flex:1;padding:9px 6px"><div class="t" style="font-size:15px">Alert Trigger</div></div>
         <div class="arrow" style="font-size:18px">→</div>
-        <div class="node" style="flex:1;padding:9px 6px"><div class="t" style="font-size:15px">HTTP Request 搜尋</div></div>
+        <div class="node" style="flex:1;padding:9px 6px"><div class="t" style="font-size:15px">LLM 診斷根因</div></div>
         <div class="arrow" style="font-size:18px">→</div>
-        <div class="node" style="flex:1;padding:9px 6px"><div class="t" style="font-size:15px">OpenAI 整理知識</div></div>
+        <div class="node" style="flex:1;padding:9px 6px"><div class="t" style="font-size:15px">HTTP 執行修復</div></div>
         <div class="arrow" style="font-size:18px">→</div>
-        <div class="node" style="flex:1;padding:9px 6px"><div class="t" style="font-size:15px">OpenAI 寫報告</div></div>
+        <div class="node" style="flex:1;padding:9px 6px"><div class="t" style="font-size:15px">LLM 寫 issue</div></div>
       </div>
       <div class="note" style="margin-top:4px;font-size:17px">視覺工具，無 code——<b>workflow 本身是 JSON</b>（nodes + connections），可版本控管、可匯出。<br>LLM 節點內可掛工具；人類審核用 <b>Wait 節點</b>暫停等批准。</div>
     </div>
     <div class="code small" style="flex:1.35;margin-top:0">
 <pre>{ <span class="cm">// n8n workflow 骨架</span>
-  <span class="st">"name"</span>: <span class="st">"三步研究"</span>,
+  <span class="st">"name"</span>: <span class="st">"Alert 自動修復"</span>,
   <span class="st">"nodes"</span>: [
-    { <span class="st">"name"</span>: <span class="st">"Manual Trigger"</span>,
-      <span class="st">"type"</span>: <span class="st">"n8n-nodes-base.manualTrigger"</span> },
-    { <span class="st">"name"</span>: <span class="st">"搜尋"</span>,
-      <span class="st">"type"</span>: <span class="st">"n8n-nodes-base.httpRequest"</span> },
-    { <span class="st">"name"</span>: <span class="st">"整理知識"</span>,
+    { <span class="st">"name"</span>: <span class="st">"Alert Trigger"</span>,
+      <span class="st">"type"</span>: <span class="st">"n8n-nodes-base.webhook"</span> },
+    { <span class="st">"name"</span>: <span class="st">"診斷根因"</span>,
       <span class="st">"type"</span>: <span class="st">"@n8n/n8n-nodes-langchain.openAi"</span> },
-    { <span class="st">"name"</span>: <span class="st">"寫報告"</span>,
+    { <span class="st">"name"</span>: <span class="st">"執行修復"</span>,
+      <span class="st">"type"</span>: <span class="st">"n8n-nodes-base.httpRequest"</span> },
+    { <span class="st">"name"</span>: <span class="st">"寫 issue 報告"</span>,
       <span class="st">"type"</span>: <span class="st">"@n8n/n8n-nodes-langchain.openAi"</span> }
   ],
   <span class="st">"connections"</span>: {
-    <span class="st">"Manual Trigger"</span>: { <span class="st">"main"</span>: [[{ <span class="st">"node"</span>: <span class="st">"搜尋"</span>, <span class="st">"type"</span>: <span class="st">"main"</span>, <span class="st">"index"</span>: <span class="nu">0</span> }]] },
-    <span class="st">"搜尋"</span>: { <span class="st">"main"</span>: [[{ <span class="st">"node"</span>: <span class="st">"整理知識"</span>, <span class="st">"type"</span>: <span class="st">"main"</span>, <span class="st">"index"</span>: <span class="nu">0</span> }]] },
-    <span class="st">"整理知識"</span>: { <span class="st">"main"</span>: [[{ <span class="st">"node"</span>: <span class="st">"寫報告"</span>, <span class="st">"type"</span>: <span class="st">"main"</span>, <span class="st">"index"</span>: <span class="nu">0</span> }]] }
+    <span class="st">"Alert Trigger"</span>: { <span class="st">"main"</span>: [[{ <span class="st">"node"</span>: <span class="st">"診斷根因"</span>, <span class="st">"type"</span>: <span class="st">"main"</span>, <span class="st">"index"</span>: <span class="nu">0</span> }]] },
+    <span class="st">"診斷根因"</span>: { <span class="st">"main"</span>: [[{ <span class="st">"node"</span>: <span class="st">"執行修復"</span>, <span class="st">"type"</span>: <span class="st">"main"</span>, <span class="st">"index"</span>: <span class="nu">0</span> }]] },
+    <span class="st">"執行修復"</span>: { <span class="st">"main"</span>: [[{ <span class="st">"node"</span>: <span class="st">"寫 issue 報告"</span>, <span class="st">"type"</span>: <span class="st">"main"</span>, <span class="st">"index"</span>: <span class="nu">0</span> }]] }
   }
 }</pre>
     </div>

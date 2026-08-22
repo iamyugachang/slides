@@ -54,7 +54,7 @@ bad_lt = re.findall(r'<pre>([^<]*)<[a-z/]', text)
 
 # 8. key content spot-checks
 for term in ["誰決定下一步", "LangGraph", "Pydantic AI", "CrewAI", "n8n", "冪等性",
-             "self-report", "StateGraph", "tool_plain", "Process.sequential", "manualTrigger",
+             "self-report", "StateGraph", "tool_plain", "Process.sequential", "webhook",
              "模型負責想"]:
     if term not in text:
         errors.append(f"missing required term: {term}")
