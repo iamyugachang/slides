@@ -680,7 +680,7 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
     <div class="pano-control"><div class="ck">TRACE + EVAL</div><div class="cb">路徑／品質</div></div>
     <div class="pano-control"><div class="ck">SANDBOX</div><div class="cb">隔離／回復</div></div>
   </div>
-  <div class="take"><b>後面七頁只回答三件事：誰選下一步、程式怎麼執行、怎麼限制風險。</b></div>
+  <div class="take">判斷順序：<b>誰選下一步 → 可以做什麼 → 怎麼限制風險。</b></div>
 </section>
 
 <!-- ============ 4 STARTING POINT ============ -->
@@ -761,7 +761,7 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
     <div class="card">
       <h4 class="d">程式必須負責的</h4>
       <div class="ct">授權 · 執行 · 驗證</div>
-      <ul><li>模型不能替自己授權，也不能防止重複執行</li><li>模型說完成不算證據；程式要讀回驗證</li><li>安全限制要寫在程式、權限規則與隔離環境中</li></ul>
+      <ul><li>模型不能替自己授權，也不能防止重複執行</li><li>安全限制要寫在程式、權限規則與隔離環境中</li></ul>
     </div>
   </div>
   <div class="take"><b>模型提議；程式授權、執行並驗證。</b></div>
@@ -835,9 +835,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="dg" style="margin-top:20px;gap:9px">
     <div class="node" style="flex:1;padding:12px 10px"><div class="t" style="font-size:18px">使用者</div><div class="s" style="font-size:14px">輸入問題或需求</div></div>
     <div class="arrow" style="font-size:22px">→</div>
-    <div class="node warn" style="flex:1.2;padding:12px 10px"><div class="t" style="font-size:18px">Lakehouse Agent</div><div class="s" style="font-size:14px">只知道 Console API<br>JWT 綁定 workspace</div></div>
+    <div class="node warn" style="flex:1.2;padding:12px 10px"><div class="t" style="font-size:18px">Lakehouse Agent</div><div class="s" style="font-size:14px">只知道 Console API<br>登入憑證（JWT）綁定 workspace</div></div>
     <div class="arrow" style="font-size:22px">→</div>
-    <div class="node hl" style="flex:1.3;padding:12px 10px"><div class="t" style="font-size:18px">Console API（唯一入口）</div><div class="s" style="font-size:14px">登入／OPA 授權／驗證／轉送</div></div>
+    <div class="node hl" style="flex:1.3;padding:12px 10px"><div class="t" style="font-size:18px">Console API（唯一入口）</div><div class="s" style="font-size:14px">登入／OPA 權限規則／驗證／轉送</div></div>
     <div class="arrow" style="font-size:22px">→</div>
     <div class="node" style="flex:1.3;padding:12px 10px"><div class="t" style="font-size:18px">各廠集群</div><div class="s" style="font-size:14px">Trino · Airflow · HMS · MinIO · OPA</div></div>
   </div>
@@ -1097,8 +1097,7 @@ agent = Agent(
     <span class="kw">return</span> execute_fix(action)  <span class="cm"># 註冊給模型選</span>
 
 result = agent.run_sync(<span class="st">"Trino 節點 alert"</span>)
-<span class="fn">print</span>(result.output.root_cause)    <span class="cm"># 型別安全輸出</span>
-<span class="fn">print</span>(result.usage())             <span class="cm"># token 用量</span></pre>
+<span class="fn">print</span>(result.output.root_cause)    <span class="cm"># 已檢查格式</span></pre>
     </div>
   </div>
   <div class="take"><b>輸出欄位或型別不符，就直接失敗，不往下執行。</b></div>
@@ -1110,10 +1109,10 @@ result = agent.run_sync(<span class="st">"Trino 節點 alert"</span>)
   <h2 class="h2" id="s19t">CrewAI：<strong>用角色分配任務</strong></h2>
   <div class="dg" style="margin-top:14px;gap:22px">
     <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-      <div class="node warn" style="padding:11px 14px"><div class="t" style="font-size:18px">診斷 Agent</div><div class="s" style="font-size:14px">role / goal / backstory / tools</div></div>
+      <div class="node warn" style="padding:11px 14px"><div class="t" style="font-size:18px">診斷 Agent</div><div class="s" style="font-size:14px">role / goal / tools</div></div>
       <div class="node" style="padding:11px 14px"><div class="t" style="font-size:18px">Task ①</div><div class="s" style="font-size:14px">分析 alert 找出根因</div></div>
       <div class="arrow" style="font-size:20px">↓ 依序執行</div>
-      <div class="node warn" style="padding:11px 14px"><div class="t" style="font-size:18px">修復 Agent</div><div class="s" style="font-size:14px">role / goal / backstory</div></div>
+      <div class="node warn" style="padding:11px 14px"><div class="t" style="font-size:18px">修復 Agent</div><div class="s" style="font-size:14px">role / goal</div></div>
       <div class="node" style="padding:11px 14px"><div class="t" style="font-size:18px">Task ②</div><div class="s" style="font-size:14px">修復＋寫 issue 報告</div></div>
       <div class="note" style="margin-top:4px;font-size:17px"><b>你寫</b>：角色與任務<br><b>框架處理</b>：執行順序與結果傳遞</div>
     </div>
@@ -1124,13 +1123,11 @@ result = agent.run_sync(<span class="st">"Trino 節點 alert"</span>)
 diagnoser = Agent(
     role=<span class="st">"異常診斷員"</span>,
     goal=<span class="st">"分析 alert 找出根因"</span>,
-    backstory=<span class="st">"資深維運工程師，熟悉 Airflow/Spark/Trino 生態"</span>,
     tools=[query_logs],          <span class="cm"># 給這個角色的工具</span>
 )
 fixer = Agent(
     role=<span class="st">"修復員"</span>,
     goal=<span class="st">"執行修復並產出 issue 報告"</span>,
-    backstory=<span class="st">"擅長安全的自動修復與變更記錄"</span>,
 )
 
 t1 = Task(description=<span class="st">"分析 Trino 節點 alert"</span>,
@@ -1177,11 +1174,7 @@ result = crew.kickoff()</pre>
     { <span class="st">"name"</span>: <span class="st">"寫 issue 報告"</span>,
       <span class="st">"type"</span>: <span class="st">"@n8n/n8n-nodes-langchain.openAi"</span> }
   ],
-  <span class="st">"connections"</span>: {
-    <span class="st">"Alert Trigger"</span>: { <span class="st">"main"</span>: [[{ <span class="st">"node"</span>: <span class="st">"診斷根因"</span>, <span class="st">"type"</span>: <span class="st">"main"</span>, <span class="st">"index"</span>: <span class="nu">0</span> }]] },
-    <span class="st">"診斷根因"</span>: { <span class="st">"main"</span>: [[{ <span class="st">"node"</span>: <span class="st">"執行修復"</span>, <span class="st">"type"</span>: <span class="st">"main"</span>, <span class="st">"index"</span>: <span class="nu">0</span> }]] },
-    <span class="st">"執行修復"</span>: { <span class="st">"main"</span>: [[{ <span class="st">"node"</span>: <span class="st">"寫 issue 報告"</span>, <span class="st">"type"</span>: <span class="st">"main"</span>, <span class="st">"index"</span>: <span class="nu">0</span> }]] }
-  }
+  <span class="st">"connections"</span>: <span class="st">"Trigger → 診斷 → 修復 → issue"</span>
 }</pre>
     </div>
   </div>
