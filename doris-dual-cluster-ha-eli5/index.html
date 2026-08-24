@@ -95,6 +95,7 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
   <a href="#sec7">7 · 客人怎麼無感切換</a>
   <a href="#sec8">8 · 誠實說：這方案防什麼、不防什麼</a>
   <a href="#sec9">9 · 接下來要做的事</a>
+  <a href="#sec10">附錄 · 說服團隊用的證據清單（論點 → 來源）</a>
 </nav>
 
 <h2 id="sec1"><span class="sec-no">1</span>我們在解什麼問題</h2>
@@ -187,6 +188,64 @@ footer.nav-bottom{margin-top:60px;padding-top:20px;border-top:1px solid var(--li
 <blockquote><p><strong>我們現在有多少菜是沒有編號的？</strong>（多少表不是 Unique Key 模型）</p></blockquote>
 <p>這個盤點（PoC 清單裡的 P01）直接決定方案的 go / no-go 和改造規模。後面接著做的：故意把備料員弄當機驗證「重做不變多」、演練停機 24 小時要補多久（反推輸送帶要留幾天）、把總機的三層檢查做出來實測切換秒數、對帳工具跑滿一週看誤報率。</p>
 <p>還有四件事要請業務方拍板：正式的 RPO/RTO 目標、切換瞬間「舊幾秒」能不能接受、兩間店實體上要離多遠、沒編號的菜要花多少力氣補編號。</p>
+<h2 id="sec10"><span class="sec-no">附錄</span>說服團隊用的證據清單（論點 → 來源）</h2>
+<p>每個關鍵論點都附可點開的公開來源——官方訊號＋社群實戰文各半，開會被挑戰時直接引用。所有連結均已逐一驗證可開啟（2026-08-24）。</p>
+
+<h3>論點 A：「CCR 不能長期依賴」——官方公開訊號</h3>
+<ul>
+  <li><a href="https://github.com/apache/doris-website/pull/4018">apache/doris-website PR #4018</a> — 2026-07-29 官方把 CCR 文件從 3.x / 4.x / dev 文件樹整批移除（92 個檔案），無任何說明。</li>
+  <li><a href="https://github.com/selectdb/ccr-syncer">selectdb/ccr-syncer</a> — 自己點進去看 commit 歷史：最後提交 2026-04、2026 年僅 5 個 commit、從未發過 GitHub Release。</li>
+  <li><a href="https://docs.selectdb.com/enterprise/4.x/management-guide/data-admin/ccr/manual/">SelectDB Enterprise 文件</a> — 商業版仍完整保留 CCR 手冊：開源側淡出、商業側承接的直接佐證。</li>
+</ul>
+
+<h3>論點 B：CCR 的實務面貌——社群實戰分享</h3>
+<ul>
+  <li><a href="https://www.selectdb.com/blog/228">錢大媽：CCR 實現 Doris 讀寫分離</a> — 最完整的生產案例，同步 3–4 秒；但屬 2024 官方仍維護時期、且用途是讀寫分離而非整座 failover。</li>
+  <li><a href="https://cloud.tencent.com/developer/article/2483398">跨年夜資料中心宕機：Doris CCR 容災實戰</a> — 社群分享，附全量 1TB 約 6 分鐘、增量延遲約 33 秒的數據。</li>
+  <li><a href="https://blog.csdn.net/m0_37559973/article/details/139539027">CCR 跨叢集同步實操</a> — 完整部署步驟與版本下限、thrift 調參等實際負擔，可感受維運成本。</li>
+  <li><a href="https://github.com/apache/doris/issues/63269">apache/doris #63269</a> — 上游 FE 切主觸發整庫 full sync；<a href="https://github.com/selectdb/ccr-syncer/issues/654">ccr-syncer #654</a> — 表級同步靜默忽略 DROP TABLE（open bug）。</li>
+</ul>
+
+<h3>論點 C：「上游雙寫兩座叢集」業界有人做——也有教訓</h3>
+<ul>
+  <li><a href="https://k.sina.cn/article_2674405451_9f68304b01900wz5v.html">京東 ClickHouse 高可用實踐</a> — 3,000 台規模：「离线通过 Spark 同时向两个集群写入，实时通过 Flink 消费双写」，公開承認只能最終一致、切換分鐘級。</li>
+  <li><a href="https://cloud.tencent.com/developer/article/2291207">攜程：700 億資料量 ClickHouse 高可用架構</a> — 刻意不用內建複製，改「数据独立、多写、互不干扰」＋定時 job 核對一致性——與我們方案同構、長期可運維的直接證據。</li>
+</ul>
+
+<h3>論點 D：「Spark 寫 Doris 保證不了 exactly-once」——官方自己說的</h3>
+<ul>
+  <li><a href="https://github.com/apache/doris-spark-connector/pull/364">doris-spark-connector PR #364</a> — 官方原文：「stream load write path is <strong>not exactly-once</strong> across a client-side retry」；修復至今未發版。</li>
+  <li><a href="https://github.com/apache/doris-spark-connector/issues/205">issue #205</a> — 2PC txn 超時被清、commit 失敗不拋例外的無聲丟數案例。</li>
+  <li>對照組：<a href="https://www.selectdb.com/blog/17">Flink Connector 如何做到 Exactly-Once</a>（Stream Load 綁 Checkpoint + 2PC）——正好反襯 Spark 側缺的就是這套機制。</li>
+</ul>
+
+<h3>論點 E：「Unique Key MoW 撐得起冪等重放」</h3>
+<ul>
+  <li><a href="https://www.selectdb.com/blog/31">全新 Unique Key（MoW）設計與實現</a> — Delete Bitmap 原理與 SSB 實測（部分場景近 30 倍查詢提升）。</li>
+  <li><a href="https://www.selectdb.com/blog/125">工商信息查詢平台實踐</a> — 生產環境開 MoW：單點查詢 0.45s→0.22s，日均 10 億條、3,000 QPS 規模背書。</li>
+</ul>
+
+<h3>論點 F：「HAProxy + keepalived 切 MySQL 協議」是成熟做法</h3>
+<ul>
+  <li><a href="https://doris.apache.org/docs/dev/admin-manual/cluster-management/load-balancing/">Doris 官方 Load Balancing 文件</a> — 官方自己給了 HAProxy / Nginx / ProxySQL 三種範例。</li>
+  <li><a href="https://www.cnblogs.com/lenmom/p/10095215.html">Doris FE 負載均衡實戰</a> — 直接針對 Doris FE 的 HAProxy + Keepalived + VIP 配置與切換測試。</li>
+  <li><a href="https://jwangkun.github.io/Fmi8gY4Bx/">MySQL + HAProxy + Keepalived 高可用</a> — 「DB 掛觸發漂移」與「HAProxy 掛觸發漂移」兩種模式的完整配置與驗證。</li>
+</ul>
+
+<h3>論點 G：「Kafka retention + 重放」是正規的災難恢復手段</h3>
+<ul>
+  <li><a href="https://www.conduktor.io/glossary/disaster-recovery-strategies-for-kafka-clusters">Kafka 叢集容災策略</a> — 系統性整理 retention、offset 管理與故障演練。</li>
+  <li><a href="https://boundedcontext.com/replay-kafka-messages/">如何安全地重放 Kafka 訊息</a> — 依「消費者是否冪等」選擇重放策略——正是我們表模型前提的出處邏輯。</li>
+</ul>
+
+<h3>論點 H：「對帳」是雙活架構的標準配套</h3>
+<ul>
+  <li><a href="https://www.cnblogs.com/yanglang/p/11758689.html">數據一致性——對帳工程實踐</a> — 明細對帳定位問題、總數對帳兜底的兩層設計。</li>
+  <li><a href="https://blog.csdn.net/linnaa6/article/details/146317163">金融級對帳系統設計</a> — 對帳表結構、核對 SQL 與自動補償告警的完整示範。</li>
+</ul>
+
+<blockquote><p>完整的 40 項來源清單（含每項對應的具體論述）在<a href="../doris-dual-cluster-ha/">技術版簡報</a>所本的評估報告中；此附錄挑的是「開會最好用」的子集。</p></blockquote>
+
 <hr>
 <p>想看完整論證（四方案逐項評比、風險窮舉、來源出處）：<a href="../doris-dual-cluster-ha/">技術版簡報（16 頁）</a>。</p>
 
