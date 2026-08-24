@@ -743,28 +743,109 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 
 <!-- ============ 6 HARNESS BOUNDARY ============ -->
 <section class="slide" id="s6" aria-labelledby="s6t">
-  <p class="meta"><span class="num">06</span><span class="part">NAV ① · 系統邊界</span></p>
-  <h2 class="h2" id="s6t">模型只提出動作；<strong>程式才真正執行</strong></h2>
-  <div class="seq5">
-    <div class="sq"><div class="qh">目標＋目前進度</div><div class="qb">目前要完成什麼<br>已經觀察到什麼</div></div><div class="ar">→</div>
-    <div class="sq hot"><div class="qh">LLM</div><div class="qb">提出工具名稱<br>與參數</div></div><div class="ar">→</div>
-    <div class="sq"><div class="qh">執行程式</div><div class="qb">檢查參數<br>權限／人工確認／預算</div></div><div class="ar">→</div>
-    <div class="sq"><div class="qh">Tool</div><div class="qb">API · DB · search<br>真正副作用發生</div></div><div class="ar">→</div>
-    <div class="sq"><div class="qh">執行結果</div><div class="qb">讀回結果<br>更新進度與記錄</div></div>
+  <p class="meta"><span class="num">06</span><span class="part">PART 2 · Harness 心智模型</span></p>
+  <h2 class="h2" id="s6t">模型是大腦；<strong>Harness 是身體，工具是手</strong></h2>
+  <div class="circuit" style="margin-top:20px">
+    <svg viewBox="0 0 1750 430" role="img" aria-label="機器人：指令進大腦、經身體到手的動畫迴路" style="width:100%;height:auto;display:block">
+      <defs>
+        <marker id="cirArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#ff7a3c"/></marker>
+        <marker id="cirArrowDim" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#9db8dd"/></marker>
+      </defs>
+      <!-- 使用者 -->
+      <g class="st st1">
+        <rect x="20" y="130" width="250" height="140" rx="8" fill="#0d2548cc" stroke="#ffffff77" stroke-width="2"/>
+        <text x="145" y="182" text-anchor="middle" font-size="26" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">👤 使用者</text>
+        <text x="145" y="220" text-anchor="middle" font-size="17" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">一句話任務</text>
+        <text x="145" y="248" text-anchor="middle" font-size="15" fill="#6f8db5" font-family="'Noto Sans TC',sans-serif">收到回應</text>
+      </g>
+      <!-- 指令線：使用者 → 大腦 -->
+      <line x1="282" y1="168" x2="596" y2="84" stroke="#ff7a3c" stroke-width="4" marker-end="url(#cirArrow)"/>
+      <!-- 機器人：頭＝大腦（主角，放大；天線在圓外可見） -->
+      <g class="st st2">
+        <line x1="690" y1="26" x2="690" y2="66" stroke="#ffb27a" stroke-width="9"/>
+        <circle cx="690" cy="17" r="14" fill="#ffb27a"/>
+        <circle cx="690" cy="17" r="6" fill="#fff3e8"/>
+        <circle cx="690" cy="118" r="92" fill="#12315fcc" stroke="#ff7a3c" stroke-width="2.5"/>
+        <circle cx="652" cy="98" r="9" fill="#eef4ff" opacity=".9"/>
+        <circle cx="728" cy="98" r="9" fill="#eef4ff" opacity=".9"/>
+        <path d="M 652 132 Q 690 154 728 132" stroke="#ff7a3c" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <text x="690" y="178" text-anchor="middle" font-size="21" font-weight="900" fill="#ff7a3c" font-family="'Noto Sans TC',sans-serif">大腦＝模型</text>
+        <text x="690" y="204" text-anchor="middle" font-size="15" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">選下一步</text>
+      </g>
+      <!-- 脖子 -->
+      <rect x="660" y="208" width="60" height="24" rx="7" fill="#12315f" stroke="#ffffff66" stroke-width="2"/>
+      <!-- 機器人：身體＝Harness -->
+      <g class="st st3">
+        <rect x="570" y="230" width="240" height="150" rx="14" fill="#0d2548cc" stroke="#ffffff77" stroke-width="2"/>
+        <circle cx="690" cy="305" r="30" fill="none" stroke="#ff7a3c88" stroke-width="2"/>
+        <circle cx="690" cy="305" r="9" fill="#ff7a3c"/>
+        <text x="690" y="272" text-anchor="middle" font-size="19" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">身體＝Harness</text>
+        <text x="690" y="360" text-anchor="middle" font-size="14" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">檢查 → 執行 → 記錄</text>
+      </g>
+      <!-- 左臂：身體 → 使用者方向（接收，關節+手） -->
+      <line x1="570" y1="268" x2="430" y2="268" stroke="#ffffff77" stroke-width="5"/>
+      <line x1="430" y1="268" x2="350" y2="212" stroke="#ffffff55" stroke-width="4"/>
+      <circle cx="430" cy="268" r="7" fill="#ffffff44" stroke="#ffffff88" stroke-width="2"/>
+      <line x1="350" y1="212" x2="278" y2="276" stroke="#ffffff77" stroke-width="5"/>
+      <circle cx="278" cy="276" r="14" fill="#0d2548cc" stroke="#ffffff99" stroke-width="2.5"/>
+      <path d="M 269 281 L 275 289 M 288 281 L 282 289" stroke="#ffffffbb" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- 意圖線：大腦 → 身體 -->
+      <line x1="690" y1="230" x2="690" y2="245" stroke="#ff7a3c" stroke-width="4" marker-end="url(#cirArrow)"/>
+      <!-- 右臂：身體 → 手 → 工具 -->
+      <line x1="810" y1="305" x2="1205" y2="305" stroke="#ff7a3c" stroke-width="5" marker-end="url(#cirArrow)"/>
+      <!-- 機器人：手 -->
+      <g class="st st4">
+        <rect x="1205" y="265" width="130" height="80" rx="40" fill="#0d2548cc" stroke="#ffffff77" stroke-width="2"/>
+        <text x="1270" y="303" text-anchor="middle" font-size="19" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">🖐️ 工具</text>
+        <text x="1270" y="328" text-anchor="middle" font-size="14" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">呼叫 API／DB</text>
+      </g>
+      <line x1="1335" y1="305" x2="1410" y2="305" stroke="#ff7a3c" stroke-width="4" marker-end="url(#cirArrow)"/>
+      <!-- 外部系統 -->
+      <g class="st st4b">
+        <rect x="1410" y="230" width="260" height="150" rx="8" fill="#0d2548cc" stroke="#8fd0b566" stroke-width="2"/>
+        <text x="1540" y="288" text-anchor="middle" font-size="20" font-weight="900" fill="#8fd0b5" font-family="'Noto Sans TC',sans-serif">外部系統</text>
+        <text x="1540" y="320" text-anchor="middle" font-size="15" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">Search · API · DB</text>
+        <text x="1540" y="352" text-anchor="middle" font-size="13" fill="#6f8db5" font-family="'Noto Sans TC',sans-serif">真的讀寫資料</text>
+      </g>
+      <!-- 回饋虛線：工具 → 底部 → 身體左 → 大腦 → 使用者 -->
+      <line x1="1540" y1="380" x2="690" y2="380" stroke="#b8d0f0" stroke-width="3.5" stroke-dasharray="9 7"/>
+      <line x1="690" y1="380" x2="540" y2="380" stroke="#b8d0f0" stroke-width="3.5" stroke-dasharray="9 7"/>
+      <line x1="540" y1="380" x2="540" y2="255" stroke="#b8d0f0" stroke-width="3.5" stroke-dasharray="9 7"/>
+      <line x1="540" y1="255" x2="583" y2="212" stroke="#b8d0f0" stroke-width="3.5" stroke-dasharray="9 7" marker-end="url(#cirArrowDim)"/>
+      <line x1="583" y1="52" x2="270" y2="140" stroke="#8fb0dd" stroke-width="3.5" stroke-dasharray="5 7" marker-end="url(#cirArrowDim)"/>
+      <!-- 流程標籤 -->
+      <text x="424" y="104" text-anchor="middle" font-size="17" font-weight="700" fill="#ff7a3c" font-family="'Noto Sans TC',sans-serif">① 任務</text>
+      <text x="775" y="228" text-anchor="middle" font-size="16" font-weight="700" fill="#ff7a3c" font-family="'Noto Sans TC',sans-serif">② 選動作</text>
+      <text x="1010" y="288" text-anchor="middle" font-size="17" font-weight="700" fill="#ff7a3c" font-family="'Noto Sans TC',sans-serif">③ 工具請求</text>
+      <text x="1120" y="402" text-anchor="middle" font-size="16" font-weight="700" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">④ 結果寫回模型</text>
+      <text x="400" y="58" text-anchor="middle" font-size="16" font-weight="700" fill="#6f8db5" font-family="'Noto Sans TC',sans-serif">⑤ 回覆</text>
+      <!-- 流動光點：橙＝前進，藍＝回饋 -->
+      <circle class="pulse-halo" r="13" fill="#ff7a3c33">
+        <animateMotion dur="4s" repeatCount="indefinite" path="M282,168 L596,84 L690,208 L690,245 L810,305 L1205,305 L1335,305 L1410,305"/>
+      </circle>
+      <circle class="pulse-core" r="6.5" fill="#ff7a3c">
+        <animateMotion dur="4s" repeatCount="indefinite" path="M282,168 L596,84 L690,208 L690,245 L810,305 L1205,305 L1335,305 L1410,305"/>
+      </circle>
+      <circle class="pulse-halo" r="11" fill="#b8d0f033">
+        <animateMotion dur="3.2s" begin="4s" repeatCount="indefinite" path="M1540,380 L690,380 L540,380 L540,255 L583,212 L583,52 L270,140"/>
+      </circle>
+      <circle class="pulse-core" r="5.5" fill="#b8d0f0">
+        <animateMotion dur="3.2s" begin="4s" repeatCount="indefinite" path="M1540,380 L690,380 L540,380 L540,255 L583,212 L583,52 L270,140"/>
+      </circle>
+    </svg>
   </div>
-  <div class="cols2" style="margin-top:42px">
+  <div class="note" style="font-size:19px;margin-top:8px;text-align:center"><b>橘線</b>：模型提出動作，Harness 檢查後執行。<b>藍線</b>：結果寫回模型，模型再決定下一步。</div>
+  <div class="cols2">
     <div class="card">
-      <h4 class="a">模型能做的</h4>
-      <div class="ct">提出動作</div>
-      <ul><li>選工具、填參數、讀結果</li><li>提出下一步動作</li><li>遇錯時改選別的動作</li></ul>
+      <h4 class="a">模型負責選</h4>
+      <ul><li>看目前進度與可用工具</li><li>提出工具名稱與參數</li></ul>
     </div>
     <div class="card">
-      <h4 class="d">程式必須負責的</h4>
-      <div class="ct">授權 · 執行 · 驗證</div>
-      <ul><li>模型不能替自己授權，也不能防止重複執行</li><li>安全限制要寫在程式、權限規則與隔離環境中</li></ul>
+      <h4 class="d">Harness 負責做</h4>
+      <ul><li>檢查權限與參數，再執行工具</li><li>保存結果，交回模型繼續判斷</li></ul>
     </div>
   </div>
-  <div class="take"><b>模型提議；程式授權、執行並驗證。</b></div>
+  <div class="take"><b>模型只能提出動作；真正執行與驗證的是 Harness。</b></div>
 </section>
 
 <!-- ============ 7 CONTROL PLANE CORE ============ -->
