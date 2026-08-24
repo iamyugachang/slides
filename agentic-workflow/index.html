@@ -714,8 +714,26 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 
 <!-- ============ 4 STARTING POINT ============ -->
 <section class="slide" id="s4" aria-labelledby="s4t">
-  <p class="meta"><span class="num">04</span><span class="part">CoT 與 Prompt Chaining</span></p>
-  <h2 class="h2" id="s4t">CoT 是一次模型呼叫裡的思考；<strong>Prompt Chaining 是多個固定步驟</strong></h2>
+  <p class="meta"><span class="num">04</span><span class="part">選型矩陣 · 可預測性 × 複雜度</span></p>
+  <h2 class="h2" id="s4t">路徑可預測就用 Workflow；<strong>不可預測才用 Agent</strong></h2>
+  <div class="quad">
+    <div class="qblank"></div>
+    <div class="qcolhead">← 路徑不可預測</div>
+    <div class="qcolhead">路徑可預測 →</div>
+    <div class="qrowhead">高<br>複雜度</div>
+    <div class="qcell ag"><div class="qh">研究、診斷、開放探索</div><div class="qe">先讓 Agent 找路；跑通後把固定步驟改成 Workflow</div><div class="qv">→ Agent 起步</div></div>
+    <div class="qcell wf"><div class="qh">ETL、CI/CD、月結流程</div><div class="qe">步驟再多，只要順序已知，就用 Workflow</div><div class="qv">→ Workflow 起步</div></div>
+    <div class="qrowhead">低<br>複雜度</div>
+    <div class="qcell ag"><div class="qh">簡短但答案路徑未知</div><div class="qe">例如跨網站查證；模型需要自己選工具</div><div class="qv">→ 輕量 Agent</div></div>
+    <div class="qcell wf"><div class="qh">固定轉檔、排程、規則判斷</div><div class="qe">程式碼或 n8n 已足夠；LLM 只是其中一個步驟</div><div class="qv">→ Script / Workflow</div></div>
+  </div>
+  <div class="pband cur"><span class="pbl">演化路徑</span>先讓 Agent 跑通；重複、昂貴或不穩的步驟再改成 Workflow。</div>
+  <div class="take"><b>已知路徑用 Workflow；未知路徑用 Agent；實務上常混合。</b></div>
+</section>
+
+<section class="slide" id="s5" aria-labelledby="s5t">
+  <p class="meta"><span class="num">05</span><span class="part">CoT 與 Prompt Chaining</span></p>
+  <h2 class="h2" id="s5t">CoT 是一次模型呼叫裡的思考；<strong>Prompt Chaining 是多個固定步驟</strong></h2>
   <div class="arch-compare">
     <div class="arch-panel">
       <div class="ey">CHAIN OF THOUGHT · CoT</div><div class="ttl">單次 LLM call 內部</div><div class="desc">輸入與輸出之間，模型會做中間推理。它不是外部流程節點，也不是多 Agent。</div>
@@ -731,10 +749,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take"><b>CoT 管一次呼叫怎麼想；Prompt Chaining 管多次呼叫怎麼排。</b></div>
 </section>
 
-<!-- ============ 5 AGENT LOOP ============ -->
-<section class="slide" id="s5" aria-labelledby="s5t">
-  <p class="meta"><span class="num">05</span><span class="part">AGENT LOOP · 技術視角</span></p>
-  <h2 class="h2" id="s5t">Agent 每輪都做同一件事：<strong>看結果，再選下一個動作</strong></h2>
+<section class="slide" id="s6" aria-labelledby="s6t">
+  <p class="meta"><span class="num">06</span><span class="part">AGENT LOOP · 技術視角</span></p>
+  <h2 class="h2" id="s6t">Agent 每輪都做同一件事：<strong>看結果，再選下一個動作</strong></h2>
   <div class="agent-tech">
     <div class="agent-loop-tech">
       <div class="alt-node an1"><b>1 · Observe</b><small>讀取工具結果、錯誤與外部狀態</small></div><div class="alt-arrow aa1">→</div>
@@ -753,10 +770,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take"><b>有 loop 不代表是 Agent；模型能根據 Observation 改選下一步才算。</b></div>
 </section>
 
-<!-- ============ 6 HARNESS BOUNDARY ============ -->
-<section class="slide" id="s6" aria-labelledby="s6t">
-  <p class="meta"><span class="num">06</span><span class="part">PART 2 · Harness 心智模型</span></p>
-  <h2 class="h2" id="s6t">模型是大腦；<strong>Harness 是身體，工具是手</strong></h2>
+<section class="slide" id="s7" aria-labelledby="s7t">
+  <p class="meta"><span class="num">07</span><span class="part">PART 2 · Harness 心智模型</span></p>
+  <h2 class="h2" id="s7t">模型是大腦；<strong>Harness 是身體，工具是手</strong></h2>
   <div class="circuit" style="margin-top:20px">
     <svg viewBox="0 0 1750 430" role="img" aria-label="機器人：指令進大腦、經身體到手的動畫迴路" style="width:100%;height:auto;display:block">
       <defs>
@@ -860,10 +876,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take"><b>模型只能提出動作；真正執行與驗證的是 Harness。</b></div>
 </section>
 
-<!-- ============ 7 CONTROL PLANE CORE ============ -->
-<section class="slide" id="s7" aria-labelledby="s7t">
-  <p class="meta"><span class="num">07</span><span class="part">HARNESS · 控制架構</span></p>
-  <h2 class="h2" id="s7t">Agent 能自由選動作；<strong>Harness 決定它能選哪些、做到哪裡</strong></h2>
+<section class="slide" id="s8" aria-labelledby="s8t">
+  <p class="meta"><span class="num">08</span><span class="part">HARNESS · 控制架構</span></p>
+  <h2 class="h2" id="s8t">Agent 能自由選動作；<strong>Harness 決定它能選哪些、做到哪裡</strong></h2>
   <div class="control-arch">
     <div class="control-zone"><div class="k">GOAL + STATE</div><div class="h">目標與目前進度</div><div class="b">完成條件、已做動作、工具結果、錯誤與中間產物。</div></div>
     <div class="control-zone hot"><div class="k">AGENT / WORKFLOW LOOP</div><div class="h">每輪決定並執行下一步</div><div class="loop">READ STATE<br>↓<br>CHOOSE ACTION<br>↓<br>EXECUTE TOOL<br>↓<br>WRITE RESULT</div></div>
@@ -874,10 +889,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take"><b>自主發生在模型；權限、預算、記錄與回復都留在 Harness。</b></div>
 </section>
 
-<!-- ============ 8 CONTROL PLANE GOVERNANCE ============ -->
-<section class="slide" id="s8" aria-labelledby="s8t">
-  <p class="meta"><span class="num">08</span><span class="part">PRODUCTION · 兩個失敗路徑</span></p>
-  <h2 class="h2" id="s8t">正式環境先防兩件事：<strong>重複執行、假完成</strong></h2>
+<section class="slide" id="s9" aria-labelledby="s9t">
+  <p class="meta"><span class="num">09</span><span class="part">PRODUCTION · 兩個失敗路徑</span></p>
+  <h2 class="h2" id="s9t">正式環境先防兩件事：<strong>重複執行、假完成</strong></h2>
   <div class="risk-grid">
     <div class="risk-panel bad"><div class="risk-title">風險 1 · Timeout 後直接重試</div>
       <div class="risk-flow"><div class="risk-step">送出寫入</div><div class="risk-arr">→</div><div class="risk-step bad">超時<br>成功與否未知</div><div class="risk-arr">→</div><div class="risk-step bad">直接重試<br>重複寫入</div></div>
@@ -891,10 +905,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take"><b>寫入前防重複；完成後重新查一次。</b></div>
 </section>
 
-<!-- ============ 9 TWO PITFALLS ============ -->
-<section class="slide" id="s9" aria-labelledby="s9t">
-  <p class="meta"><span class="num">09</span><span class="part">MULTI-AGENT · 四種分工</span></p>
-  <h2 class="h2" id="s9t">Multi-Agent 只改分工方式；<strong>不自動代表更聰明或更自主</strong></h2>
+<section class="slide" id="s10" aria-labelledby="s10t">
+  <p class="meta"><span class="num">10</span><span class="part">MULTI-AGENT · 四種分工</span></p>
+  <h2 class="h2" id="s10t">Multi-Agent 只改分工方式；<strong>不自動代表更聰明或更自主</strong></h2>
   <div class="topo4">
     <div class="topo-card2"><svg viewBox="0 0 190 145"><circle cx="95" cy="30" r="20" fill="#3b2b25" stroke="#ff7a3c" stroke-width="3"/><text x="95" y="35" text-anchor="middle" fill="#fff" font-size="12">主管</text><line x1="95" y1="50" x2="45" y2="98" stroke="#9db8dd" stroke-width="3"/><line x1="95" y1="50" x2="95" y2="98" stroke="#9db8dd" stroke-width="3"/><line x1="95" y1="50" x2="145" y2="98" stroke="#9db8dd" stroke-width="3"/><circle cx="45" cy="112" r="17" fill="#102f59" stroke="#8fd0b5"/><circle cx="95" cy="112" r="17" fill="#102f59" stroke="#8fd0b5"/><circle cx="145" cy="112" r="17" fill="#102f59" stroke="#8fd0b5"/></svg><div><h3>Supervisor</h3><p>中央 Agent 派工、收結果、決定下一個任務。</p><div class="choose">適合：需要集中控制與最後整合</div></div></div>
     <div class="topo-card2"><svg viewBox="0 0 190 145"><circle cx="38" cy="72" r="21" fill="#102f59" stroke="#8fd0b5"/><circle cx="95" cy="72" r="21" fill="#102f59" stroke="#8fd0b5"/><circle cx="152" cy="72" r="21" fill="#3b2b25" stroke="#ff7a3c" stroke-width="3"/><path d="M59 72 H72" stroke="#ff7a3c" stroke-width="4"/><polygon points="76,72 67,66 67,78" fill="#ff7a3c"/><path d="M116 72 H129" stroke="#ff7a3c" stroke-width="4"/><polygon points="133,72 124,66 124,78" fill="#ff7a3c"/><text x="38" y="77" text-anchor="middle" fill="#fff" font-size="11">A</text><text x="95" y="77" text-anchor="middle" fill="#fff" font-size="11">B</text><text x="152" y="77" text-anchor="middle" fill="#fff" font-size="11">C</text></svg><div><h3>Handoff</h3><p>目前 Agent 直接把控制權與上下文交給下一位。</p><div class="choose">適合：明確階段交接</div></div></div>
@@ -904,10 +917,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take"><b>先決定誰能交棒、誰負責收斂，再決定要不要多 Agent。</b></div>
 </section>
 
-<!-- ============ 10 CHAIN AGENT MULTI-AGENT ============ -->
-<section class="slide" id="s10" aria-labelledby="s10t">
-  <p class="meta"><span class="num">10</span><span class="part">兩個案例 · 總覽</span></p>
-  <h2 class="h2" id="s10t">同一套 Harness，兩種觸發方式：<strong>系統 Alert 與使用者需求</strong></h2>
+<section class="slide" id="s11" aria-labelledby="s11t">
+  <p class="meta"><span class="num">11</span><span class="part">兩個案例 · 總覽</span></p>
+  <h2 class="h2" id="s11t">同一套 Harness，兩種觸發方式：<strong>系統 Alert 與使用者需求</strong></h2>
   <div class="case-pair">
     <div class="case-card alert"><div class="case-no">CASE 1 · 系統觸發</div><h3>Alert 自動修復</h3>
       <div class="case-flow"><div class="case-step">Alert</div><div class="case-arrow">→</div><div class="case-step">並行診斷</div><div class="case-arrow">→</div><div class="case-step case-gate">人工確認</div><div class="case-arrow">→</div><div class="case-step">修復＋驗證</div></div>
@@ -921,10 +933,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take"><b>Alert 是系統觸發、跨系統診斷；Lakehouse 是使用者觸發、只走單一 Console API。</b></div>
 </section>
 
-<!-- ============ 11 CASE 2 LAKEHOUSE ASSISTANT ============ -->
-<section class="slide" id="s11" aria-labelledby="s11t">
-  <p class="meta"><span class="num">11</span><span class="part">CASE 1 · ALERT 自動修復架構</span></p>
-  <h2 class="h2" id="s11t">Alert 自動修復：<strong>先並行診斷，再集中批准與修復</strong></h2>
+<section class="slide" id="s12" aria-labelledby="s12t">
+  <p class="meta"><span class="num">12</span><span class="part">CASE 1 · ALERT 自動修復架構</span></p>
+  <h2 class="h2" id="s12t">Alert 自動修復：<strong>先並行診斷，再集中批准與修復</strong></h2>
   <div class="arch-zone"><div class="arch-zone-label">1 · 事件來源</div><div class="fan-grid"><div class="fan-node">Airflow alert</div><div class="fan-node">Spark failure</div><div class="fan-node">Trino slow query</div><div class="fan-node">HMS／MinIO／OPA</div></div></div>
   <div class="wide-flow" style="margin-top:10px"><div class="wf hot">Harness<br><small>建立 incident state、派工、限制工具</small></div><div class="wa">→</div><div class="wf">Supervisor<br><small>派出多個診斷 Agent</small></div><div class="wa">→</div><div class="wf">Root Cause<br><small>合併證據與衝突結論</small></div></div>
   <div class="arch-zone"><div class="arch-zone-label">2 · 並行診斷（只讀）</div><div class="fan-grid"><div class="fan-node">Log / Metrics</div><div class="fan-node">Query plan</div><div class="fan-node">Schema / Lineage</div><div class="fan-node">Recent changes</div></div></div>
@@ -932,10 +943,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take"><b>診斷可以多 Agent 並行；寫入只走一個受控執行器，並在前後各做一次檢查。</b></div>
 </section>
 
-<!-- ============ 12 FRAMEWORKS ============ -->
-<section class="slide" id="s12" aria-labelledby="s12t">
-  <p class="meta"><span class="num">12</span><span class="part">CASE 2 · LAKEHOUSE 自助助理架構</span></p>
-  <h2 class="h2" id="s12t">Lakehouse Agent 只碰 Console API；<strong>讀與寫在入口後分流</strong></h2>
+<section class="slide" id="s13" aria-labelledby="s13t">
+  <p class="meta"><span class="num">13</span><span class="part">CASE 2 · LAKEHOUSE 自助助理架構</span></p>
+  <h2 class="h2" id="s13t">Lakehouse Agent 只碰 Console API；<strong>讀與寫在入口後分流</strong></h2>
   <div class="wide-flow" style="margin-top:22px"><div class="wf">使用者<br><small>JWT 登入憑證＋Workspace</small></div><div class="wa">→</div><div class="wf hot">Lakehouse Agent<br><small>理解需求，只知道 Console API 工具</small></div><div class="wa">→</div><div class="wf hot">Console API<br><small>登入驗證／OPA 權限規則／參數驗證</small></div></div>
   <div class="arch-zone"><div class="arch-zone-label">Console API 之後的兩條路</div>
     <div class="branch-flow"><div class="branch-side"><div class="branch-card"><h4>READ · 直接執行</h4><p>Catalog、Schema、Lineage、Query、Explain、Run Status</p></div><div class="branch-card write"><h4>WRITE · 先確認</h4><p>產 YAML → Spark JAR 驗證 → 顯示 diff → 人工批准 → Submit</p></div></div><div class="branch-arrow">→</div><div class="branch-side"><div class="branch-card"><h4>讀取服務</h4><p>Trino／Catalog／Lineage／Monitoring</p></div><div class="branch-card"><h4>寫入流程</h4><p>Airflow Dynamic DAG → Spark → HMS／MinIO<br>OPA 持續限制 Workspace 存取</p></div></div></div>
@@ -944,10 +954,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take"><b>Agent 沒有各系統鑰匙；Console 統一做授權、驗證、轉送與稽核。</b></div>
 </section>
 
-<!-- ============ 13 CONCLUSION ============ -->
-<section class="slide" id="s13" aria-labelledby="s13t">
-  <p class="meta"><span class="num">13</span><span class="part">結論 · 先發散，再收斂</span></p>
-  <h2 class="h2" id="s13t">開放任務先讓 Agent 找路；<strong>找到規律後收斂成混合架構</strong></h2>
+<section class="slide" id="s14" aria-labelledby="s14t">
+  <p class="meta"><span class="num">14</span><span class="part">結論 · 先發散，再收斂</span></p>
+  <h2 class="h2" id="s14t">開放任務先讓 Agent 找路；<strong>找到規律後收斂成混合架構</strong></h2>
   <div class="converge">
     <div class="conv-stage wide"><div class="n">1 · EXPLORE</div><h3>Agent 發散探索</h3><p>只給目標與工具，允許模型根據結果換路。</p><div class="route-cloud"><span>查 Logs</span><span>看 Lineage</span><span>比對設定</span><span>問專家 Agent</span><span>重試</span><span>換工具</span></div></div>
     <div class="conv-arrow">→</div>
@@ -958,29 +967,6 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
     <div class="conv-stage final"><div class="n">4 · HYBRID</div><h3>Workflow 主幹＋Agent 插槽</h3><p>程式掌握可預測流程；模型只處理仍需要判斷的局部。</p><div class="hybrid-stack"><span class="wf">固定 Workflow</span><span class="ag">Agent 判斷區</span><span class="wf">固定驗證與輸出</span></div></div>
   </div>
   <div class="take"><b>如果一開始就知道路徑，直接用 Workflow；不知道才先讓 Agent 發散。</b></div>
-</section>
-
-<!-- ============ 14 APPENDIX OPENING ============ -->
-<section class="slide" id="s14" aria-labelledby="s14t">
-  <p class="meta"><span class="num">14</span><span class="part">附錄 · 同一件事，四種寫法</span></p>
-  <h2 class="h2" id="s14t">附錄：<strong>同一個 Alert 任務，四種實作</strong></h2>
-  <p class="sub" style="margin-top:26px">任務固定為：偵測異常 → 診斷原因 → 人工確認 → 修復 → 驗證 → 建立 issue。</p>
-  <div class="pairflow" style="margin-top:44px">
-    <div class="pfnode"><div class="ft">① 偵測 alert</div><div class="fd">log 掃描／告警觸發</div></div>
-    <div class="arrow" style="font-size:24px">→</div>
-    <div class="pfnode"><div class="ft">② 診斷原因</div><div class="fd">模型分析 log 與狀態</div></div>
-    <div class="arrow" style="font-size:24px">→</div>
-    <div class="pfnode"><div class="ft">③ 人審後修復</div><div class="fd">高風險動作先確認</div></div>
-    <div class="arrow" style="font-size:24px">→</div>
-    <div class="pfnode"><div class="ft">④ 驗證並建 issue</div><div class="fd">確認恢復後記錄結果</div></div>
-  </div>
-  <div class="dg wrap center" style="margin-top:48px;gap:12px">
-    <span class="chip d" style="font-size:21px;padding:6px 20px">LangGraph · 圖</span>
-    <span class="chip a" style="font-size:21px;padding:6px 20px">Pydantic AI · 型別安全 agent</span>
-    <span class="chip a" style="font-size:21px;padding:6px 20px">CrewAI · 角色分工</span>
-    <span class="chip g" style="font-size:21px;padding:6px 20px">n8n · 視覺節點</span>
-  </div>
-  <div class="take" style="margin-top:26px"><b>只比較四件事：進度、工具、人審、輸出格式。</b></div>
 </section>
 
 <!-- ============ 15 APPENDIX ARCHITECTURE ============ -->
