@@ -1,0 +1,875 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Doris 雙叢集 HA：方案評估與推薦</title>
+<meta name="description" content="Apache Doris 2.x 叢集層級 HA：四個候選方案的查證、比較與推薦——雙路 ingestion + HAProxy 半自動切換。16 slides，附 PoC 清單與未決事項。">
+<style>
+/* ============================================================
+   BLUEPRINT × TEAL STEEL — fixed 1920×1080 stage
+   沿用 slides repo 的 blueprint 骨架；配色轉深青鋼藍，
+   語意色：teal（推薦/正向）、amber（前提/警示）、red（排除/風險）
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&family=IBM+Plex+Mono:wght@400;600&display=swap');
+:root{
+  color-scheme:dark;
+  --bg-deep:#06181f; --bg:#0a2530; --panel:#0c2b36cc;
+  --ink:#ecf6f7; --dim:#9cc3c9; --faint:#6d97a0;
+  --teal:#35d0ba; --teal-strong:#19b6a0; --teal-soft:#35d0ba1f;
+  --amber:#f4b23d; --amber-soft:#f4b23d1f;
+  --red:#ff6b5e; --red-soft:#ff6b5e1c;
+  --line:#ffffff2e; --line-strong:#ffffff77; --line-faint:#ffffff14;
+  --code-bg:#07202a;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  display:grid;place-items:center;overflow:hidden;
+  background:radial-gradient(circle at 16% 12%,#11414d 0,#0a2530 45%,#06181f 100%);
+  font-family:"Noto Sans TC",ui-sans-serif,system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+  color:var(--ink);
+}
+a{color:var(--teal);text-decoration:underline;text-underline-offset:3px}
+a:hover{color:var(--ink)}
+.mono,.num,.part,.ct,.figlbl{font-family:"IBM Plex Mono",monospace}
+
+/* ---- fixed stage ---- */
+.viewport{position:relative;width:100vw;height:100vh;overflow:hidden}
+.stage{
+  position:absolute;left:50%;top:50%;width:1920px;height:1080px;
+  transform:translate(-50%,-50%) scale(calc(100vw / 1920px));
+  transform-origin:center;
+  background:
+    repeating-linear-gradient(0deg,transparent 0 59px,#ffffff06 59px 60px),
+    repeating-linear-gradient(90deg,transparent 0 59px,#ffffff06 59px 60px),
+    radial-gradient(circle at 82% 14%,#35d0ba10,transparent 38%),
+    linear-gradient(155deg,#0f3d4a 0%,#0a2530 58%,#07202a 100%);
+  box-shadow:0 0 0 1px #ffffff14,0 36px 120px #00000088;
+  overflow:hidden;
+}
+@media (min-aspect-ratio:16/9){
+  .stage{transform:translate(-50%,-50%) scale(calc(100vh / 1080px))}
+}
+.slide{position:relative;inset:auto;opacity:1;pointer-events:auto}
+html.js .slide{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  padding:60px 84px 54px;opacity:0;pointer-events:none;
+}
+html.js .slide.is-active{opacity:1;pointer-events:auto}
+html.js .slide > :not(.gnum){position:relative;z-index:1}
+
+.rmark{position:absolute;width:30px;height:30px;border:0 solid var(--line-strong);z-index:4;pointer-events:none}
+.rmark.tl{top:18px;left:18px;border-top:3px solid;border-left:3px solid}
+.rmark.tr{top:18px;right:18px;border-top:3px solid;border-right:3px solid}
+.rmark.bl{bottom:18px;left:18px;border-bottom:3px solid;border-left:3px solid}
+
+.gnum{
+  position:absolute;top:30px;right:44px;font-weight:900;font-size:400px;line-height:1;
+  color:transparent;-webkit-text-stroke:2px #ffffff0c;letter-spacing:-.05em;
+  user-select:none;pointer-events:none;z-index:0;
+}
+
+/* ---- shared type ---- */
+.meta{display:flex;align-items:center;gap:16px;font-size:17px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
+.num{color:var(--teal);font-weight:600}
+.part{color:var(--dim);font-weight:600}
+.h2{font-size:54px;line-height:1.22;margin:16px 0 0;font-weight:900;letter-spacing:-.015em;max-width:1760px;color:var(--ink)}
+.h2 strong{color:var(--teal)}
+.title-h2{font-size:92px;line-height:1.14;margin-top:48px}
+.title-sub{font-size:28px;margin-top:24px}
+.sub{max-width:1680px;font-size:25px;line-height:1.6;color:var(--dim);margin:18px 0 0}
+.sub b{color:var(--ink)}
+.note{margin-top:14px;color:var(--dim);font-size:20px;line-height:1.6;max-width:1760px}
+.note b{color:var(--ink)}
+.take{
+  margin-top:auto;padding:14px 26px;border-top:3px solid var(--ink);border-bottom:3px solid var(--ink);
+  font-size:25px;line-height:1.5;color:var(--ink);font-weight:900;max-width:1800px;letter-spacing:.01em;
+}
+.take b{color:var(--teal)}
+.take.warn b{color:var(--amber)}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line-strong);
+  padding:5px 16px;font-size:17px;font-weight:700;color:var(--ink);white-space:nowrap;
+  background:#0c2b3666;letter-spacing:.03em;border-radius:3px;
+}
+.chip.t{border-color:var(--teal);color:var(--teal);background:var(--teal-soft)}
+.chip.w{border-color:var(--amber);color:var(--amber);background:var(--amber-soft)}
+.chip.r{border-color:var(--red);color:var(--red);background:var(--red-soft)}
+.chip.g{border-color:var(--line);color:var(--dim)}
+
+/* ---- cards / grids ---- */
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:24px}
+.cols3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-top:24px}
+.cols4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:24px}
+.card{
+  background:var(--panel);border:1px solid var(--line);border-radius:6px;
+  padding:20px 24px;position:relative;
+}
+.card h4{margin:0 0 8px;font-size:23px;font-weight:900;letter-spacing:.01em}
+.card h4.t{color:var(--teal)}
+.card h4.w{color:var(--amber)}
+.card h4.r{color:var(--red)}
+.card h4.d{color:var(--ink)}
+.card .ct{font-size:13.5px;letter-spacing:.12em;color:var(--faint);margin-bottom:10px;text-transform:uppercase}
+.card ul{margin:0;padding-left:1.25em;font-size:19.5px;line-height:1.62;color:var(--dim)}
+.card ul b{color:var(--ink)}
+.card ul li{margin:.32em 0}
+.card p{font-size:19.5px;line-height:1.6;color:var(--dim);margin:.3em 0}
+.card p b{color:var(--ink)}
+.card.accent{border-left:4px solid var(--teal)}
+.card.warn{border-left:4px solid var(--amber)}
+.card.bad{border-left:4px solid var(--red)}
+
+/* fact rows */
+.facts{display:grid;gap:12px;margin-top:24px}
+.fact{
+  display:flex;gap:18px;align-items:baseline;background:var(--panel);
+  border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:6px;
+  padding:14px 22px;font-size:21.5px;line-height:1.6;color:var(--dim);
+}
+.fact b{color:var(--ink)}
+.fact .fk{font-family:"IBM Plex Mono",monospace;font-size:16px;font-weight:600;color:var(--teal);flex:0 0 auto;letter-spacing:.06em}
+.fact.warn{border-left-color:var(--amber)}
+.fact.warn .fk{color:var(--amber)}
+.fact.bad{border-left-color:var(--red)}
+.fact.bad .fk{color:var(--red)}
+
+/* diagram: node flow */
+.dg{display:flex;align-items:stretch;gap:14px;margin-top:26px}
+.dg.center{justify-content:center}
+.dg.wrap{flex-wrap:wrap}
+.node{
+  background:var(--panel);border:1.5px solid var(--line-strong);border-radius:6px;
+  padding:16px 22px;min-width:200px;text-align:center;
+}
+.node .t{font-size:21px;font-weight:900;color:var(--ink)}
+.node .s{font-size:16.5px;color:var(--dim);margin-top:6px;line-height:1.5}
+.node.hl{border-color:var(--teal);background:#0f3d42}
+.node.hl .t{color:var(--teal)}
+.node.warn{border-color:var(--amber)}
+.node.warn .t{color:var(--amber)}
+.node.bad{border-color:var(--red)}
+.node.bad .t{color:var(--red)}
+.node.dead{opacity:.38;border-style:dashed}
+.arrow{
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  color:var(--teal);font-size:30px;font-weight:900;min-width:56px;position:relative;
+}
+.arrow label.lbl{font-size:13.5px;color:var(--faint);font-weight:600;font-family:"IBM Plex Mono",monospace;letter-spacing:.05em;margin-top:2px;white-space:nowrap}
+.arrow.bad{color:var(--red)}
+.arrow.dim{color:var(--faint)}
+
+/* fig frame */
+.fig{
+  margin-top:26px;border:1px solid var(--line);border-radius:6px;padding:30px 36px 24px;
+  background:#0a253066;position:relative;
+}
+.fig::before{
+  content:attr(data-fig);
+  position:absolute;top:-12px;left:26px;background:#0d3038;
+  padding:0 12px;font-family:"IBM Plex Mono",monospace;font-size:14.5px;
+  letter-spacing:.14em;color:var(--teal);
+}
+.fig.warn::before{color:var(--amber)}
+
+/* comparison table */
+.tbl{margin-top:24px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel)}
+.trow{display:grid;grid-template-columns:230px 1fr 1fr 1fr 1fr;border-top:1px solid var(--line-faint)}
+.trow:first-child{border-top:none}
+.trow.head{background:#0d3038}
+.trow > div{padding:12px 18px;font-size:18.5px;line-height:1.45;color:var(--dim);border-left:1px solid var(--line-faint)}
+.trow > div:first-child{border-left:none;font-weight:900;color:var(--ink);font-size:17.5px}
+.trow.head > div{font-family:"IBM Plex Mono",monospace;font-size:14.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);font-weight:600}
+.trow .win{color:var(--teal);font-weight:700}
+.trow .lose{color:var(--red)}
+.trow .cond{color:var(--amber)}
+
+/* PoC rows */
+.pocs{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin-top:22px}
+.poc{
+  display:flex;gap:14px;align-items:baseline;background:var(--panel);
+  border:1px solid var(--line);border-radius:6px;padding:11px 18px;
+  font-size:18.5px;line-height:1.5;color:var(--dim);
+}
+.poc b{color:var(--ink)}
+.poc .pn{font-family:"IBM Plex Mono",monospace;font-size:14.5px;color:var(--teal);font-weight:600;flex:0 0 40px}
+.poc.first{border-color:var(--teal);background:#0f3d42}
+.poc.first .pn{color:var(--teal)}
+
+/* band */
+.pband{
+  display:flex;align-items:center;gap:16px;margin-top:20px;
+  border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:6px;
+  background:var(--amber-soft);padding:13px 22px;font-size:21px;line-height:1.55;color:var(--dim);
+}
+.pband b{color:var(--ink)}
+.pband .pbl{font-family:"IBM Plex Mono",monospace;font-size:14px;letter-spacing:.1em;color:var(--amber);font-weight:600;flex:0 0 auto;text-transform:uppercase}
+
+/* chrome */
+.nav{position:absolute;right:44px;bottom:32px;display:flex;gap:10px;z-index:5}
+.navbtn{
+  width:46px;height:46px;border-radius:6px;border:1px solid var(--line-strong);
+  background:#0c2b36cc;color:var(--ink);font-size:22px;font-weight:900;cursor:pointer;
+  box-shadow:0 6px 18px #00000055;transition:transform 120ms ease,background 120ms ease;
+}
+.navbtn:hover{background:#11414d;transform:translateY(-2px)}
+.progress{position:absolute;left:0;bottom:0;height:4px;background:#ffffff0d;z-index:6;width:100%}
+.progress-bar{height:100%;width:6.25%;background:linear-gradient(90deg,var(--teal),#8be8db);transition:width 300ms ease}
+.counter{
+  position:absolute;right:106px;bottom:44px;font-size:16px;color:var(--faint);
+  font-weight:600;letter-spacing:.14em;z-index:5;font-family:"IBM Plex Mono",monospace;
+}
+.hint{
+  position:absolute;left:42px;bottom:38px;z-index:5;
+  display:inline-flex;align-items:center;gap:10px;
+  background:#0c2b36cc;border:1px solid var(--line);border-radius:6px;
+  padding:8px 18px;font-size:15px;color:var(--dim);font-weight:600;
+  box-shadow:0 6px 18px #00000044;
+}
+.hint .hsep{color:var(--line-strong);font-weight:400}
+#overview{
+  position:absolute;inset:0;background:#041016f2;z-index:50;display:none;
+  overflow:auto;padding:54px 64px;
+}
+#overview.open{display:block}
+#overview h2{color:var(--ink);font-size:34px;margin:0 0 26px;font-weight:900}
+.ovgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.ovbtn{
+  background:#0c2b3666;border:1px solid #ffffff22;border-radius:6px;color:var(--ink);
+  padding:16px 14px;text-align:left;cursor:pointer;font-family:inherit;
+}
+.ovbtn:hover{background:#11414d88;border-color:#35d0ba88}
+.ovbtn .on{font-size:14px;color:var(--teal);font-weight:600;letter-spacing:.1em;font-family:"IBM Plex Mono",monospace}
+.ovbtn .ot{font-size:17px;font-weight:800;line-height:1.4;margin-top:6px;color:#d5e8ea}
+#help{
+  position:absolute;right:34px;bottom:100px;width:560px;
+  background:#0d3038;color:var(--ink);border:1px solid var(--line);
+  border-radius:8px;padding:22px 26px;z-index:60;display:none;
+  box-shadow:0 24px 70px #00000099;
+}
+#help.open{display:block}
+.help-title{font-size:22px;font-weight:900;color:var(--teal);margin-bottom:14px;letter-spacing:.04em}
+.help-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hcard{
+  display:flex;align-items:center;gap:12px;background:#ffffff0d;
+  border:1px solid #ffffff1c;border-radius:6px;padding:10px 14px;
+}
+.hcard .hicon{font-size:24px;line-height:1}
+.hcard .hkey{font-weight:900;font-size:16px;color:var(--ink);white-space:nowrap}
+.hcard .hkey kbd{
+  background:#ffffff1a;border-radius:4px;padding:2px 10px;font-family:"IBM Plex Mono",monospace;
+  border:1px solid #ffffff2a;font-size:14px;
+}
+.hcard .hdesc{font-size:14px;color:var(--dim);margin-left:auto;white-space:nowrap}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none !important;scroll-behavior:auto !important}
+}
+
+/* ---- mobile portrait: readable scroll mode ---- */
+@media (max-width:900px) and (orientation:portrait){
+  body{display:block;overflow:auto;background:var(--bg)}
+  .viewport{height:auto;overflow:visible}
+  .stage{position:relative;left:auto;top:auto;width:100%;height:auto;transform:none;box-shadow:none;
+    background:repeating-linear-gradient(0deg,transparent 0 59px,#ffffff05 59px 60px),
+    repeating-linear-gradient(90deg,transparent 0 59px,#ffffff05 59px 60px),
+    linear-gradient(155deg,#0f3d4a 0%,#0a2530 58%,#07202a 100%)}
+  html.js .slide{position:relative;inset:auto;opacity:1;pointer-events:auto;display:flex;flex-direction:column;
+    height:auto;padding:28px 20px;margin-bottom:18px;border-bottom:1px solid var(--line)}
+  .gnum{display:none}
+  .rmark{display:none}
+  .nav,.counter,.hint,.progress{display:none}
+  .meta{font-size:14px;gap:10px;letter-spacing:.12em}
+  .h2{font-size:28px}
+  .title-h2{font-size:38px;margin-top:30px}
+  .title-sub{font-size:19px;margin-top:16px}
+  .sub{font-size:19px}
+  .note{font-size:17px}
+  .take{font-size:17px;padding:11px 14px;border-width:2px;margin-top:22px}
+  .cols2,.cols3,.cols4{grid-template-columns:1fr;gap:12px}
+  .dg{flex-direction:column;align-items:stretch}
+  .node .t{font-size:19px}
+  .node .s{font-size:15.5px}
+  .fact{font-size:17px;padding:11px 14px;flex-direction:column;gap:4px}
+  .fig{padding:22px 16px 16px}
+  .fig::before{left:14px;font-size:12px}
+  .trow{grid-template-columns:1fr 1fr;gap:0}
+  .trow > div{font-size:15px;padding:8px 10px}
+  .trow > div:first-child{grid-column:1/3;background:#0d3038}
+  .pocs{grid-template-columns:1fr}
+  .poc{font-size:16px}
+  .pband{flex-direction:column;gap:4px;padding:11px 14px;align-items:flex-start;font-size:17px}
+  .card ul,.node .s,.fact,.poc{overflow-wrap:anywhere}
+  #overview{position:fixed;padding:28px 18px}
+  .ovgrid{grid-template-columns:1fr 1fr}
+  #help{position:fixed;left:16px;right:16px;bottom:16px;width:auto;padding:18px}
+}
+</style>
+</head>
+<body>
+<script>document.documentElement.classList.add('js')</script>
+
+<div class="viewport">
+<div class="stage" id="stage">
+<div class="rmark tl"></div><div class="rmark tr"></div><div class="rmark bl"></div>
+
+<!-- ============ 1 TITLE ============ -->
+<section class="slide" id="s1" aria-labelledby="s1t">
+  <p class="meta"><span class="num">01</span><span class="part">DATA PLATFORM · HA DESIGN REVIEW</span></p>
+  <h2 class="h2 title-h2" id="s1t">Doris 雙叢集 HA：<br><strong>方案評估與推薦</strong></h2>
+  <p class="sub title-sub">兩座獨立 Doris cluster，任一座<b>整座故障</b>時服務可切換——<br>調查 4 個候選方案、查證 40 項來源，收斂成 <b>1 條推薦路線 + 10 項 PoC</b>。</p>
+  <div class="dg wrap" style="gap:10px;margin-top:40px">
+    <span class="chip g">Doris 2.x · 自建機房</span>
+    <span class="chip g">寫入 100% Kafka + Spark Structured Streaming</span>
+    <span class="chip g">JDBC query</span>
+    <span class="chip t">推薦：上游雙路 Ingestion</span>
+  </div>
+  <div class="take"><b>備援座平時就在寫</b>——故障時 ingestion 零切換、RPO ≈ 0，query 用 proxy 切過去。</div>
+</section>
+
+<!-- ============ 2 SCOPE & CONSTRAINTS ============ -->
+<section class="slide" id="s2" aria-labelledby="s2t">
+  <p class="meta"><span class="num">02</span><span class="part">PART 1 · 背景與約束</span></p>
+  <h2 class="h2" id="s2t">範圍：<strong>叢集層級</strong>的 HA——節點級交給 Doris 自己</h2>
+  <p class="sub">FE 選主、BE 副本等<b>節點級 HA</b> 由 Doris 內建機制處理，不在本次範圍。本次要解的是「<b>一整座 cluster 掛掉</b>」：query 能切、ingestion 能續、恢復後能歸隊。</p>
+  <div class="cols3">
+    <div class="card bad">
+      <h4 class="r">C-1 · CCR 停止維護</h4>
+      <p>SelectDB CCR 後續確定不再維護。採 CCR 的方案一律以「<b>fork 原始碼自行維護</b>」計成本——含每次 Doris 升級的 binlog 相容性自行驗證。</p>
+    </div>
+    <div class="card bad">
+      <h4 class="r">C-2 · MinIO 不可依賴</h4>
+      <p>物件儲存只有 MinIO 且不穩定：<b>不採存算分離</b>，任何方案不得把 MinIO 當關鍵依賴。</p>
+    </div>
+    <div class="card warn">
+      <h4 class="w">C-3 · RPO/RTO 未定義</h4>
+      <p>以「<b>分鐘級 RPO、半自動切換</b>」為工作假設；各方案標註不同等級下的適配性。正式定義需業務方拍板。</p>
+    </div>
+  </div>
+  <div class="pband"><span class="pbl">評估基準</span>兩座資料一致（可容忍落後）· 故障可切換 · <b>failback 流程具體</b> · DDL/權限/UDF 雙邊一致 · 持續對帳 · JDBC client 低侵入 · 維護成本可控</div>
+  <div class="take">所有判斷都以這三條約束為前提——<b>違反者直接出局或標註前提成本</b>。</div>
+</section>
+
+<!-- ============ 3 FINDING: CCR ============ -->
+<section class="slide" id="s3" aria-labelledby="s3t">
+  <p class="meta"><span class="num">03</span><span class="part">PART 2 · 關鍵查證</span></p>
+  <h2 class="h2" id="s3t">查證 ①：C-1 不只是內部消息——<strong>CCR 的公開訊號同樣惡化</strong></h2>
+  <div class="facts">
+    <div class="fact"><span class="fk">F-1</span><span>Apache Doris 官網 <b>2026-07-29</b> 把 CCR 文件從 3.x / 4.x / dev 文件樹<b>整批下架</b>（doris-website PR #4018，92 個檔案），只剩 2.1 文件保留，且無任何 deprecation 說明。</span></div>
+    <div class="fact"><span class="fk">F-2</span><span><code class="mono">selectdb/ccr-syncer</code>：最後 commit <b>2026-04-09</b>（4.5 個月停滯）、2026 年僅 5 個 commit、活躍 maintainer 約 <b>2 人</b>、從未發過 GitHub Release。</span></div>
+    <div class="fact warn"><span class="fk">F-3</span><span>SelectDB <b>Enterprise</b> 文件仍完整保留 CCR、持續出 binary——訊號指向「<b>開源側淡出、商業側承接</b>」。Doris 4.x 的替代機制 Binlog/Table Stream 仍是 Preview，未 GA。</span></div>
+    <div class="fact warn"><span class="fk">F-4</span><span>版本鐵律：Syncer 2.1.8 / 3.0.4 起<b>不再支援 Doris 2.0</b>——若現行叢集是 2.0.x，CCR 路線連版本門檻都過不了。</span></div>
+  </div>
+  <div class="take">對外報告可以直接引用公開證據，<b>不必搬內部消息</b>——CCR 不適合再當長期依賴。</div>
+</section>
+
+<!-- ============ 4 FINDING: CONNECTOR ============ -->
+<section class="slide" id="s4" aria-labelledby="s4t">
+  <p class="meta"><span class="num">04</span><span class="part">PART 2 · 關鍵查證</span></p>
+  <h2 class="h2" id="s4t">查證 ②：Spark connector <strong>給不了 exactly-once</strong>——冪等只能靠表模型</h2>
+  <div class="cols2">
+    <div class="card bad">
+      <h4 class="r">官方自承非 exactly-once</h4>
+      <div class="ct">doris-spark-connector PR #364 · 2026-07</div>
+      <ul>
+        <li>「stream load write path is <b>not exactly-once</b> across a client-side retry」——官方原文</li>
+        <li>修復（retry 重用 label）<b>尚未包含在任何 release</b>（最新 26.0.0 為 2026-04）</li>
+      </ul>
+    </div>
+    <div class="card bad">
+      <h4 class="r">Label 非決定性</h4>
+      <div class="ct">含 timestamp + JVM 序號</div>
+      <ul>
+        <li>job <b>restart 後重放</b>同段 offsets → 全新 label，Doris label 去重完全擋不住</li>
+        <li>對照：Flink connector 用 checkpoint id 綁 label 才有 exactly-once，Spark 側無等價機制</li>
+      </ul>
+    </div>
+    <div class="card warn">
+      <h4 class="w">2PC 的真實定位</h4>
+      <div class="ct">sink.enable-2pc · 預設 false</div>
+      <ul>
+        <li>只保 <b>micro-batch 原子可見</b>；epoch 去重僅存 driver 記憶體、跨 restart 不保留</li>
+        <li>曾有 txn 超時被清、commit 失敗<b>不拋例外</b>的無聲丟數 bug（issue #205）</li>
+      </ul>
+    </div>
+    <div class="card warn">
+      <h4 class="w">Label 去重窗口太小</h4>
+      <div class="ct">streaming_label_keep_max_second</div>
+      <ul>
+        <li>高頻導入類 label 保留<b>預設僅 12 小時</b>、per-DB 上限 2000 個</li>
+        <li>不能作為長時間 failback 追資料的冪等依據</li>
+      </ul>
+    </div>
+  </div>
+  <div class="take warn">結論：<b>冪等必須由表模型承擔</b>——Unique Key（Merge-on-Write）重放天然收斂；Duplicate / SUM Aggregate 重放必髒。</div>
+</section>
+
+<!-- ============ 5 FOUR OPTIONS ============ -->
+<section class="slide" id="s5" aria-labelledby="s5t">
+  <p class="meta"><span class="num">05</span><span class="part">PART 3 · 方案總覽</span></p>
+  <h2 class="h2" id="s5t">四個候選方案，<strong>一頁判定</strong></h2>
+  <div class="cols4">
+    <div class="card bad">
+      <h4 class="d">① Proxy + CCR</h4>
+      <div class="ct">主從複製</div>
+      <p>單寫 A 座、CCR 同步到 B。DDL 自動同步是獨有優點——但 C-1 下要自己養 fork。</p>
+      <p><span class="chip r">不推薦常駐</span></p>
+      <p style="font-size:17px"><span class="chip g">可當 failback 重建工具</span></p>
+    </div>
+    <div class="card bad">
+      <h4 class="d">② Client 雙寫</h4>
+      <div class="ct">同 job 雙 sink</div>
+      <p>同一個 Spark job 寫兩座 + client library 決定 query 路由。失敗域耦合、client 全要改。</p>
+      <p><span class="chip r">排除</span></p>
+    </div>
+    <div class="card accent">
+      <h4 class="t">③ 上游雙路 Ingestion</h4>
+      <div class="ct">雙活 · 源頭重放</div>
+      <p>兩座各跑<b>獨立</b> Streaming job 消費同一 Kafka topic；query 由 proxy 切換。</p>
+      <p><span class="chip t">推薦主線</span></p>
+    </div>
+    <div class="card warn">
+      <h4 class="d">④ Backup/Restore 冷備</h4>
+      <div class="ct">定期快照</div>
+      <p>repository 只支援 S3/HDFS（C-2 卡死）；RPO 小時～天級，不符假設。</p>
+      <p><span class="chip w">僅兜底互補</span></p>
+    </div>
+  </div>
+  <div class="take">接下來三頁講清楚：①②為什麼出局、<b>③憑什麼贏</b>。</div>
+</section>
+
+<!-- ============ 6 OPTION 1 CCR ============ -->
+<section class="slide" id="s6" aria-labelledby="s6t">
+  <p class="meta"><span class="num">06</span><span class="part">PART 3 · 方案評估</span></p>
+  <h2 class="h2" id="s6t">方案① Proxy + CCR：技術能跑，<strong>但你要養它一輩子</strong></h2>
+  <div class="dg center">
+    <div class="node"><div class="t">Spark job</div><div class="s">單寫路徑</div></div>
+    <div class="arrow">→</div>
+    <div class="node hl"><div class="t">A 座（主）</div><div class="s">FE binlog</div></div>
+    <div class="arrow">→<label class="lbl">ccr-syncer (fork)</label></div>
+    <div class="node"><div class="t">B 座（備）</div><div class="s">is_being_synced<br>不可寫</div></div>
+  </div>
+  <div class="cols2" style="margin-top:20px">
+    <div class="card bad">
+      <h4 class="r">Fork 維護 = 永續跟版</h4>
+      <ul>
+        <li>手寫核心 <b>~2.2 萬行 Go</b>（單檔 job.go 近 5,000 行狀態機）</li>
+        <li>內嵌 <b>~1.1 萬行 Doris Thrift IDL</b>——Doris 每次升級都要 regenerate + 適配 + 用完整雙叢集跑 regression</li>
+        <li>已知靜默 bug：表級任務<b>忽略上游 DROP TABLE</b>（#654）</li>
+      </ul>
+    </div>
+    <div class="card bad">
+      <h4 class="r">HA 語意先天不足</h4>
+      <ul>
+        <li>非同步複製：<b>RPO 必然非零</b>（正常 lag 秒～33s）；上游 FE 切主會觸發<b>整庫 full sync</b>，期間 RPO 惡化到小時級</li>
+        <li><b>無反向同步</b>：failback 只能反向重建全量，官方無 runbook</li>
+        <li>B 座誤寫的資料會在下次 full sync 被<b>原子替換洗掉</b></li>
+      </ul>
+    </div>
+  </div>
+  <div class="take"><b>判定：不推薦常駐</b>——降級為「超出 Kafka retention 時的一次性重建工具」，用完即拆。</div>
+</section>
+
+<!-- ============ 7 OPTION 2 DUAL WRITE ============ -->
+<section class="slide" id="s7" aria-labelledby="s7t">
+  <p class="meta"><span class="num">07</span><span class="part">PART 3 · 方案評估</span></p>
+  <h2 class="h2" id="s7t">方案② Client 雙寫：<strong>雙寫的位置放錯了</strong></h2>
+  <p class="sub">現況只有 Spark 一條寫入路徑，「client 雙寫」實際上 = <b>同一個 job 內掛兩個 sink</b>。這與方案③的差別是「同 job 雙寫」vs「兩個獨立 job」——逐項比完全面落敗：</p>
+  <div class="cols3">
+    <div class="card bad">
+      <h4 class="r">失敗域耦合</h4>
+      <ul>
+        <li>B 座變慢 → <b>背壓拖垮整條 pipeline</b>，連 A 座一起慢</li>
+        <li>方案③兩條 pipeline 完全隔離</li>
+      </ul>
+    </div>
+    <div class="card bad">
+      <h4 class="r">半批失敗無法收斂</h4>
+      <ul>
+        <li>A 成功 B 失敗：跳過 → 分歧且 checkpoint 已前進，<b>無法靠源頭重放對齊</b></li>
+        <li>整批重試 → 冪等前提照樣要，等於沒省</li>
+      </ul>
+    </div>
+    <div class="card bad">
+      <h4 class="r">Query library 侵入全部 client</h4>
+      <ul>
+        <li>所有 JDBC 接入方都要改；<b>非 Java client 無解</b></li>
+        <li>直接違反「不改連線設定」需求——路由本該收斂到 proxy 層</li>
+      </ul>
+    </div>
+  </div>
+  <div class="pband"><span class="pbl">業界教訓</span>京東：Flink/Spark 雙寫兩座 ClickHouse——公開承認「只能最終一致、業務端複雜度高、切換分鐘級」。攜程也記錄過雙寫一致性做不到。</div>
+  <div class="take">雙寫值得做的位置在 <b>Kafka 之後的兩條獨立鏈路</b>——那就是方案③。</div>
+</section>
+
+<!-- ============ 8 OPTION 3 ARCH ============ -->
+<section class="slide" id="s8" aria-labelledby="s8t">
+  <p class="meta"><span class="num">08</span><span class="part">PART 4 · 推薦方案</span></p>
+  <h2 class="h2" id="s8t">方案③ 上游雙路 Ingestion：<strong>三個狀態，一張圖</strong></h2>
+  <div class="fig" data-fig="FIG.01 — 正常態 · Kafka 是唯一事實來源">
+    <div class="dg center" style="margin-top:0">
+      <div class="node hl"><div class="t">Kafka</div><div class="s">single source of truth</div></div>
+      <div class="arrow">⇉<label class="lbl">獨立 checkpoint ×2</label></div>
+      <div class="node"><div class="t">Job A → A 座</div><div class="s">獨立消費進度</div></div>
+      <div class="node"><div class="t">Job B → B 座</div><div class="s">獨立消費進度</div></div>
+      <div class="arrow dim">←<label class="lbl">query</label></div>
+      <div class="node"><div class="t">HAProxy VIP</div><div class="s">主指 A 座</div></div>
+    </div>
+  </div>
+  <div class="cols2" style="margin-top:18px">
+    <div class="card accent">
+      <h4 class="t">故障態：A 整座掛</h4>
+      <ul>
+        <li>Job A 停擺（無妨）；<b>Job B 完全不受影響、持續寫入</b></li>
+        <li>Ingestion 側<b>零切換動作</b>；query 半自動切到 B（proxy 翻轉）</li>
+      </ul>
+    </div>
+    <div class="card accent">
+      <h4 class="t">恢復態：A 修好歸隊</h4>
+      <ul>
+        <li>重啟 Job A，從<b>自己的 checkpoint</b> 續讀 Kafka 追平</li>
+        <li>對帳確認追平 → 低峰期把 query 切回</li>
+      </ul>
+    </div>
+  </div>
+  <div class="take">Spark 的 Kafka source 自管 offset、不依賴 consumer group——<b>兩條鏈路天然互不干擾</b>。</div>
+</section>
+
+<!-- ============ 9 WHY IT WINS ============ -->
+<section class="slide" id="s9" aria-labelledby="s9t">
+  <p class="meta"><span class="num">09</span><span class="part">PART 4 · 推薦方案</span></p>
+  <h2 class="h2" id="s9t">憑什麼贏：<strong>四個結構性優勢</strong></h2>
+  <div class="cols2">
+    <div class="card accent">
+      <h4 class="t">① Ingestion RPO ≈ 0、零切換</h4>
+      <p>備援座<b>平時就在寫</b>，A 故障不會讓 B 丟任何資料；唯一的「落後」是 B 自身秒級處理延遲。CCR 類主從複製在數學上做不到這件事。</p>
+    </div>
+    <div class="card accent">
+      <h4 class="t">② 唯一同時避開 C-1 與 C-2</h4>
+      <p>不依賴 CCR、不碰物件儲存。四個方案裡<b>只有它</b>不用對任何一條硬性約束付前提成本。</p>
+    </div>
+    <div class="card accent">
+      <h4 class="t">③ 現況正是理想前提</h4>
+      <p>寫入 <b>100% 走 Kafka + Spark</b>、無旁路——「源頭重放」不需要對任何例外路徑打補丁。這個條件很多團隊沒有，我們剛好有。</p>
+    </div>
+    <div class="card accent">
+      <h4 class="t">④ 元件全部自主可控</h4>
+      <p>新增的只有第二套 job、proxy 層、對帳工具——<b>常規工程</b>，沒有外部黑盒、沒有 fork 要養。</p>
+    </div>
+  </div>
+  <div class="take">京東（雙寫兩座 OLAP）與攜程（多寫 + 一致性巡檢 job）都驗證過<b>同構模式的長期可運維性</b>。</div>
+</section>
+
+<!-- ============ 10 PRECONDITIONS ============ -->
+<section class="slide" id="s10" aria-labelledby="s10t">
+  <p class="meta"><span class="num">10</span><span class="part">PART 4 · 推薦方案</span></p>
+  <h2 class="h2" id="s10t">代價講清楚：<strong>三個硬前提</strong>——沒滿足前方案不成立</h2>
+  <div class="cols3">
+    <div class="card warn">
+      <h4 class="w">① 表模型收斂 Unique Key MoW</h4>
+      <ul>
+        <li>重放冪等<b>只在 Unique Key（Merge-on-Write）成立</b>——UPSERT 覆蓋、天然收斂</li>
+        <li>Duplicate 表重放 = 重複行；SUM Aggregate = 重複累加</li>
+        <li>注意：2.0 預設是 Merge-on-Read，要<b>顯式開 MoW</b>；2.1 起才是預設</li>
+      </ul>
+    </div>
+    <div class="card warn">
+      <h4 class="w">② Kafka retention 政策</h4>
+      <ul>
+        <li>retention ≥ <b>最長離線時間 + 追平耗時 + 餘量</b></li>
+        <li>預設 7 天不夠，建議關鍵 topic 拉到 <b>14–30 天</b></li>
+        <li>Kafka 升格為兩座的共同上游——其 HA 等級要重新審視</li>
+      </ul>
+    </div>
+    <div class="card warn">
+      <h4 class="w">③ 對帳先行</h4>
+      <ul>
+        <li>雙路寫入<b>沒有複製協議兜底</b>——分 partition 的 count + sum(hash) 對帳是唯一一致性防線</li>
+        <li>搭配 DDL 統一入口（版本化 migration 對兩座執行 + drift 偵測），涵蓋權限/UDF</li>
+      </ul>
+    </div>
+  </div>
+  <div class="take warn">最大改造項是<b>表模型盤點與遷移</b>——工作量取決於現況有多少 Duplicate / SUM 表，PoC 第一項就是它。</div>
+</section>
+
+<!-- ============ 11 QUERY FAILOVER ============ -->
+<section class="slide" id="s11" aria-labelledby="s11t">
+  <p class="meta"><span class="num">11</span><span class="part">PART 4 · 推薦方案</span></p>
+  <h2 class="h2" id="s11t">Query failover：<strong>HAProxy 勝出</strong>——client 連 VIP、設定零修改</h2>
+  <div class="tbl">
+    <div class="trow head"><div>能力</div><div>HAProxy</div><div>ProxySQL</div><div>Nginx（開源）</div><div>JDBC URL</div></div>
+    <div class="trow"><div>Doris 官方範例</div><div class="win">有</div><div>有</div><div>有</div><div>有</div></div>
+    <div class="trow"><div>Active check</div><div class="win">開源即有（inter/rise/fall）</div><div>connect/ping</div><div class="lose">無——僅 passive，須先失敗才摘除</div><div class="lose">只看連線錯誤</div></div>
+    <div class="trow"><div>查詢級健康</div><div class="win">external-check 跑真實 SQL + 資料新鮮度</div><div class="cond">相容性有坑（非真 MySQL）</div><div class="lose">無</div><div class="lose">無</div></div>
+    <div class="trow"><div>侵入性</div><div class="win">VIP，client 零修改</div><div class="win">同左</div><div class="win">同左</div><div class="lose">每個 client 都要改</div></div>
+  </div>
+  <div class="cols2" style="margin-top:16px">
+    <div class="card">
+      <h4 class="d">「整座故障」三層偵測</h4>
+      <ul>
+        <li><b>FE 層</b>：全部 9030 不可連 / 失去 quorum（3 FE 掛 2 即無法選主）</li>
+        <li><b>查詢層</b>：FE 可連但真實 SQL 持續失敗（BE 大面積掛）</li>
+        <li><b>新鮮度層</b>：ingestion 水位心跳表停滯</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 class="d">Proxy 自身 HA 與決策一致</h4>
+      <ul>
+        <li>HAProxy ×2 + keepalived VRRP VIP；<b>nopreempt</b> 防回搶抖動、防火牆放行 VRRP</li>
+        <li>切換決策集中化：external-check 讀<b>集中式主座 flag</b>——proxy 只執行、不判斷，半自動切換一個決策點</li>
+      </ul>
+    </div>
+  </div>
+  <div class="take">半自動：<b>告警 + 人工確認 → 翻 flag</b>；「A 全滅」情境可用 backup server 全自動接手。</div>
+</section>
+
+<!-- ============ 12 FAILBACK ============ -->
+<section class="slide" id="s12" aria-labelledby="s12t">
+  <p class="meta"><span class="num">12</span><span class="part">PART 4 · 推薦方案</span></p>
+  <h2 class="h2" id="s12t">Failback：常規走 checkpoint，<strong>超窗才動用重建</strong></h2>
+  <div class="fig" data-fig="FIG.02 — 常規路徑 · Kafka retention 窗口內">
+    <div class="dg center" style="margin-top:0">
+      <div class="node"><div class="t">A 座修復</div><div class="s">硬體/系統排除</div></div>
+      <div class="arrow">→</div>
+      <div class="node hl"><div class="t">重啟 Job A</div><div class="s">從自己 checkpoint 續讀</div></div>
+      <div class="arrow">→<label class="lbl">追平</label></div>
+      <div class="node"><div class="t">追平判定</div><div class="s">水位差 &lt; 閾值<br>+ 對帳通過</div></div>
+      <div class="arrow">→</div>
+      <div class="node"><div class="t">低峰切回</div><div class="s">翻主座 flag</div></div>
+    </div>
+  </div>
+  <div class="fig warn" data-fig="FIG.03 — 超窗 / checkpoint 遺失 · 整座重建" style="margin-top:22px">
+    <div class="cols2" style="margin-top:0">
+      <div class="card warn" style="border-left:none">
+        <h4 class="w">路徑 A：CCR 一次性搬遷</h4>
+        <p>以活座為源全量搬到重建座，<b>用完即拆、不常駐</b>——C-1 成本壓到最低。前提：Doris 2.1.8+。</p>
+      </div>
+      <div class="card warn" style="border-left:none">
+        <h4 class="w">路徑 B：Multi-Catalog INSERT INTO SELECT</h4>
+        <p>分 partition 搬，慢但<b>零額外元件</b>（錢大媽採 CCR 前的做法）。fork 不堪用時的保底。</p>
+      </div>
+    </div>
+  </div>
+  <div class="take">重建完成後把 checkpoint 重置到<b>重建涵蓋的 offset 水位</b>，再啟動增量——縫合點靠 Unique Key 冪等吸收重疊。</div>
+</section>
+
+<!-- ============ 13 COMPARISON ============ -->
+<section class="slide" id="s13" aria-labelledby="s13t">
+  <p class="meta"><span class="num">13</span><span class="part">PART 5 · 總結</span></p>
+  <h2 class="h2" id="s13t">比較總表：<strong>六個決勝維度</strong></h2>
+  <div class="tbl">
+    <div class="trow head"><div></div><div>① CCR (fork)</div><div>② Client 雙寫</div><div>③ 雙路 Ingestion</div><div>④ 冷備</div></div>
+    <div class="trow"><div>Ingestion RPO</div><div class="cond">秒～分鐘（非零）</div><div>≈0（但會分歧）</div><div class="win">≈ 0</div><div class="lose">小時～天</div></div>
+    <div class="trow"><div>Failover 動作</div><div class="cond">desync + proxy + 切 Spark 端點</div><div class="lose">library 推廣</div><div class="win">僅 query 切換</div><div class="lose">restore 全套</div></div>
+    <div class="trow"><div>Failback</div><div class="lose">反向全量重建（無官方流程）</div><div class="lose">無源頭對齊</div><div class="win">checkpoint 續讀追平</div><div class="cond">反向 restore</div></div>
+    <div class="trow"><div>DDL / 權限 / UDF</div><div class="cond">DDL 自動（限制多）；權限/UDF 仍自管</div><div>全自管</div><div class="cond">全自管（統一 pipeline）</div><div>隨快照</div></div>
+    <div class="trow"><div>關鍵前提</div><div class="lose">fork 自維護 + Doris ≥2.1.8</div><div class="lose">改所有 client</div><div class="cond">表模型 MoW + retention</div><div class="lose">需 HDFS（C-2 卡死）</div></div>
+    <div class="trow"><div>長期維運</div><div class="lose">高：每次升級自行驗證相容</div><div class="lose">高：耦合排障</div><div class="win">中：常規 pipeline</div><div class="win">低</div></div>
+  </div>
+  <div class="take">結論不變：<b>③ 雙路 Ingestion</b> 為主線，① 降級為重建工具，② 排除，④ 兜底。</div>
+</section>
+
+<!-- ============ 14 RISKS ============ -->
+<section class="slide" id="s14" aria-labelledby="s14t">
+  <p class="meta"><span class="num">14</span><span class="part">PART 5 · 總結</span></p>
+  <h2 class="h2" id="s14t">誠實面對：<strong>方案③防什麼、不防什麼</strong></h2>
+  <div class="cols2">
+    <div class="card">
+      <h4 class="d">殘餘風險（要管理）</h4>
+      <ul>
+        <li><b>Kafka 是共同上游單點</b>：掛了兩座都停寫（query 不受影響）——Kafka 的 replication / min.insync.replicas 升格為一級依賴</li>
+        <li><b>靜默漂移</b>：兩條 pipeline 的 code/設定/UDF 版本漂移不會報錯——唯一防線是對帳 + 同 artifact 部署紀律</li>
+        <li><b>雙座同時異常</b>：需實體隔離（機櫃/電力/網路）壓低相關性</li>
+      </ul>
+    </div>
+    <div class="card bad">
+      <h4 class="r">明確不防（要別的防線）</h4>
+      <ul>
+        <li><b>程式 bug 同毒兩座</b>：兩座跑同一份 code——本方案防機器故障、不防邏輯錯誤；靠 Kafka retention 重放修復＋（未來有 HDFS 時）週級冷備</li>
+        <li><b>Split-brain</b>：寫入側天然無主從爭議；殘留在 query 決策層——用集中式 flag + VRRP 單活收斂</li>
+      </ul>
+    </div>
+  </div>
+  <div class="pband"><span class="pbl">切換體感</span>切到 B 座瞬間可能讀到<b>落後數秒</b>的資料、與剛才 A 座結果不完全一致——多數分析場景可接受，<b>需業務方明確確認</b>。</div>
+  <div class="take">「都在寫、但寫得不一樣」是這個架構唯一的深水區——<b>所以對帳不是配件，是方案的一部分</b>。</div>
+</section>
+
+<!-- ============ 15 POC ============ -->
+<section class="slide" id="s15" aria-labelledby="s15t">
+  <p class="meta"><span class="num">15</span><span class="part">PART 6 · 下一步</span></p>
+  <h2 class="h2" id="s15t">PoC 清單：<strong>P01 是 go / no-go</strong></h2>
+  <div class="pocs">
+    <div class="poc first"><span class="pn">P01</span><span><b>表模型盤點 + MoW 壓測</b>——Duplicate/SUM 表有多少、主鍵可得性、MoW 導入吞吐 vs 現況。<b>直接決定方案成立與改造規模。</b></span></div>
+    <div class="poc"><span class="pn">P02</span><span><b>重放冪等驗證</b>——kill -9 重啟 + 回捲 checkpoint 大範圍重放，對帳驗證零重複零遺漏</span></div>
+    <div class="poc"><span class="pn">P03</span><span><b>2PC 行為驗證</b>——延遲影響、長 batch 逼近 txn timeout（#205 情境）</span></div>
+    <div class="poc"><span class="pn">P04</span><span><b>external-check 腳本</b>——三層探測 + 集中 flag；量測斷電到切換完成的實際 RTO</span></div>
+    <div class="poc"><span class="pn">P05</span><span><b>keepalived VIP 演練</b>——nopreempt、VRRP 防火牆、各語言連線池重連行為</span></div>
+    <div class="poc"><span class="pn">P06</span><span><b>雙座落後量測</b>——水位心跳表上線，給業務 p50/p99 的「切換回退幾秒」實數</span></div>
+    <div class="poc"><span class="pn">P07</span><span><b>追平演練</b>——停 24h 重啟，量測追平耗時 → 反推 Kafka retention 目標值</span></div>
+    <div class="poc"><span class="pn">P08</span><span><b>整座重建演練</b>——CCR 一次性搬遷 vs Multi-Catalog 兩條路各走一遍</span></div>
+    <div class="poc"><span class="pn">P09</span><span><b>對帳工具 MVP</b>——分 partition count + sum(hash)，跑滿一週看誤報率</span></div>
+    <div class="poc"><span class="pn">P10</span><span><b>DDL pipeline</b>——migration 對兩座執行 + 失敗阻斷 + 每日 drift 偵測</span></div>
+  </div>
+  <div class="take">P01 → P02 → P07 三項做完，就能對「方案成不成立、retention 要買多少」給出<b>有數字的答案</b>。</div>
+</section>
+
+<!-- ============ 16 OPEN QUESTIONS ============ -->
+<section class="slide" id="s16" aria-labelledby="s16t">
+  <p class="meta"><span class="num">16</span><span class="part">PART 6 · 下一步</span></p>
+  <h2 class="h2" id="s16t">帶走四個問題——<strong>需要業務方 / 管理層拍板</strong></h2>
+  <div class="cols2">
+    <div class="card warn">
+      <h4 class="w">Q1 · RPO / RTO 正式定義</h4>
+      <p>本評估以「分鐘級 RPO、半自動切換」為假設。若要秒級 RTO 全自動，query 層要追加自動決策——風險升級，建議分階段。</p>
+    </div>
+    <div class="card warn">
+      <h4 class="w">Q2 · 切換時的讀一致性容忍</h4>
+      <p>切換瞬間可能讀到落後數秒的資料——報表/分析通常可接受；<b>交易對帳類查詢需明確確認</b>。</p>
+    </div>
+    <div class="card warn">
+      <h4 class="w">Q3 · 兩座的實體隔離度</h4>
+      <p>同機房同電力？機房級事件下兩座相關性高，方案價值打折；跨機房則要另評 Kafka 位置與網路。</p>
+    </div>
+    <div class="card warn">
+      <h4 class="w">Q4 · 表模型改造的業務影響</h4>
+      <p>Duplicate 補主鍵、SUM 表改明細——涉及下游查詢改寫的範圍與排期。</p>
+    </div>
+  </div>
+  <div class="note" style="margin-top:20px">配套提醒：若現行為 Doris 2.0.x，建議把<b>升級 2.1.8+</b> 納入本架構配套（CCR 重建工具與 MoW 預設都綁 2.1+）。完整報告（各方案 10 問逐項回答、40 項來源）另附連結。</div>
+  <div class="take"><b>模型負責算，架構負責活。</b>先做 P01——那是整個方案的 go / no-go。</div>
+</section>
+
+<!-- ============ CHROME ============ -->
+<div class="progress"><div class="progress-bar" id="progressbar"></div></div>
+<div class="counter" id="counter">01 / 16</div>
+<div class="hint">⬅️➡️ 換頁 <span class="hsep">·</span> 🗺️ O 總覽 <span class="hsep">·</span> ⛶ F 全螢幕 <span class="hsep">·</span> ❓ 說明</div>
+<div class="nav">
+  <button class="navbtn" id="prevBtn" aria-label="上一頁">‹</button>
+  <button class="navbtn" id="nextBtn" aria-label="下一頁">›</button>
+</div>
+
+<div id="overview" aria-hidden="true">
+  <h2>總覽</h2>
+  <div class="ovgrid" id="ovgrid"></div>
+</div>
+<div id="help" aria-hidden="true">
+  <div class="help-title">操作說明 ✨</div>
+  <div class="help-grid">
+    <div class="hcard"><span class="hicon">⬅️➡️</span><span class="hkey"><kbd>←</kbd> <kbd>→</kbd></span><span class="hdesc">換頁</span></div>
+    <div class="hcard"><span class="hicon">🖱️</span><span class="hkey">點左右兩側</span><span class="hdesc">換頁</span></div>
+    <div class="hcard"><span class="hicon">📱</span><span class="hkey">左右滑動</span><span class="hdesc">換頁</span></div>
+    <div class="hcard"><span class="hicon">🗺️</span><span class="hkey"><kbd>O</kbd></span><span class="hdesc">總覽</span></div>
+    <div class="hcard"><span class="hicon">⛶</span><span class="hkey"><kbd>F</kbd></span><span class="hdesc">全螢幕</span></div>
+    <div class="hcard"><span class="hicon">🏠</span><span class="hkey"><kbd>Home</kbd></span><span class="hdesc">第一頁</span></div>
+    <div class="hcard"><span class="hicon">🏁</span><span class="hkey"><kbd>End</kbd></span><span class="hdesc">最後一頁</span></div>
+    <div class="hcard"><span class="hicon">❌</span><span class="hkey"><kbd>Esc</kbd></span><span class="hdesc">關閉</span></div>
+  </div>
+</div>
+
+</div><!-- /stage -->
+</div><!-- /viewport -->
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  var current = 0;
+  var progress = document.getElementById('progressbar');
+  var counter = document.getElementById('counter');
+  var overview = document.getElementById('overview');
+  var help = document.getElementById('help');
+  var ovgrid = document.getElementById('ovgrid');
+
+  function show(n, updateHash){
+    if(n < 0) n = 0;
+    if(n > total - 1) n = total - 1;
+    current = n;
+    slides.forEach(function(s, i){ s.classList.toggle('is-active', i === n); });
+    if(progress) progress.style.width = ((n + 1) / total * 100) + '%';
+    if(counter) counter.textContent = String(n + 1).padStart(2,'0') + ' / ' + String(total).padStart(2,'0');
+    if(updateHash !== false){
+      try{ history.replaceState(null, '', '#s' + (n + 1)); }catch(e){}
+    }
+    if(overview) overview.classList.remove('open');
+    if(help) help.classList.remove('open');
+  }
+
+  function next(){ show(current + 1); }
+  function prev(){ show(current - 1); }
+
+  slides.forEach(function(s, i){
+    var t = s.querySelector('.h2');
+    var title = t ? t.textContent.trim() : ('第 ' + (i+1) + ' 頁');
+    var btn = document.createElement('button');
+    btn.className = 'ovbtn';
+    btn.innerHTML = '<div class="on">' + String(i+1).padStart(2,'0') + '</div><div class="ot">' + title + '</div>';
+    btn.addEventListener('click', function(){ show(i); });
+    ovgrid.appendChild(btn);
+  });
+
+  slides.forEach(function(s, i){
+    var numEl = s.querySelector('.num');
+    var num = numEl ? numEl.textContent.trim() : String(i + 1).padStart(2, '0');
+    var g = document.createElement('span');
+    g.className = 'gnum';
+    g.textContent = num;
+    s.insertBefore(g, s.firstChild);
+  });
+
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && ((overview && overview.classList.contains('open')) || (help && help.classList.contains('open')))){
+      show(current, false); return;
+    }
+    switch(e.key){
+      case 'ArrowRight': case 'ArrowDown': case 'PageDown': case ' ': next(); e.preventDefault(); break;
+      case 'ArrowLeft': case 'ArrowUp': case 'PageUp': prev(); e.preventDefault(); break;
+      case 'Home': show(0); e.preventDefault(); break;
+      case 'End': show(total - 1); e.preventDefault(); break;
+      case 'o': case 'O': overview.classList.toggle('open'); e.preventDefault(); break;
+      case 'f': case 'F': {
+        var de = document.documentElement;
+        var req = de.requestFullscreen || de.webkitRequestFullscreen;
+        var exit = document.exitFullscreen || document.webkitExitFullscreen;
+        var isFs = document.fullscreenElement || document.webkitFullscreenElement;
+        if(req){
+          if(isFs){ if(exit){ exit.call(document); } }
+          else { var pr = req.call(de); if(pr && pr.catch){ pr.catch(function(){}); } }
+        }
+        e.preventDefault(); break;
+      }
+      case '?': help.classList.toggle('open'); e.preventDefault(); break;
+    }
+  });
+
+  document.querySelector('.stage').addEventListener('click', function(e){
+    if(overview && overview.classList.contains('open')) return;
+    var x = e.clientX / window.innerWidth;
+    if(x < 0.28){ prev(); }
+    else if(x > 0.72){ next(); }
+  });
+
+  var tx = null;
+  document.addEventListener('touchstart', function(e){ tx = e.changedTouches[0].clientX; }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    if(tx === null) return;
+    var dx = e.changedTouches[0].clientX - tx;
+    if(Math.abs(dx) > 60){ dx < 0 ? next() : prev(); }
+    tx = null;
+  }, {passive:true});
+
+  var nb = document.getElementById('nextBtn');
+  var pb = document.getElementById('prevBtn');
+  if(nb) nb.addEventListener('click', function(e){ e.stopPropagation(); next(); });
+  if(pb) pb.addEventListener('click', function(e){ e.stopPropagation(); prev(); });
+
+  window.addEventListener('hashchange', function(){
+    var m = location.hash.match(/^#s(\d+)$/);
+    if(m){ show(parseInt(m[1],10) - 1, false); }
+  });
+  var m0 = location.hash.match(/^#s(\d+)$/);
+  show(m0 ? parseInt(m0[1],10) - 1 : 0, false);
+})();
+</script>
+</body>
+</html>
