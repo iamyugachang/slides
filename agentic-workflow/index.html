@@ -540,6 +540,27 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 .triad .lane .lh{font-size:26px;font-weight:900;color:#eef4ff;line-height:1.25}
 .triad .lane .lb{font-size:18px;line-height:1.48;color:#b8cbe5}
 .triad .lane .mini-flow{margin-top:auto;background:#081b34;border-radius:8px;padding:14px 12px;text-align:center;font:700 16px 'IBM Plex Mono',monospace;color:#8fd0b5;line-height:1.5}
+.agent-control-map{display:grid;grid-template-columns:1.55fr .65fr;gap:18px;margin-top:22px}
+.loop-plant{height:438px;background:#091d39cc;border:1px solid #ffffff2d;border-radius:12px;padding:22px;position:relative}
+.loop-matrix{height:100%;display:grid;grid-template-columns:1fr 94px 1fr;grid-template-rows:1fr 82px 1fr;align-items:stretch;gap:8px}
+.loop-node2{border:1px solid #ffffff38;background:#0f2b52;border-radius:10px;padding:18px 20px;display:flex;flex-direction:column;justify-content:center;gap:8px;position:relative;z-index:1}
+.loop-node2.hot{border-color:#ff7a3c;background:#3b2b25}
+.loop-node2 .nk{font:800 15px 'IBM Plex Mono',monospace;letter-spacing:.13em;color:#8fb0dd}
+.loop-node2.hot .nk{color:#ff9a66}
+.loop-node2 .nh{font-size:28px;line-height:1.15;font-weight:900;color:#eef4ff}
+.loop-node2 .nb{font-size:17px;line-height:1.45;color:#a9bedb}
+.n-observe{grid-column:1;grid-row:1}.n-decide{grid-column:3;grid-row:1}.n-state{grid-column:1;grid-row:3}.n-act{grid-column:3;grid-row:3}
+.loop-arrow2{display:flex;align-items:center;justify-content:center;color:#ff7a3c;font-size:38px;font-weight:900}
+.a-right{grid-column:2;grid-row:1}.a-down{grid-column:3;grid-row:2}.a-left{grid-column:2;grid-row:3}.a-up{grid-column:1;grid-row:2}
+.loop-core{grid-column:2;grid-row:2;border:1px dashed #ff9a6688;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;font:800 14px 'IBM Plex Mono',monospace;line-height:1.25;color:#ffb27a}
+.owner-stack{display:grid;grid-template-rows:1.15fr 1fr 1fr;gap:12px}
+.owner-card{background:#0d2548cc;border:1px solid #ffffff25;border-radius:10px;padding:18px 20px;display:flex;flex-direction:column;justify-content:center;gap:7px}
+.owner-card.hot{border-color:#ff7a3c;background:#3b2b25cc}
+.owner-card .ok{font:800 14px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#8fb0dd}.owner-card.hot .ok{color:#ff9a66}
+.owner-card .oh{font-size:24px;font-weight:900;color:#eef4ff}.owner-card .ob{font-size:16px;line-height:1.42;color:#a9bedb}
+.runtime-rail{display:grid;grid-template-columns:1.25fr repeat(4,1fr);gap:8px;margin-top:14px;background:#07182e;border:1px solid #ffffff25;border-radius:10px;padding:11px}
+.runtime-seg{padding:11px 12px;border-left:2px solid #284d78;font:700 15px 'IBM Plex Mono',monospace;color:#a9bedb;line-height:1.35}
+.runtime-seg:first-child{border-left-color:#ff7a3c;color:#ffb27a}
 @media (max-width:900px) and (orientation:portrait){
   .adhd-map-slide{aspect-ratio:16/9;min-height:0!important;margin-bottom:18px!important}
   .adhd-map{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
@@ -549,6 +570,13 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   .control-grid,.control-grid.four,.triad{grid-template-columns:1fr;gap:12px}
   .control-card,.triad .lane{min-height:0}
   .control-card .b,.triad .lane .lb{overflow-wrap:anywhere}
+  .agent-control-map{grid-template-columns:1fr}
+  .loop-plant{height:auto}
+  .loop-matrix{height:auto;grid-template-columns:1fr;grid-template-rows:auto}
+  .loop-node2{grid-column:1!important;grid-row:auto!important}
+  .loop-arrow2,.loop-core{display:none}
+  .owner-stack{grid-template-rows:auto}
+  .runtime-rail{grid-template-columns:1fr}
 }
 
 </style>
@@ -641,37 +669,28 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 <section class="slide" id="s5" aria-labelledby="s5t">
   <p class="meta"><span class="num">05</span><span class="part">NAV ① · 系統邊界</span></p>
   <h2 class="h2" id="s5t">Agent 的最小單位：<strong>觀察結果後，再決定一次</strong></h2>
-  <div class="loopbox">
-    <div class="looprow">
-      <div class="loopnode"><div class="lt">Goal</div><div class="ls">成功／停止條件</div></div>
-      <div class="arrow" style="font-size:26px">→</div>
-      <div class="loopnode llm"><div class="lt">Decide</div><div class="ls">模型選 action／tool</div></div>
-      <div class="arrow" style="font-size:26px">→</div>
-      <div class="loopnode tool"><div class="lt">Act</div><div class="ls">Harness 執行工具</div></div>
-      <div class="arrow" style="font-size:26px">→</div>
-      <div class="loopnode"><div class="lt">Observe</div><div class="ls">結果寫回 state</div></div>
+  <div class="agent-control-map">
+    <div class="loop-plant">
+      <div class="loop-matrix">
+        <div class="loop-node2 n-observe"><div class="nk">01 · OBSERVE</div><div class="nh">讀取結果</div><div class="nb">工具輸出、錯誤、外部狀態<br>成為下一輪 evidence</div></div>
+        <div class="loop-arrow2 a-right">→</div>
+        <div class="loop-node2 hot n-decide"><div class="nk">02 · DECIDE</div><div class="nh">模型選下一步</div><div class="nb">讀取 state 與工具清單<br>選 action／branch／stop</div></div>
+        <div class="loop-arrow2 a-down">↓</div>
+        <div class="loop-node2 n-act"><div class="nk">03 · ACT</div><div class="nh">Harness 執行</div><div class="nb">驗證 tool call、套用 policy<br>讓副作用真的發生</div></div>
+        <div class="loop-arrow2 a-left">←</div>
+        <div class="loop-node2 n-state"><div class="nk">04 · UPDATE STATE</div><div class="nh">保存進度與證據</div><div class="nb">action、observation、成本、錯誤<br>寫入 state／trace</div></div>
+        <div class="loop-arrow2 a-up">↑</div>
+        <div class="loop-core">AGENT<br>CONTROL<br>LOOP</div>
+      </div>
     </div>
-    <div class="loopback">↺ 未達成 Goal：把 observation 交回模型，由它重新選下一步　｜　達成或撞到限制：停止</div>
+    <div class="owner-stack">
+      <div class="owner-card hot"><div class="ok">DECISION OWNER</div><div class="oh">MODEL</div><div class="ob">每輪根據 observation 重新選 action；這才是 Agent 的分界。</div></div>
+      <div class="owner-card"><div class="ok">STOP WHEN</div><div class="oh">Goal／限制成立</div><div class="ob">成功條件達成，或撞到 timeout、budget、max iterations。</div></div>
+      <div class="owner-card"><div class="ok">NOT THE SAME AS</div><div class="oh">CoT／固定 Loop</div><div class="ob">CoT 是單次推論內部思考；固定 loop 的下一步仍由 code 決定。</div></div>
+    </div>
   </div>
-  <div class="cols2">
-    <div class="card">
-      <h4 class="a">模型負責 Decision</h4>
-      <div class="ct">INTENT · TOOL · BRANCH · RETRY</div>
-      <ul>
-        <li>讀取目前 state 與可用工具</li>
-        <li>選擇下一個 action，或判斷可以停止</li>
-        <li>CoT 是這次推論內部的思考，<b>不是另一層 workflow</b></li>
-      </ul>
-    </div>
-    <div class="card">
-      <h4 class="d">Harness 負責 Runtime</h4>
-      <div class="ct">LOOP · STATE · TOOL DISPATCH · LIMITS</div>
-      <ul>
-        <li>註冊工具、保存狀態、執行 tool call</li>
-        <li>套用權限、timeout、預算、重試與停止條件</li>
-        <li>Workflow 也能使用同一套 runtime；差別仍在 decision owner</li>
-      </ul>
-    </div>
+  <div class="runtime-rail">
+    <div class="runtime-seg">HARNESS RUNTIME RAIL</div><div class="runtime-seg">TOOL DISPATCH</div><div class="runtime-seg">STATE STORE</div><div class="runtime-seg">POLICY · LIMITS</div><div class="runtime-seg">TRACE · EVAL</div>
   </div>
   <div class="take">不是「有 loop 就是 Agent」——<b>要看每一輪的下一步是不是由模型根據 observation 決定</b>。</div>
 </section>
