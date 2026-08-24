@@ -520,6 +520,58 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 
 /* === ADHD NAVIGATION REWRITE · P3–P10 === */
 
+/* === ARCHITECTURE-FIRST REBUILD · P3–P13 === */
+.af-shell{background:#081d39cc;border:2px solid #ff7a3c88;border-radius:12px;padding:14px 16px;margin-top:16px}
+.af-shell-head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:10px}
+.af-shell-title{font:900 20px 'IBM Plex Mono',monospace;color:#ff9a66;letter-spacing:.08em}
+.af-shell-sub{font-size:16px;color:#a9bedb}
+.af-rail{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:11px}
+.af-rail span{background:#102f59;border:1px solid #ffffff25;border-radius:5px;padding:7px 8px;text-align:center;font:700 13px 'IBM Plex Mono',monospace;color:#b8cbe5}
+.af-dual{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.af-lane{background:#0d2548cc;border:1px solid #ffffff2c;border-radius:9px;padding:13px 14px;min-height:270px}
+.af-lane.agent{border-color:#ff7a3c66;background:#302622aa}
+.af-lane-title{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
+.af-lane-title b{font-size:22px;color:#eef4ff}.af-lane-title small{font:700 13px 'IBM Plex Mono',monospace;color:#8fd0b5}
+.af-flow{display:flex;align-items:stretch;gap:6px}.af-flow .arrow{align-self:center;font-size:24px;color:#ff7a3c}
+.af-step{flex:1;background:#102f59;border:1px solid #ffffff25;border-radius:6px;padding:10px 8px;text-align:center;display:flex;flex-direction:column;justify-content:center;gap:5px;min-width:0}
+.af-step.hot{border-color:#ff7a3c;background:#3b2b25}
+.af-step .h{font-size:17px;font-weight:900;color:#eef4ff}.af-step .b{font-size:13px;line-height:1.3;color:#a9bedb}.af-step .cot{display:inline-block;margin-top:4px;border:1px dashed #8fd0b577;border-radius:4px;padding:3px;font:700 11px 'IBM Plex Mono',monospace;color:#8fd0b5}
+.af-loopback{margin-top:9px;background:#07182e;border-radius:5px;padding:7px;text-align:center;font:700 13px 'IBM Plex Mono',monospace;color:#ffb27a}
+.af-topology-strip{display:grid;grid-template-columns:170px repeat(4,1fr);gap:7px;margin-top:10px}
+.af-topology-strip span{background:#102f59;border:1px solid #ffffff22;border-radius:5px;padding:7px;text-align:center;font-size:13px;color:#c2d2e6}.af-topology-strip span:first-child{font:800 12px 'IBM Plex Mono',monospace;color:#ff9a66}
+.arch-compare{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:28px}
+.arch-panel{background:#0b2344cc;border:1px solid #ffffff2c;border-radius:11px;padding:20px;display:flex;flex-direction:column;gap:13px;min-height:480px}
+.arch-panel .ey{font:800 15px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#ff9a66}.arch-panel .ttl{font-size:28px;font-weight:900;color:#eef4ff}.arch-panel .desc{font-size:18px;line-height:1.48;color:#b8cbe5}
+.single-call{display:grid;grid-template-columns:1fr 44px 1.4fr 44px 1fr;align-items:center;gap:6px;margin-top:12px}.single-call .a{text-align:center;font-size:28px;color:#ff7a3c}
+.llm-call{background:#3b2b25;border:1px solid #ff7a3c;border-radius:10px;padding:22px 16px;text-align:center}.llm-call b{font-size:24px;color:#eef4ff}.llm-call .inside{margin-top:12px;border:1px dashed #8fd0b577;border-radius:6px;padding:9px;color:#8fd0b5;font-size:15px}
+.chain-flow{display:flex;align-items:stretch;gap:6px;margin-top:12px}.chain-flow .a{align-self:center;color:#ff7a3c;font-size:24px}.chain-box{flex:1;background:#102f59;border:1px solid #ffffff2b;border-radius:7px;padding:13px 8px;text-align:center}.chain-box b{font-size:18px;color:#eef4ff}.chain-box small{display:block;margin-top:7px;color:#8fd0b5;font-size:12px}
+.arch-fact{margin-top:auto;background:#07182e;border-radius:7px;padding:12px 14px;font-size:17px;line-height:1.45;color:#c2d2e6}.arch-fact b{color:#ffb27a}
+.agent-tech{display:grid;grid-template-columns:1.35fr .8fr;gap:16px;margin-top:24px}
+.agent-loop-tech{background:#091f3dcc;border:1px solid #ffffff2b;border-radius:11px;padding:18px;display:grid;grid-template-columns:1fr 68px 1fr;grid-template-rows:1fr 58px 1fr;gap:8px;min-height:485px}
+.alt-node{background:#102f59;border:1px solid #ffffff2c;border-radius:8px;padding:15px;display:flex;flex-direction:column;justify-content:center;gap:6px}.alt-node.hot{background:#3b2b25;border-color:#ff7a3c}.alt-node b{font-size:22px;color:#eef4ff}.alt-node small{font-size:15px;line-height:1.4;color:#a9bedb}
+.an1{grid-column:1;grid-row:1}.an2{grid-column:3;grid-row:1}.an3{grid-column:3;grid-row:3}.an4{grid-column:1;grid-row:3}
+.alt-arrow{display:flex;align-items:center;justify-content:center;color:#ff7a3c;font-size:34px;font-weight:900}.aa1{grid-column:2;grid-row:1}.aa2{grid-column:3;grid-row:2}.aa3{grid-column:2;grid-row:3}.aa4{grid-column:1;grid-row:2}
+.alt-core{grid-column:2;grid-row:2;border:1px dashed #ff9a6688;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;font:800 12px 'IBM Plex Mono',monospace;color:#ffb27a}
+.agent-side{display:grid;grid-template-rows:repeat(4,1fr);gap:9px}.agent-side .side-card{background:#0d2548cc;border:1px solid #ffffff25;border-radius:8px;padding:14px}.side-card .k{font:800 13px 'IBM Plex Mono',monospace;color:#ff9a66}.side-card .v{font-size:17px;line-height:1.35;color:#d6e1ef;margin-top:5px}
+.control-arch{display:grid;grid-template-columns:1fr 1.2fr 1fr;grid-template-rows:1fr 1fr;gap:16px;margin-top:30px;min-height:500px}
+.control-zone{background:#0d2548cc;border:1px solid #ffffff2b;border-radius:10px;padding:24px}.control-zone.hot{grid-column:2;grid-row:1/3;background:#3b2b25;border-color:#ff7a3c;display:flex;flex-direction:column;justify-content:center;text-align:center}.control-zone .k{font:800 14px 'IBM Plex Mono',monospace;color:#ff9a66}.control-zone .h{font-size:24px;font-weight:900;color:#eef4ff;margin-top:7px}.control-zone .b{font-size:17px;line-height:1.42;color:#b8cbe5;margin-top:8px}.control-zone.hot .loop{font:800 16px 'IBM Plex Mono',monospace;line-height:1.7;color:#ffcab3;margin-top:18px}
+.risk-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:30px}.risk-panel{background:#0b2344cc;border:1px solid #ffffff2b;border-radius:11px;padding:28px;min-height:470px}.risk-panel.bad{border-color:#d96a5c88}.risk-panel.good{border-color:#8fd0b588}.risk-title{font-size:26px;font-weight:900;color:#eef4ff}.risk-flow{display:flex;align-items:stretch;gap:7px;margin-top:20px}.risk-step{flex:1;background:#102f59;border-radius:7px;padding:22px 12px;text-align:center;color:#d5e1ef;font-size:18px;line-height:1.4;min-height:118px;display:flex;align-items:center;justify-content:center}.risk-step.bad{background:#41252a;border:1px solid #d96a5c}.risk-step.good{background:#17352f;border:1px solid #8fd0b5}.risk-arr{align-self:center;font-size:28px;color:#ff7a3c}.risk-fix{margin-top:24px;background:#07182e;border-radius:7px;padding:18px;color:#8fd0b5;font-size:18px;line-height:1.45}
+.topo4{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:24px}.topo-card2{background:#0b2344cc;border:1px solid #ffffff2b;border-radius:10px;padding:18px;display:grid;grid-template-columns:210px 1fr;gap:16px;align-items:center;min-height:220px}.topo-card2 svg{width:210px;height:155px}.topo-card2 h3{font-size:23px;color:#eef4ff;margin:0 0 7px}.topo-card2 p{font-size:16px;line-height:1.4;color:#b8cbe5;margin:0}.topo-card2 .choose{margin-top:9px;color:#8fd0b5;font-size:15px}
+.case-pair{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:24px}.case-card{background:#0b2344cc;border:1px solid #ffffff2b;border-radius:11px;padding:24px;display:flex;flex-direction:column;gap:16px;min-height:520px}.case-card.alert{border-top:4px solid #d96a5c}.case-card.lake{border-top:4px solid #8fd0b5}.case-card .case-no{font:800 14px 'IBM Plex Mono',monospace;color:#ff9a66}.case-card h3{font-size:28px;color:#eef4ff;margin:0}.case-flow{display:flex;align-items:stretch;gap:6px}.case-step{flex:1;background:#102f59;border-radius:6px;padding:12px 7px;text-align:center;font-size:15px;color:#d6e1ef;line-height:1.35}.case-gate{background:#3b2b25;border:1px solid #ff7a3c}.case-arrow{align-self:center;color:#ff7a3c;font-size:22px}.case-diff{display:grid;grid-template-columns:120px 1fr;gap:6px;margin-top:auto}.case-diff div{padding:8px 10px;background:#07182e;font-size:15px;color:#b8cbe5}.case-diff div:nth-child(odd){font:800 12px 'IBM Plex Mono',monospace;color:#8fd0b5}
+.arch-zone{background:#0b2344cc;border:1px solid #ffffff2b;border-radius:10px;padding:20px;margin-top:14px}.arch-zone-label{font:800 14px 'IBM Plex Mono',monospace;letter-spacing:.11em;color:#8fb0dd;margin-bottom:11px}.fan-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.fan-node{background:#102f59;border-radius:6px;padding:15px 10px;text-align:center;color:#d6e1ef;font-size:17px}.wide-flow{display:flex;align-items:stretch;gap:8px}.wide-flow .wf{flex:1;background:#102f59;border:1px solid #ffffff25;border-radius:7px;padding:17px 11px;text-align:center;color:#d6e1ef;font-size:18px;line-height:1.4}.wide-flow .wf.hot{background:#3b2b25;border-color:#ff7a3c}.wide-flow .wa{align-self:center;color:#ff7a3c;font-size:28px}.branch-flow{display:grid;grid-template-columns:1fr 50px 1.25fr;gap:10px;align-items:stretch}.branch-side{display:grid;grid-template-rows:1fr 1fr;gap:9px}.branch-card{background:#102f59;border:1px solid #ffffff25;border-radius:7px;padding:12px}.branch-card h4{margin:0;color:#eef4ff;font-size:18px}.branch-card p{margin:6px 0 0;color:#b8cbe5;font-size:15px;line-height:1.4}.branch-card.write{border-color:#ff7a3c;background:#3b2b25}.branch-arrow{display:flex;align-items:center;justify-content:center;color:#ff7a3c;font-size:28px}
+.converge{display:grid;grid-template-columns:1.05fr 70px 1fr 70px 1fr 70px 1.15fr;gap:8px;align-items:stretch;margin-top:34px}.conv-stage{background:#0b2344cc;border:1px solid #ffffff2b;border-radius:10px;padding:18px;min-height:400px}.conv-stage.wide{background:#302622;border-color:#ff7a3c}.conv-stage.final{background:#17352f;border-color:#8fd0b5}.conv-stage .n{font:800 14px 'IBM Plex Mono',monospace;color:#ff9a66}.conv-stage h3{font-size:24px;color:#eef4ff;margin:10px 0}.conv-stage p{font-size:17px;line-height:1.45;color:#b8cbe5}.conv-arrow{display:flex;align-items:center;justify-content:center;color:#ff7a3c;font-size:34px}.route-cloud{display:flex;flex-wrap:wrap;gap:7px;margin-top:16px}.route-cloud span{background:#102f59;border-radius:5px;padding:7px 9px;color:#d6e1ef;font-size:14px}.stable-list{display:grid;gap:7px;margin-top:14px}.stable-list span{background:#102f59;border-left:3px solid #8fd0b5;border-radius:4px;padding:8px;color:#d6e1ef;font-size:15px}.hybrid-stack{display:grid;gap:7px;margin-top:14px}.hybrid-stack span{border-radius:5px;padding:9px;text-align:center;font-size:15px}.hybrid-stack .wf{background:#102f59;color:#d6e1ef}.hybrid-stack .ag{background:#3b2b25;border:1px solid #ff7a3c;color:#ffcab3}
+.fw-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:28px}.fw-card{background:#0b2344cc;border:1px solid #ffffff2b;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px;min-height:430px}.fw-icon{height:105px;background:#07182e;border-radius:7px;display:flex;align-items:center;justify-content:center;font:900 22px 'IBM Plex Mono',monospace;color:#ff9a66}.fw-card h3{font-size:22px;color:#eef4ff;margin:0}.fw-card .when{font-size:17px;line-height:1.42;color:#b8cbe5}.fw-card .gives{margin-top:auto;border-top:1px solid #ffffff22;padding-top:10px;font-size:15px;line-height:1.4;color:#8fd0b5}
+@media (max-width:900px) and (orientation:portrait){
+ .af-rail,.af-dual,.af-topology-strip,.arch-compare,.agent-tech,.control-arch,.risk-grid,.topo4,.case-pair,.fan-grid,.branch-flow,.converge,.fw-grid{grid-template-columns:1fr}
+ .af-flow,.chain-flow,.single-call,.case-flow,.wide-flow{flex-direction:column;display:flex}
+ .af-flow .arrow,.chain-flow .a,.single-call .a,.case-arrow,.wide-flow .wa,.conv-arrow,.branch-arrow{transform:rotate(90deg)}
+ .arch-panel,.af-lane,.conv-stage,.fw-card{min-height:0}
+ .agent-loop-tech{grid-template-columns:1fr;grid-template-rows:auto}.alt-node{grid-column:1!important;grid-row:auto!important}.alt-arrow,.alt-core{display:none}
+ .topo-card2{grid-template-columns:1fr}.topo-card2 svg{width:100%;max-width:240px;margin:auto}
+ .case-diff{grid-template-columns:1fr}.owner-stack{grid-template-rows:auto}
+}
+
+
 .pano-grid{display:grid;grid-template-columns:.9fr 1.55fr .95fr;gap:14px;margin-top:18px}
 .pano-panel{background:#0b2344cc;border:1px solid #ffffff2b;border-radius:10px;padding:16px 17px;min-height:385px;display:flex;flex-direction:column;gap:11px}
 .pano-k{font:800 14px 'IBM Plex Mono',monospace;letter-spacing:.13em;color:#ff9a66}
@@ -638,107 +690,67 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 
 <!-- ============ 3 NATIVE BLUEPRINT PANORAMA ============ -->
 <section class="slide" id="s3" aria-labelledby="s3t">
-  <p class="meta"><span class="num">03</span><span class="part">NAVIGATION · 全景圖</span></p>
-  <h2 class="h2" id="s3t">先找一件事：<strong>下一步由程式選，還是模型選</strong></h2>
-  <div class="cmpbar"><span class="cbd">程式／規則</span><span class="cbq">唯一判準：誰決定下一步？</span><span class="cba">模型／Agent</span></div>
-  <div class="pano-grid">
-    <div class="pano-panel">
-      <div class="pano-k">① 系統分工</div><div class="pano-h">模型提出動作；執行程式負責檢查與執行</div>
-      <div class="boundary-stack">
-        <div class="boundary-layer"><div class="bl">LLM</div><div class="bd">思考與產生文字<br>CoT 是模型內部思考</div></div>
-        <div class="boundary-layer"><div class="bl">HARNESS</div><div class="bd">反覆執行、保存進度<br>呼叫工具、權限、記錄、回復</div></div>
-        <div class="boundary-layer hot"><div class="bl">DECISION</div><div class="bd">下一個動作<br>由程式還是模型選？</div></div>
-        <div class="boundary-layer"><div class="bl">EXECUTION</div><div class="bd">API／資料庫／檔案<br>真的改變外部系統</div></div>
+  <p class="meta"><span class="num">03</span><span class="part">全景圖 · HARNESS / WORKFLOW / AGENT</span></p>
+  <h2 class="h2" id="s3t">Harness 是外層迴圈；<strong>裡面可以跑 Workflow 或 Agent</strong></h2>
+  <div class="af-shell">
+    <div class="af-shell-head"><div class="af-shell-title">HARNESS = FOR / WHILE LOOP</div><div class="af-shell-sub">每輪讀取進度、決定下一步、執行工具、保存結果，直到完成或碰到限制</div></div>
+    <div class="af-rail"><span>GOAL 完成條件</span><span>STATE 目前進度</span><span>TOOLS 可用動作</span><span>POLICY 權限限制</span><span>TRACE 過程記錄</span></div>
+    <div class="af-dual">
+      <div class="af-lane">
+        <div class="af-lane-title"><b>WORKFLOW</b><small>下一步由 CODE 決定</small></div>
+        <div class="af-flow"><div class="af-step"><div class="h">Prompt A</div><div class="b">固定任務</div><span class="cot">CoT 在這次 LLM call 內</span></div><div class="arrow">→</div><div class="af-step"><div class="h">Check</div><div class="b">程式檢查輸出</div></div><div class="arrow">→</div><div class="af-step"><div class="h">Prompt B</div><div class="b">下一個固定任務</div><span class="cot">每次 call 各自思考</span></div></div>
+        <div class="af-loopback">PROMPT CHAINING = 程式固定串接多次 LLM 呼叫</div>
+      </div>
+      <div class="af-lane agent">
+        <div class="af-lane-title"><b>AGENT</b><small>下一步由 MODEL 決定</small></div>
+        <div class="af-flow"><div class="af-step hot"><div class="h">Model</div><div class="b">看結果後選工具</div><span class="cot">CoT 在單次推論內</span></div><div class="arrow">→</div><div class="af-step"><div class="h">Tool</div><div class="b">API／DB／Search</div></div><div class="arrow">→</div><div class="af-step"><div class="h">Observation</div><div class="b">工具回傳結果</div></div></div>
+        <div class="af-loopback">↺ 結果寫回 STATE，模型再選下一步或停止</div>
       </div>
     </div>
-    <div class="pano-panel">
-      <div class="pano-k">② 自主程度</div><div class="pano-h">兩邊都能用 LLM，差別是誰排下一步</div>
-      <div class="spectrum-mini">
-        <div class="spectrum-card"><div class="sk">A · WORKFLOW 固定流程</div><div class="sh">固定路徑</div><div class="so">程式或流程圖先排好步驟；LLM 只是其中一個功能。</div><div class="owner-line">下一步：程式選</div></div>
-        <div class="spectrum-card"><div class="sk">B · 受限 AGENT</div><div class="sh">有限範圍內自己選</div><div class="so">模型只能在指定工具、權限、預算與人工確認內選動作。</div><div class="owner-line">下一步：模型在限制內選</div></div>
-        <div class="spectrum-card hot"><div class="sk">C · AGENT</div><div class="sh">動態決策</div><div class="so">模型看完結果，再決定下一步、換路或停止。</div><div class="owner-line">下一步：模型選</div></div>
-      </div>
-      <div class="agent-loop-mini">目標 → 選動作 → 執行 → 看結果 → 更新進度 → 再選／停止</div>
-    </div>
-    <div class="pano-panel">
-      <div class="pano-k">③ 多 Agent 怎麼分工</div><div class="pano-h">多 Agent 只改分工方式，不改判斷標準</div>
-      <div class="topology-grid">
-        <div class="topology-card"><div class="th">SUPERVISOR</div><div class="tb">中央 Agent 派工並合併結果</div></div>
-        <div class="topology-card"><div class="th">HANDOFF</div><div class="tb">目前 Agent 直接交給下一位</div></div>
-        <div class="topology-card"><div class="th">TEAMS</div><div class="tb">固定角色，共用任務與進度</div></div>
-        <div class="topology-card"><div class="th">A2A</div><div class="tb">不同 Agent 系統的通訊規格</div></div>
-      </div>
-      <div class="topology-note">分工方式只回答「誰跟誰合作」；仍要看每段由誰選下一步。</div>
-    </div>
+    <div class="af-topology-strip"><span>多 AGENT 分工</span><span>Supervisor 中央派工</span><span>Handoff 直接交棒</span><span>Teams 固定角色</span><span>A2A 跨系統通訊</span></div>
   </div>
-  <div class="pano-controls">
-    <div class="pano-control"><div class="ck">GOAL</div><div class="cb">成功／停止</div></div>
-    <div class="pano-control"><div class="ck">STATE</div><div class="cb">進度／證據</div></div>
-    <div class="pano-control"><div class="ck">TOOLS</div><div class="cb">能力邊界</div></div>
-    <div class="pano-control"><div class="ck">HOOKS</div><div class="cb">前後攔截</div></div>
-    <div class="pano-control"><div class="ck">POLICY</div><div class="cb">權限／批准</div></div>
-    <div class="pano-control"><div class="ck">TRACE + EVAL</div><div class="cb">路徑／品質</div></div>
-    <div class="pano-control"><div class="ck">SANDBOX</div><div class="cb">隔離／回復</div></div>
-  </div>
-  <div class="take">判斷順序：<b>誰選下一步 → 可以做什麼 → 怎麼限制風險。</b></div>
+  <div class="take"><b>Harness 相同；Workflow 與 Agent 的差別只有「誰決定下一步」。</b></div>
 </section>
 
 <!-- ============ 4 STARTING POINT ============ -->
 <section class="slide" id="s4" aria-labelledby="s4t">
-  <p class="meta"><span class="num">04</span><span class="part">NAV ② · 自主程度光譜</span></p>
-  <h2 class="h2" id="s4t">路徑可預測就用 Workflow；<strong>不可預測才用 Agent</strong></h2>
-  <div class="quad">
-    <div class="qblank"></div>
-    <div class="qcolhead">← 路徑不可預測</div>
-    <div class="qcolhead">路徑可預測 →</div>
-    <div class="qrowhead">高<br>複雜度</div>
-    <div class="qcell ag"><div class="qh">研究、診斷、開放探索</div><div class="qe">先讓 Agent 找路；跑通後把固定步驟改成 Workflow</div><div class="qv">→ Agent 起步</div></div>
-    <div class="qcell wf"><div class="qh">ETL、CI/CD、月結流程</div><div class="qe">步驟再多，只要順序已知，就用 Workflow</div><div class="qv">→ Workflow 起步</div></div>
-    <div class="qrowhead">低<br>複雜度</div>
-    <div class="qcell ag"><div class="qh">簡短但答案路徑未知</div><div class="qe">例如跨網站查證；模型需要自己選工具</div><div class="qv">→ 輕量 Agent</div></div>
-    <div class="qcell wf"><div class="qh">固定轉檔、排程、規則判斷</div><div class="qe">程式碼或 n8n 已足夠；LLM 只是其中一個步驟</div><div class="qv">→ Script / Workflow</div></div>
+  <p class="meta"><span class="num">04</span><span class="part">CoT 與 Prompt Chaining</span></p>
+  <h2 class="h2" id="s4t">CoT 是一次模型呼叫裡的思考；<strong>Prompt Chaining 是多個固定步驟</strong></h2>
+  <div class="arch-compare">
+    <div class="arch-panel">
+      <div class="ey">CHAIN OF THOUGHT · CoT</div><div class="ttl">單次 LLM call 內部</div><div class="desc">輸入與輸出之間，模型會做中間推理。它不是外部流程節點，也不是多 Agent。</div>
+      <div class="single-call"><div class="chain-box"><b>Input</b></div><div class="a">→</div><div class="llm-call"><b>LLM Call</b><div class="inside">內部推理 CoT<br>不等於可稽核流程</div></div><div class="a">→</div><div class="chain-box"><b>Output</b></div></div>
+      <div class="arch-fact"><b>誰決定下一步？</b> 這裡沒有下一個外部步驟；只是一次模型推論。</div>
+    </div>
+    <div class="arch-panel">
+      <div class="ey">PROMPT CHAINING</div><div class="ttl">程式固定串多次 LLM call</div><div class="desc">每一步只做一件事，中間可以檢查、轉換或拒絕，再進到下一個 Prompt。</div>
+      <div class="chain-flow"><div class="chain-box"><b>Prompt A</b><small>各自有 CoT</small></div><div class="a">→</div><div class="chain-box"><b>Check</b><small>程式驗證</small></div><div class="a">→</div><div class="chain-box"><b>Prompt B</b><small>各自有 CoT</small></div><div class="a">→</div><div class="chain-box"><b>Output</b></div></div>
+      <div class="arch-fact"><b>誰決定下一步？</b> 程式。A 完成後固定到 Check，再固定到 B。</div>
+    </div>
   </div>
-  <div class="pband cur"><span class="pbl">演化路徑</span>先讓 Agent 跑通；重複、昂貴或不穩的步驟再改成 Workflow。</div>
-  <div class="take"><b>已知路徑用 Workflow；未知路徑用 Agent；實務上常混合。</b></div>
+  <div class="take"><b>CoT 管一次呼叫怎麼想；Prompt Chaining 管多次呼叫怎麼排。</b></div>
 </section>
 
 <!-- ============ 5 AGENT LOOP ============ -->
 <section class="slide" id="s5" aria-labelledby="s5t">
-  <p class="meta"><span class="num">05</span><span class="part">NAV ① · 系統邊界</span></p>
-  <h2 class="h2" id="s5t">Agent：<strong>看完結果，再選下一步</strong></h2>
-  <div class="loopbox">
-    <div class="looprow">
-      <div class="loopnode"><div class="lt">目標</div><div class="ls">完成條件</div></div>
-      <div class="arrow" style="font-size:26px">→</div>
-      <div class="loopnode llm"><div class="lt">選動作</div><div class="ls">模型選工具或停止</div></div>
-      <div class="arrow" style="font-size:26px">→</div>
-      <div class="loopnode tool"><div class="lt">執行</div><div class="ls">程式執行工具</div></div>
-      <div class="arrow" style="font-size:26px">→</div>
-      <div class="loopnode"><div class="lt">看結果</div><div class="ls">結果寫回目前進度</div></div>
+  <p class="meta"><span class="num">05</span><span class="part">AGENT LOOP · 技術視角</span></p>
+  <h2 class="h2" id="s5t">Agent 每輪都做同一件事：<strong>看結果，再選下一個動作</strong></h2>
+  <div class="agent-tech">
+    <div class="agent-loop-tech">
+      <div class="alt-node an1"><b>1 · Observe</b><small>讀取工具結果、錯誤與外部狀態</small></div><div class="alt-arrow aa1">→</div>
+      <div class="alt-node hot an2"><b>2 · Decide</b><small>模型依 Goal、State、Tools 選下一步</small></div><div class="alt-arrow aa2">↓</div>
+      <div class="alt-node an3"><b>3 · Act</b><small>Harness 檢查權限與參數後執行工具</small></div><div class="alt-arrow aa3">←</div>
+      <div class="alt-node an4"><b>4 · Update State</b><small>保存動作、結果、成本與錯誤</small></div><div class="alt-arrow aa4">↑</div>
+      <div class="alt-core">FOR / WHILE<br>LOOP</div>
     </div>
-    <div class="loopback">↺ 沒完成：把結果交回模型再選一次　｜　完成、超時或超過預算：停止</div>
-  </div>
-  <div class="cols2">
-    <div class="card">
-      <h4 class="a">模型負責選下一步</h4>
-      <div class="ct">選工具 · 分支 · 重試</div>
-      <ul>
-        <li>讀取目前進度與可用工具</li>
-        <li>選下一個動作，或判斷停止</li>
-        <li>CoT 只是模型內部思考，不是流程</li>
-      </ul>
-    </div>
-    <div class="card">
-      <h4 class="d">執行程式負責真的做</h4>
-      <div class="ct">執行 · 保存進度 · 套用限制</div>
-      <ul>
-        <li>註冊工具、保存進度、執行工具</li>
-        <li>套用權限、超時、預算與停止條件</li>
-        <li>Workflow 也能用同一套執行程式；差別仍是誰選下一步</li>
-      </ul>
+    <div class="agent-side">
+      <div class="side-card"><div class="k">CONTINUE</div><div class="v">Goal 尚未完成，且仍有預算與可用工具</div></div>
+      <div class="side-card"><div class="k">STOP</div><div class="v">完成條件成立，或超時、超預算、超過輪數</div></div>
+      <div class="side-card"><div class="k">WORKFLOW 對照</div><div class="v">也能有 loop，但下一步由程式固定選擇</div></div>
+      <div class="side-card"><div class="k">CoT</div><div class="v">只存在每次 Decide 的模型推論裡</div></div>
     </div>
   </div>
-  <div class="take"><b>有迴圈不代表是 Agent；模型能看結果再選下一步才算。</b></div>
+  <div class="take"><b>有 loop 不代表是 Agent；模型能根據 Observation 改選下一步才算。</b></div>
 </section>
 
 <!-- ============ 6 HARNESS BOUNDARY ============ -->
@@ -850,135 +862,102 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 
 <!-- ============ 7 CONTROL PLANE CORE ============ -->
 <section class="slide" id="s7" aria-labelledby="s7t">
-  <p class="meta"><span class="num">07</span><span class="part">NAV ④ · 目標、進度、工具</span></p>
-  <h2 class="h2" id="s7t">先定三件事：<strong>何時完成、記住什麼、能做什麼</strong></h2>
-  <div class="control-grid">
-    <div class="control-card"><div class="k">01 · GOAL</div><div class="h">何時算完成</div><div class="b">完成條件必須能檢查，模型才能判斷繼續或停止。</div><div class="e">例：測試通過且 PR 已建立</div></div>
-    <div class="control-card"><div class="k">02 · STATE</div><div class="h">目前進度與證據</div><div class="b">保存已做的動作、結果、錯誤與中間產物。</div><div class="e">例：alert、根因、人審、修復與驗證結果</div></div>
-    <div class="control-card"><div class="k">03 · TOOLS</div><div class="h">可以做的動作</div><div class="b">工具說明、參數格式與權限，決定模型能做哪些動作。</div><div class="e">例：查詢與部署使用不同權限</div></div>
+  <p class="meta"><span class="num">07</span><span class="part">HARNESS · 控制架構</span></p>
+  <h2 class="h2" id="s7t">Agent 能自由選動作；<strong>Harness 決定它能選哪些、做到哪裡</strong></h2>
+  <div class="control-arch">
+    <div class="control-zone"><div class="k">GOAL + STATE</div><div class="h">目標與目前進度</div><div class="b">完成條件、已做動作、工具結果、錯誤與中間產物。</div></div>
+    <div class="control-zone hot"><div class="k">AGENT / WORKFLOW LOOP</div><div class="h">每輪決定並執行下一步</div><div class="loop">READ STATE<br>↓<br>CHOOSE ACTION<br>↓<br>EXECUTE TOOL<br>↓<br>WRITE RESULT</div></div>
+    <div class="control-zone"><div class="k">TOOLS</div><div class="h">可用動作</div><div class="b">每個工具有參數格式、權限與副作用說明。</div></div>
+    <div class="control-zone"><div class="k">POLICY + HOOKS</div><div class="h">執行前後檢查</div><div class="b">限制 workspace、預算與高風險動作；必要時停下來等人批准。</div></div>
+    <div class="control-zone"><div class="k">TRACE + EVAL + SANDBOX</div><div class="h">記錄、測試與回復</div><div class="b">留下完整路徑，評估結果，並在隔離環境中執行與還原。</div></div>
   </div>
-  <div class="take"><b>這三項決定 Agent 的目標、資訊與行動範圍。</b></div>
+  <div class="take"><b>自主發生在模型；權限、預算、記錄與回復都留在 Harness。</b></div>
 </section>
 
 <!-- ============ 8 CONTROL PLANE GOVERNANCE ============ -->
 <section class="slide" id="s8" aria-labelledby="s8t">
-  <p class="meta"><span class="num">08</span><span class="part">NAV ④ · 安全限制</span></p>
-  <h2 class="h2" id="s8t">安全限制要放在程式裡，<strong>不能只靠提示詞</strong></h2>
-  <div class="control-grid four">
-    <div class="control-card"><div class="k">04 · HOOKS</div><div class="h">每步前後檢查</div><div class="b">工具執行前檢查參數，執行後讀回結果，停止前做最後驗證。</div><div class="e">例：送出前先顯示差異，等人確認</div></div>
-    <div class="control-card"><div class="k">05 · POLICY</div><div class="h">權限與人工確認</div><div class="b">限制可用權限、資料範圍、預算；高風險動作由人確認。</div><div class="e">例：查詢可自動執行；部署與刪除必須批准</div></div>
-    <div class="control-card"><div class="k">06 · TRACE + EVAL</div><div class="h">記錄過程並測試結果</div><div class="b">Trace 記錄每一步；Eval 測試過程與最後結果。</div><div class="e">例：檢查答案、工具使用與成本</div></div>
-    <div class="control-card"><div class="k">07 · SANDBOX</div><div class="h">隔離與回復</div><div class="b">在可回復的環境執行不可信程式；失敗時能還原。</div><div class="e">例：worktree、container、測試帳號、checkpoint</div></div>
+  <p class="meta"><span class="num">08</span><span class="part">PRODUCTION · 兩個失敗路徑</span></p>
+  <h2 class="h2" id="s8t">正式環境先防兩件事：<strong>重複執行、假完成</strong></h2>
+  <div class="risk-grid">
+    <div class="risk-panel bad"><div class="risk-title">風險 1 · Timeout 後直接重試</div>
+      <div class="risk-flow"><div class="risk-step">送出寫入</div><div class="risk-arr">→</div><div class="risk-step bad">超時<br>成功與否未知</div><div class="risk-arr">→</div><div class="risk-step bad">直接重試<br>重複寫入</div></div>
+      <div class="risk-fix">修正：每個寫入帶唯一操作編號；重試前先讀回真實狀態。</div>
+    </div>
+    <div class="risk-panel good"><div class="risk-title">風險 2 · Agent 說「完成了」</div>
+      <div class="risk-flow"><div class="risk-step">Agent 回報完成</div><div class="risk-arr">→</div><div class="risk-step good">獨立讀回<br>API／DB／檔案</div><div class="risk-arr">→</div><div class="risk-step good">確認成功<br>或進入補救</div></div>
+      <div class="risk-fix">修正：完成條件必須由另一條讀取路徑驗證，不能只信模型文字。</div>
+    </div>
   </div>
-  <div class="take"><b>每個動作都要有權限、記錄、驗證與回復方式。</b></div>
+  <div class="take"><b>寫入前防重複；完成後重新查一次。</b></div>
 </section>
 
 <!-- ============ 9 TWO PITFALLS ============ -->
 <section class="slide" id="s9" aria-labelledby="s9t">
-  <p class="meta"><span class="num">09</span><span class="part">NAV ④ · 常見錯誤</span></p>
-  <h2 class="h2" id="s9t">有副作用的動作要防重複；<strong>完成宣告要驗證</strong></h2>
-  <div class="cols2" style="margin-top:36px">
-    <div class="card">
-      <h4 class="a">坑 1：重試可能重複執行</h4><div class="ct">避免重複執行</div>
-      <ul><li>Agent 會重試，同一動作可能執行兩次</li><li>使用唯一操作編號；重試前先查狀態</li><li>超時不代表失敗，重試前先讀回狀態</li></ul>
-    </div>
-    <div class="card">
-      <h4 class="a">坑 2：模型說完成不算證據</h4><div class="ct">獨立驗證</div>
-      <ul><li>模型可能誤判結果，或只完成一半</li><li>重新查 API、資料庫、檔案或測試結果</li><li>驗證失敗後再決定補救、還原或停止</li></ul>
-    </div>
+  <p class="meta"><span class="num">09</span><span class="part">MULTI-AGENT · 四種分工</span></p>
+  <h2 class="h2" id="s9t">Multi-Agent 只改分工方式；<strong>不自動代表更聰明或更自主</strong></h2>
+  <div class="topo4">
+    <div class="topo-card2"><svg viewBox="0 0 190 145"><circle cx="95" cy="30" r="20" fill="#3b2b25" stroke="#ff7a3c" stroke-width="3"/><text x="95" y="35" text-anchor="middle" fill="#fff" font-size="12">主管</text><line x1="95" y1="50" x2="45" y2="98" stroke="#9db8dd" stroke-width="3"/><line x1="95" y1="50" x2="95" y2="98" stroke="#9db8dd" stroke-width="3"/><line x1="95" y1="50" x2="145" y2="98" stroke="#9db8dd" stroke-width="3"/><circle cx="45" cy="112" r="17" fill="#102f59" stroke="#8fd0b5"/><circle cx="95" cy="112" r="17" fill="#102f59" stroke="#8fd0b5"/><circle cx="145" cy="112" r="17" fill="#102f59" stroke="#8fd0b5"/></svg><div><h3>Supervisor</h3><p>中央 Agent 派工、收結果、決定下一個任務。</p><div class="choose">適合：需要集中控制與最後整合</div></div></div>
+    <div class="topo-card2"><svg viewBox="0 0 190 145"><circle cx="38" cy="72" r="21" fill="#102f59" stroke="#8fd0b5"/><circle cx="95" cy="72" r="21" fill="#102f59" stroke="#8fd0b5"/><circle cx="152" cy="72" r="21" fill="#3b2b25" stroke="#ff7a3c" stroke-width="3"/><path d="M59 72 H72" stroke="#ff7a3c" stroke-width="4"/><polygon points="76,72 67,66 67,78" fill="#ff7a3c"/><path d="M116 72 H129" stroke="#ff7a3c" stroke-width="4"/><polygon points="133,72 124,66 124,78" fill="#ff7a3c"/><text x="38" y="77" text-anchor="middle" fill="#fff" font-size="11">A</text><text x="95" y="77" text-anchor="middle" fill="#fff" font-size="11">B</text><text x="152" y="77" text-anchor="middle" fill="#fff" font-size="11">C</text></svg><div><h3>Handoff</h3><p>目前 Agent 直接把控制權與上下文交給下一位。</p><div class="choose">適合：明確階段交接</div></div></div>
+    <div class="topo-card2"><svg viewBox="0 0 190 145"><circle cx="95" cy="35" r="19" fill="#3b2b25" stroke="#ff7a3c" stroke-width="3"/><circle cx="48" cy="105" r="19" fill="#102f59" stroke="#8fd0b5"/><circle cx="142" cy="105" r="19" fill="#102f59" stroke="#8fd0b5"/><line x1="83" y1="51" x2="59" y2="88" stroke="#9db8dd" stroke-width="3"/><line x1="107" y1="51" x2="131" y2="88" stroke="#9db8dd" stroke-width="3"/><line x1="67" y1="105" x2="123" y2="105" stroke="#9db8dd" stroke-width="3" stroke-dasharray="5 4"/><text x="95" y="40" text-anchor="middle" fill="#fff" font-size="10">規劃</text><text x="48" y="110" text-anchor="middle" fill="#fff" font-size="10">研究</text><text x="142" y="110" text-anchor="middle" fill="#fff" font-size="10">執行</text></svg><div><h3>Teams</h3><p>角色固定，共用任務與進度；不一定有唯一主管。</p><div class="choose">適合：長期穩定分工</div></div></div>
+    <div class="topo-card2"><svg viewBox="0 0 190 145"><rect x="18" y="38" width="58" height="68" rx="8" fill="#102f59" stroke="#8fd0b5"/><rect x="114" y="38" width="58" height="68" rx="8" fill="#102f59" stroke="#8fd0b5"/><path d="M78 62 H109" stroke="#ff7a3c" stroke-width="4"/><polygon points="113,62 104,56 104,68" fill="#ff7a3c"/><path d="M112 84 H81" stroke="#9db8dd" stroke-width="3"/><polygon points="77,84 86,78 86,90" fill="#9db8dd"/><text x="47" y="76" text-anchor="middle" fill="#fff" font-size="11">系統 A</text><text x="143" y="76" text-anchor="middle" fill="#fff" font-size="11">系統 B</text></svg><div><h3>A2A</h3><p>兩個獨立 Agent 系統用協定交換任務與結果。</p><div class="choose">適合：跨產品或跨組織互通</div></div></div>
   </div>
-  <div class="pairflow" style="margin-top:56px">
-    <div class="pfnode"><div class="ft">提出動作</div><div class="fd">帶唯一操作編號</div></div><div class="arrow" style="font-size:24px">→</div>
-    <div class="pfnode hl"><div class="ft">執行＋讀回</div><div class="fd">查真實系統狀態</div></div><div class="arrow" style="font-size:24px">→</div>
-    <div class="pfnode"><div class="ft">更新 state</div><div class="fd">確認成功／補救／還原</div></div>
-  </div>
-  <div class="take" style="margin-top:44px"><b>寫入前防重複；完成後重新查一次。</b></div>
+  <div class="take"><b>先決定誰能交棒、誰負責收斂，再決定要不要多 Agent。</b></div>
 </section>
 
 <!-- ============ 10 CHAIN AGENT MULTI-AGENT ============ -->
 <section class="slide" id="s10" aria-labelledby="s10t">
-  <p class="meta"><span class="num">10</span><span class="part">NAV ③ · 多 Agent 分工</span></p>
-  <h2 class="h2" id="s10t">Chain 排順序；Agent 選動作；<strong>Multi-Agent 分工</strong></h2>
-  <div class="triad">
-    <div class="lane"><div class="tag">CHAIN 固定串接</div><div class="lh">程式決定步驟順序</div><div class="lb">每一步只做一件事；中間結果可檢查，失敗只重跑該步。</div><div class="mini-flow">A → B → 檢查 → C<br>下一步由程式選</div></div>
-    <div class="lane"><div class="tag">某一步使用 AGENT</div><div class="lh">模型決定這一步怎麼做</div><div class="lb">B 步可交給 Agent：它自己查資料、重試，再把結果交給 C。</div><div class="mini-flow">B：選動作 ↔ 執行 ↔ 看結果<br>下一步由模型選</div></div>
-    <div class="lane"><div class="tag">多 AGENT 分工</div><div class="lh">定義派工與交接方式</div><div class="lb">Supervisor 中央派工；Handoff 直接交棒；Teams 固定角色；A2A 跨系統通訊。</div><div class="mini-flow">中央派工 · 直接交棒<br>固定角色 · 跨系統通訊</div></div>
+  <p class="meta"><span class="num">10</span><span class="part">兩個案例 · 總覽</span></p>
+  <h2 class="h2" id="s10t">同一套 Harness，兩種觸發方式：<strong>系統 Alert 與使用者需求</strong></h2>
+  <div class="case-pair">
+    <div class="case-card alert"><div class="case-no">CASE 1 · 系統觸發</div><h3>Alert 自動修復</h3>
+      <div class="case-flow"><div class="case-step">Alert</div><div class="case-arrow">→</div><div class="case-step">並行診斷</div><div class="case-arrow">→</div><div class="case-step case-gate">人工確認</div><div class="case-arrow">→</div><div class="case-step">修復＋驗證</div></div>
+      <div class="case-diff"><div>TRIGGER</div><div>監控系統發現異常</div><div>API 視野</div><div>Airflow／Spark／Trino／HMS／MinIO 等維運 API</div><div>人工確認</div><div>高風險修復前</div><div>OUTPUT</div><div>恢復狀態＋Issue 報告</div></div>
+    </div>
+    <div class="case-card lake"><div class="case-no">CASE 2 · 使用者觸發</div><h3>Lakehouse 自助助理</h3>
+      <div class="case-flow"><div class="case-step">使用者</div><div class="case-arrow">→</div><div class="case-step">Console API</div><div class="case-arrow">→</div><div class="case-step case-gate">寫入前確認</div><div class="case-arrow">→</div><div class="case-step">Submit</div></div>
+      <div class="case-diff"><div>TRIGGER</div><div>使用者用自然語言提出查詢或寫入需求</div><div>API 視野</div><div>只碰 Console API；JWT 綁定 Workspace</div><div>人工確認</div><div>YAML／權限 diff 送出前</div><div>OUTPUT</div><div>查詢結果或 Pipeline run ID</div></div>
+    </div>
   </div>
-  <div class="pband borrow" style="margin-top:24px"><span class="pbl">Alert 案例</span>外層固定：偵測 → 診斷 → 人審 → 修復。診斷步驟內可派多個 Agent 並行查原因。</div>
-  <div class="take"><b>三種方式可以混用；每一段仍要標明誰選下一步。</b></div>
+  <div class="take"><b>Alert 是系統觸發、跨系統診斷；Lakehouse 是使用者觸發、只走單一 Console API。</b></div>
 </section>
 
 <!-- ============ 11 CASE 2 LAKEHOUSE ASSISTANT ============ -->
 <section class="slide" id="s11" aria-labelledby="s11t">
-  <p class="meta"><span class="num">11</span><span class="part">PART 4 · 模式與框架</span></p>
-  <h2 class="h2" id="s11t">Lakehouse Agent <strong>只能呼叫 Console API</strong></h2>
-  <p class="sub" style="margin-top:14px">Agent 不拿各系統帳密。所有查詢、驗證與授權都經過 <b>Console API</b>。</p>
-  <div class="dg" style="margin-top:20px;gap:9px">
-    <div class="node" style="flex:1;padding:12px 10px"><div class="t" style="font-size:18px">使用者</div><div class="s" style="font-size:14px">輸入問題或需求</div></div>
-    <div class="arrow" style="font-size:22px">→</div>
-    <div class="node warn" style="flex:1.2;padding:12px 10px"><div class="t" style="font-size:18px">Lakehouse Agent</div><div class="s" style="font-size:14px">只知道 Console API<br>登入憑證（JWT）綁定 workspace</div></div>
-    <div class="arrow" style="font-size:22px">→</div>
-    <div class="node hl" style="flex:1.3;padding:12px 10px"><div class="t" style="font-size:18px">Console API（唯一入口）</div><div class="s" style="font-size:14px">登入／OPA 權限規則／驗證／轉送</div></div>
-    <div class="arrow" style="font-size:22px">→</div>
-    <div class="node" style="flex:1.3;padding:12px 10px"><div class="t" style="font-size:18px">各廠集群</div><div class="s" style="font-size:14px">Trino · Airflow · HMS · MinIO · OPA</div></div>
-  </div>
-  <div class="dg wrap center" style="margin-top:22px;gap:10px">
-    <span class="chip d" style="font-size:17px;padding:5px 16px">查 schema</span>
-    <span class="chip a" style="font-size:17px;padding:5px 16px">排查 ingestion 失敗</span>
-    <span class="chip a" style="font-size:17px;padding:5px 16px">診斷資料模型／流程</span>
-    <span class="chip a" style="font-size:17px;padding:5px 16px">優化查詢</span>
-    <span class="chip a" style="font-size:17px;padding:5px 16px">開放資料表權限</span>
-  </div>
-  <div class="pairflow" style="margin-top:22px">
-    <div class="pfnode ok"><div class="ft">只讀查詢</div><div class="fd">查 schema、狀態、血緣與執行計畫 → <b>直接執行</b></div></div>
-    <div class="arrow" style="font-size:22px">↕</div>
-    <div class="pfnode"><div class="ft">寫入或變更</div><div class="fd">產生 YAML → 驗證 → <b>人工確認</b> → 送出</div></div>
-  </div>
-  <div class="take"><b>Agent 只碰一個入口；Console 統一做權限與驗證。</b></div>
+  <p class="meta"><span class="num">11</span><span class="part">CASE 1 · ALERT 自動修復架構</span></p>
+  <h2 class="h2" id="s11t">Alert 自動修復：<strong>先並行診斷，再集中批准與修復</strong></h2>
+  <div class="arch-zone"><div class="arch-zone-label">1 · 事件來源</div><div class="fan-grid"><div class="fan-node">Airflow alert</div><div class="fan-node">Spark failure</div><div class="fan-node">Trino slow query</div><div class="fan-node">HMS／MinIO／OPA</div></div></div>
+  <div class="wide-flow" style="margin-top:10px"><div class="wf hot">Harness<br><small>建立 incident state、派工、限制工具</small></div><div class="wa">→</div><div class="wf">Supervisor<br><small>派出多個診斷 Agent</small></div><div class="wa">→</div><div class="wf">Root Cause<br><small>合併證據與衝突結論</small></div></div>
+  <div class="arch-zone"><div class="arch-zone-label">2 · 並行診斷（只讀）</div><div class="fan-grid"><div class="fan-node">Log / Metrics</div><div class="fan-node">Query plan</div><div class="fan-node">Schema / Lineage</div><div class="fan-node">Recent changes</div></div></div>
+  <div class="wide-flow" style="margin-top:10px"><div class="wf hot">人工確認<br><small>顯示 root cause、修復動作與風險</small></div><div class="wa">→</div><div class="wf">Remediation Executor<br><small>用最小權限執行修復</small></div><div class="wa">→</div><div class="wf">Independent Verify<br><small>重新查 API／狀態／測試</small></div><div class="wa">→</div><div class="wf">Issue<br><small>記錄原因、動作與驗證結果</small></div></div>
+  <div class="take"><b>診斷可以多 Agent 並行；寫入只走一個受控執行器，並在前後各做一次檢查。</b></div>
 </section>
 
 <!-- ============ 12 FRAMEWORKS ============ -->
 <section class="slide" id="s12" aria-labelledby="s12t">
-  <p class="meta"><span class="num">12</span><span class="part">PART 4 · 模式與框架</span></p>
-  <h2 class="h2" id="s12t">選框架，就是選<strong>你想怎麼寫流程</strong></h2>
-  <div class="cols2">
-    <div class="card">
-      <h4 class="a">LangGraph</h4>
-      <div class="ct">流程圖 · 保存進度 · 人審暫停</div>
-      <ul>
-        <li>用節點表示步驟，用連線表示下一步</li>
-        <li>可保存進度，也可停下來等人確認</li>
-        <li>適合多步驟且需要人審的流程</li>
-      </ul>
-    </div>
-    <div class="card">
-      <h4 class="a">Pydantic AI</h4>
-      <div class="ct">單一 AGENT · 輸出格式檢查</div>
-      <ul>
-        <li>用 Pydantic 定義輸出欄位，格式錯就報錯</li>
-        <li>用 @agent.tool 註冊工具</li>
-        <li>適合一個 Agent 搭配少量工具</li>
-      </ul>
-    </div>
+  <p class="meta"><span class="num">12</span><span class="part">CASE 2 · LAKEHOUSE 自助助理架構</span></p>
+  <h2 class="h2" id="s12t">Lakehouse Agent 只碰 Console API；<strong>讀與寫在入口後分流</strong></h2>
+  <div class="wide-flow" style="margin-top:22px"><div class="wf">使用者<br><small>JWT 登入憑證＋Workspace</small></div><div class="wa">→</div><div class="wf hot">Lakehouse Agent<br><small>理解需求，只知道 Console API 工具</small></div><div class="wa">→</div><div class="wf hot">Console API<br><small>登入驗證／OPA 權限規則／參數驗證</small></div></div>
+  <div class="arch-zone"><div class="arch-zone-label">Console API 之後的兩條路</div>
+    <div class="branch-flow"><div class="branch-side"><div class="branch-card"><h4>READ · 直接執行</h4><p>Catalog、Schema、Lineage、Query、Explain、Run Status</p></div><div class="branch-card write"><h4>WRITE · 先確認</h4><p>產 YAML → Spark JAR 驗證 → 顯示 diff → 人工批准 → Submit</p></div></div><div class="branch-arrow">→</div><div class="branch-side"><div class="branch-card"><h4>讀取服務</h4><p>Trino／Catalog／Lineage／Monitoring</p></div><div class="branch-card"><h4>寫入流程</h4><p>Airflow Dynamic DAG → Spark → HMS／MinIO<br>OPA 持續限制 Workspace 存取</p></div></div></div>
   </div>
-  <div class="dg" style="margin-top:48px">
-    <div class="node warn"><div class="t">CrewAI</div><div class="s">用角色與任務描述分工</div></div>
-    <div class="node warn"><div class="t">ADK（Google）</div><div class="s">多 Agent 流程、保存對話進度</div></div>
-    <div class="node ok"><div class="t">n8n</div><div class="s">用畫布排固定流程，LLM 是其中一步</div></div>
-  </div>
-  <div class="take" style="margin-top:44px"><b>先按任務選流程寫法，不要先按框架名稱選。</b></div>
+  <div class="wide-flow" style="margin-top:12px"><div class="wf">State<br><small>workspace／intent／yaml／approval／run_id</small></div><div class="wa">→</div><div class="wf">Trace<br><small>工具、權限判斷、diff、批准者、結果</small></div><div class="wa">→</div><div class="wf">Verify<br><small>讀回 run status 與 Catalog 狀態</small></div></div>
+  <div class="take"><b>Agent 沒有各系統鑰匙；Console 統一做授權、驗證、轉送與稽核。</b></div>
 </section>
 
 <!-- ============ 13 CONCLUSION ============ -->
 <section class="slide" id="s13" aria-labelledby="s13t">
-  <p class="meta"><span class="num">13</span><span class="part">結論</span></p>
-  <h2 class="h2" id="s13t">開放任務先跑通；<strong>固定步驟再收回 Workflow</strong></h2>
-  <div class="ladder">
-    <div class="lstep"><div class="ln">① 路徑已知</div><div class="lt2">直接用程式或 n8n</div><div class="ld">步驟與分支都知道，直接寫 Workflow</div></div>
-    <div class="lstep"><div class="ln">② 路徑未知</div><div class="lt2">先用 Agent 找到可行路徑</div><div class="ld">讓模型選工具與下一步，先完成目標</div></div>
-    <div class="lstep"><div class="ln">③ 找到固定部分</div><div class="lt2">把重複步驟改成 Workflow</div><div class="ld">降低 token、增加穩定性；只保留必要的自主區段</div></div>
+  <p class="meta"><span class="num">13</span><span class="part">結論 · 先發散，再收斂</span></p>
+  <h2 class="h2" id="s13t">開放任務先讓 Agent 找路；<strong>找到規律後收斂成混合架構</strong></h2>
+  <div class="converge">
+    <div class="conv-stage wide"><div class="n">1 · EXPLORE</div><h3>Agent 發散探索</h3><p>只給目標與工具，允許模型根據結果換路。</p><div class="route-cloud"><span>查 Logs</span><span>看 Lineage</span><span>比對設定</span><span>問專家 Agent</span><span>重試</span><span>換工具</span></div></div>
+    <div class="conv-arrow">→</div>
+    <div class="conv-stage"><div class="n">2 · OBSERVE</div><h3>用 Trace 找規律</h3><p>看哪些步驟經常重複、成本高、品質不穩或每次順序相同。</p><div class="stable-list"><span>重複路徑</span><span>穩定輸入／輸出</span><span>明確驗證方式</span></div></div>
+    <div class="conv-arrow">→</div>
+    <div class="conv-stage"><div class="n">3 · FIX</div><h3>把固定步驟寫成 Workflow</h3><p>由人把重要且可預測的路徑固化，減少 token 與隨機性。</p><div class="stable-list"><span>固定順序</span><span>固定檢查點</span><span>固定權限</span></div></div>
+    <div class="conv-arrow">→</div>
+    <div class="conv-stage final"><div class="n">4 · HYBRID</div><h3>Workflow 主幹＋Agent 插槽</h3><p>程式掌握可預測流程；模型只處理仍需要判斷的局部。</p><div class="hybrid-stack"><span class="wf">固定 Workflow</span><span class="ag">Agent 判斷區</span><span class="wf">固定驗證與輸出</span></div></div>
   </div>
-  <div class="take" style="margin-top:32px"><b>未知部分交給 Agent；已知部分寫成 Workflow。</b></div>
+  <div class="take"><b>如果一開始就知道路徑，直接用 Workflow；不知道才先讓 Agent 發散。</b></div>
 </section>
 
 <!-- ============ 14 APPENDIX OPENING ============ -->
@@ -1006,49 +985,15 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 
 <!-- ============ 15 APPENDIX ARCHITECTURE ============ -->
 <section class="slide" id="s15" aria-labelledby="s15t">
-  <p class="meta"><span class="num">15</span><span class="part">附錄 01/06 · 兩案例整體架構</span></p>
-  <h2 class="h2" id="s15t">兩個案例都走：<strong>觸發 → 決定 → 執行 → 驗證</strong></h2>
-  <div class="dg" style="margin-top:28px;gap:18px">
-    <div style="flex:1;display:flex;flex-direction:column;gap:14px">
-      <div class="node hl" style="padding:14px 16px"><div class="t" style="font-size:20px">案例 1 · 自動修復</div><div class="s" style="font-size:15px">系統收到 Alert 後觸發</div></div>
-      <div class="dg" style="margin-top:0;gap:6px">
-        <div class="node" style="flex:1;padding:12px 8px"><div class="t" style="font-size:17px">Alert</div></div>
-        <div class="arrow" style="font-size:20px">→</div>
-        <div class="node warn" style="flex:1.2;padding:12px 8px"><div class="t" style="font-size:17px">Agent</div></div>
-        <div class="arrow" style="font-size:20px">→</div>
-        <div class="node" style="flex:1;padding:12px 8px"><div class="t" style="font-size:17px">系統 API</div></div>
-      </div>
-      <div class="dg" style="margin-top:0;gap:6px">
-        <div class="node" style="flex:1;padding:12px 8px"><div class="t" style="font-size:17px">診斷</div></div>
-        <div class="arrow" style="font-size:20px">→</div>
-        <div class="node" style="flex:1;padding:12px 8px"><div class="t" style="font-size:17px">★ 人審</div></div>
-        <div class="arrow" style="font-size:20px">→</div>
-        <div class="node" style="flex:1;padding:12px 8px"><div class="t" style="font-size:17px">修復、驗證、建 issue</div></div>
-      </div>
-      <div class="note" style="margin-top:6px;font-size:17px">觸發：<b>log／alert</b>；工具：各系統 API；人審在高風險動作前</div>
-    </div>
-    <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-      <div class="node hl" style="padding:10px 14px"><div class="t" style="font-size:19px">案例 2 · Lakehouse 自助助理</div><div class="s" style="font-size:14px">使用者提出需求後觸發</div></div>
-      <div class="dg" style="margin-top:0;gap:5px">
-        <div class="node" style="flex:1;padding:8px 6px"><div class="t" style="font-size:15px">使用者</div></div>
-        <div class="arrow" style="font-size:18px">→</div>
-        <div class="node warn" style="flex:1.2;padding:8px 6px"><div class="t" style="font-size:15px">Agent</div></div>
-        <div class="arrow" style="font-size:18px">→</div>
-        <div class="node" style="flex:1.2;padding:8px 6px"><div class="t" style="font-size:15px">Console API</div></div>
-        <div class="arrow" style="font-size:18px">→</div>
-        <div class="node" style="flex:1;padding:8px 6px"><div class="t" style="font-size:15px">各廠集群</div></div>
-      </div>
-      <div class="dg" style="margin-top:0;gap:5px">
-        <div class="node" style="flex:1;padding:8px 6px"><div class="t" style="font-size:15px">查：直接放行</div></div>
-        <div class="arrow" style="font-size:18px">↕</div>
-        <div class="node" style="flex:1;padding:8px 6px"><div class="t" style="font-size:15px">建：人工確認</div></div>
-        <div class="arrow" style="font-size:18px">→</div>
-        <div class="node" style="flex:1;padding:8px 6px"><div class="t" style="font-size:15px">submit／權限</div></div>
-      </div>
-      <div class="note" style="margin-top:4px;font-size:16px">觸發：<b>使用者一句話</b>；agent 只碰 console API；JWT 綁 workspace</div>
-    </div>
+  <p class="meta"><span class="num">15</span><span class="part">附錄 01/06 · 框架怎麼選</span></p>
+  <h2 class="h2" id="s15t">四個框架不是能力排名；<strong>它們提供不同的流程寫法</strong></h2>
+  <div class="fw-grid">
+    <div class="fw-card"><div class="fw-icon">NODE → EDGE</div><h3>LangGraph</h3><div class="when">流程用圖表示；需要保存進度、暫停等人審、從原處繼續。</div><div class="gives">適合：多步驟、條件分支、人工確認</div></div>
+    <div class="fw-card"><div class="fw-icon">{ TYPE }</div><h3>Pydantic AI</h3><div class="when">一個 Agent 搭配少量工具；重點是輸出欄位與型別檢查。</div><div class="gives">適合：單 Agent、固定格式輸出</div></div>
+    <div class="fw-card"><div class="fw-icon">ROLE → TASK</div><h3>CrewAI</h3><div class="when">把工作拆給固定角色，再依序或由主管 Agent 派工。</div><div class="gives">適合：責任清楚的多 Agent 分工</div></div>
+    <div class="fw-card"><div class="fw-icon">▣ → ▣ → ▣</div><h3>n8n</h3><div class="when">用視覺節點排固定流程；LLM 是其中一個步驟。</div><div class="gives">適合：整合 API、排程與可視化 Workflow</div></div>
   </div>
-  <div class="take" style="margin-top:44px"><b>流程相同；觸發方式、API 範圍與人審位置不同。</b></div>
+  <div class="take"><b>先決定流程要用圖、型別、角色還是畫布表達，再選框架。</b></div>
 </section>
 
 <!-- ============ 16 APPENDIX LANGGRAPH BLUEPRINT ============ -->
