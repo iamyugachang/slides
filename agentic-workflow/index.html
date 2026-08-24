@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Agentic Workflow：任務自動化的一道光譜</title>
-<meta name="description" content="從「誰決定下一步」開始，看懂 workflow 與 agent 的差別、共用的 harness 結構，以及 LangGraph / Pydantic AI / CrewAI / n8n 四種實作。20 slides。">
+<title>Agentic Workflow：誰決定下一步？</title>
+<meta name="description" content="用「誰決定下一步」區分 Workflow 與 Agent，並比較 LangGraph、Pydantic AI、CrewAI、n8n 四種實作。20 slides。">
 <style>
 /* ============================================================
    STYLE D · BLUEPRINT × TYPE LOUD — fixed 1920×1080 stage
@@ -517,6 +517,64 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   #help{position:fixed;left:16px;right:16px;bottom:16px;width:auto;padding:18px}
 }
 
+
+/* === ADHD NAVIGATION REWRITE · P3–P10 === */
+
+.pano-grid{display:grid;grid-template-columns:.9fr 1.55fr .95fr;gap:14px;margin-top:18px}
+.pano-panel{background:#0b2344cc;border:1px solid #ffffff2b;border-radius:10px;padding:16px 17px;min-height:385px;display:flex;flex-direction:column;gap:11px}
+.pano-k{font:800 14px 'IBM Plex Mono',monospace;letter-spacing:.13em;color:#ff9a66}
+.pano-h{font-size:23px;font-weight:900;color:#eef4ff;line-height:1.2}
+.boundary-stack{display:grid;gap:7px;margin-top:2px}
+.boundary-layer{display:grid;grid-template-columns:112px 1fr;gap:9px;align-items:center;background:#102f59;border-left:3px solid #365d89;border-radius:6px;padding:9px 10px}
+.boundary-layer.hot{border-left-color:#ff7a3c;background:#382924}
+.boundary-layer .bl{font:800 13px 'IBM Plex Mono',monospace;color:#b8cbe5}.boundary-layer.hot .bl{color:#ff9a66}
+.boundary-layer .bd{font-size:15px;color:#dce8f7;line-height:1.35}
+.spectrum-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:2px}
+.spectrum-card{background:#102f59;border:1px solid #ffffff25;border-radius:7px;padding:12px 10px;min-height:182px;display:flex;flex-direction:column;gap:8px}
+.spectrum-card.hot{border-color:#ff7a3c;background:#382924}
+.spectrum-card .sk{font:800 12px 'IBM Plex Mono',monospace;color:#8fb0dd}.spectrum-card.hot .sk{color:#ff9a66}
+.spectrum-card .sh{font-size:19px;font-weight:900;color:#eef4ff;line-height:1.2}
+.spectrum-card .so{font-size:14px;line-height:1.38;color:#b8cbe5}
+.owner-line{margin-top:auto;border-top:1px solid #ffffff22;padding-top:8px;font:700 12px 'IBM Plex Mono',monospace;color:#8fd0b5}
+.agent-loop-mini{background:#071a32;border-radius:7px;padding:10px 12px;text-align:center;font:700 14px 'IBM Plex Mono',monospace;color:#b8cbe5;line-height:1.45}
+.topology-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px}
+.topology-card{background:#102f59;border:1px solid #ffffff25;border-radius:7px;padding:12px 10px;min-height:108px}
+.topology-card .th{font:800 14px 'IBM Plex Mono',monospace;color:#ff9a66;margin-bottom:6px}.topology-card .tb{font-size:14px;line-height:1.35;color:#c1d2e8}
+.topology-note{margin-top:auto;background:#071a32;border-radius:7px;padding:10px 11px;font-size:14px;line-height:1.4;color:#8fd0b5}
+.pano-controls{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;margin-top:12px}
+.pano-control{background:#0a203e;border:1px solid #ffffff25;border-radius:6px;padding:9px 8px;text-align:center}
+.pano-control .ck{font:800 12px 'IBM Plex Mono',monospace;color:#ff9a66}.pano-control .cb{font-size:13px;color:#a9bedb;margin-top:4px;line-height:1.25}
+@media (max-width:900px) and (orientation:portrait){
+  .pano-grid,.spectrum-mini,.topology-grid,.pano-controls{grid-template-columns:1fr}
+  .pano-panel,.spectrum-card,.topology-card{min-height:0}
+}
+.control-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:28px}
+.control-grid.four{grid-template-columns:repeat(2,1fr)}
+.control-card{background:#0d2548cc;border:1px solid #ffffff25;border-radius:12px;padding:22px 24px;min-height:200px;display:flex;flex-direction:column;gap:11px}
+.control-card .k{font:800 17px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#ff9a66}
+.control-card .h{font-size:27px;line-height:1.25;font-weight:900;color:#eef4ff}
+.control-card .b{font-size:19px;line-height:1.52;color:#b8cbe5}
+.control-card .e{margin-top:auto;border-top:1px solid #ffffff1d;padding-top:10px;font-size:16px;line-height:1.45;color:#8fd0b5}
+.seq5{display:grid;grid-template-columns:1fr 52px 1.25fr 52px 1.25fr 52px 1fr 52px 1.1fr;align-items:center;gap:6px;margin-top:36px}
+.seq5 .sq{min-height:154px;background:#0d2548cc;border:1px solid #ffffff30;border-radius:10px;padding:20px 14px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px}
+.seq5 .sq.hot{border-color:#ff7a3c;background:#3b2b25cc}
+.seq5 .qh{font-size:23px;font-weight:900;color:#eef4ff}.seq5 .qb{font-size:16px;line-height:1.45;color:#9db8dd}
+.seq5 .ar{font-size:34px;text-align:center;color:#ff7a3c;font-weight:900}
+.triad{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:22px}
+.triad .lane{background:#0d2548cc;border:1px solid #ffffff25;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px;min-height:310px}
+.triad .lane .tag{font:800 16px 'IBM Plex Mono',monospace;color:#ff9a66;letter-spacing:.1em}
+.triad .lane .lh{font-size:26px;font-weight:900;color:#eef4ff;line-height:1.25}
+.triad .lane .lb{font-size:18px;line-height:1.48;color:#b8cbe5}
+.triad .lane .mini-flow{margin-top:auto;background:#081b34;border-radius:8px;padding:14px 12px;text-align:center;font:700 16px 'IBM Plex Mono',monospace;color:#8fd0b5;line-height:1.5}
+@media (max-width:900px) and (orientation:portrait){
+  .seq5{grid-template-columns:1fr;gap:6px;margin-top:20px}
+  .seq5 .ar{transform:rotate(90deg);line-height:1}
+  .seq5 .sq{min-height:0;padding:16px 12px}
+  .control-grid,.control-grid.four,.triad{grid-template-columns:1fr;gap:12px}
+  .control-card,.triad .lane{min-height:0}
+  .control-card .b,.triad .lane .lb{overflow-wrap:anywhere}
+}
+
 </style>
 </head>
 <body>
@@ -529,10 +587,10 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 <!-- ============ 1 TITLE ============ -->
 <section class="slide" id="s1" aria-labelledby="s1t">
   <p class="meta"><span class="num">01</span><span class="part">AGENTIC WORKFLOW · 概念入門</span></p>
-  <h2 class="h2 title-h2" id="s1t">Agentic Workflow：<br><strong>任務自動化的一道光譜</strong></h2>
-  <p class="sub title-sub">從「<b>誰決定下一步</b>」開始——看懂 Workflow 與 Agent 的差別、共用的 Harness 結構，<br>以及 <b>LangGraph · Pydantic AI · CrewAI · n8n</b> 四種實作的長相。</p>
+  <h2 class="h2 title-h2" id="s1t">Agentic Workflow：<br><strong>誰決定下一步？</strong></h2>
+  <p class="sub title-sub">Workflow 由程式排步驟；Agent 由模型看結果後選下一步。<br>最後用 <b>LangGraph · Pydantic AI · CrewAI · n8n</b> 寫同一個案例。</p>
   <div class="specbar">
-    <span class="sp-mid">控制流由誰決定？</span>
+    <span class="sp-mid">下一步由誰決定？</span>
     <span class="sp-end">Workflow<small>code 決定流程</small></span>
     <span class="sp-end" style="text-align:right">Agent<small>模型決定下一步</small></span>
   </div>
@@ -541,136 +599,152 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
     <span class="chip" style="background:#e9e2d2;color:#6f6350">附錄：同一件事，四種寫法</span>
   </div>
   <div class="sticker">誰決定下一步？</div>
-  <div class="take take-title"><b>模型負責想，你負責決定它能在什麼框架裡想。</b></div>
+  <div class="take take-title"><b>先看下一步由程式選，還是由模型選。</b></div>
 </section>
 
 <!-- ============ 2 WHAT IS AGENTIC ============ -->
 <section class="slide" id="s2" aria-labelledby="s2t">
   <p class="meta"><span class="num">02</span><span class="part">PART 1 · 光譜與判準</span></p>
-  <h2 class="h2" id="s2t">任務自動化不是新東西——<strong>LLM 加入後多了一道光譜</strong></h2>
-  <p class="sub">「自動化」早就有了：ETL、CI/CD、排程、DAG。LLM 帶來的不是自動化本身，而是<b>讓「不知道確切步驟」的任務也能自動化</b>。</p>
+  <h2 class="h2" id="s2t">LLM 讓自動化能處理<strong>事先列不完步驟的任務</strong></h2>
+  <p class="sub">ETL、CI/CD、排程早就在自動跑。LLM 新增的是：<b>只給目標，也能邊做邊找下一步</b>。</p>
   <div class="dg center" style="margin-top:26px">
-    <div class="node ok"><div class="t">舊自動化</div><div class="s">步驟寫死<br>ETL · CI/CD · Airflow</div></div>
+    <div class="node ok"><div class="t">固定流程</div><div class="s">程式先排好步驟<br>ETL · CI/CD · Airflow</div></div>
     <div class="arrow">＋ LLM<label class="lbl">多了一格</label></div>
-    <div class="node warn"><div class="t">自然語言任務</div><div class="s">「幫我查 Trino 為什麼變慢」<br>步驟無法預先列完</div></div>
+    <div class="node warn"><div class="t">開放任務</div><div class="s">「Trino 為什麼變慢？」<br>要查什麼不能先列完</div></div>
     <div class="arrow">→<label class="lbl">選項變多</label></div>
-    <div class="node hl"><div class="t">光譜</div><div class="s">Workflow ↔ Agent<br>固定路徑 ↔ 動態決策</div></div>
+    <div class="node hl"><div class="t">兩種控制方式</div><div class="s">Workflow：程式選<br>Agent：模型選</div></div>
   </div>
   <div class="cols2">
     <div class="card">
-      <h4 class="d">解決的瓶頸</h4>
-      <div class="ct">AUTOMATION 的邊界擴張</div>
+      <h4 class="d">多做了什麼</h4>
+      <div class="ct">OPEN-ENDED TASKS</div>
       <ul>
-        <li>過去要<b>寫程式</b>才能自動化的任務，現在一句話就能起頭</li>
-        <li>中間的「不確定性」由模型補上，不用人先窮舉所有分支</li>
+        <li>不必先寫完所有分支，只要先給目標</li>
+        <li>模型可依查到的結果改變下一步</li>
       </ul>
     </div>
     <div class="card">
-      <h4 class="a">仍沒解決</h4>
+      <h4 class="a">新增的代價</h4>
       <div class="ct">NEW PROBLEMS</div>
       <ul>
-        <li>模型會<b>出錯、繞路、胡謅</b>——產出不能直接當真</li>
-        <li>每跑一輪都在<b>燒 token</b>，失敗重試也燒</li>
-        <li>執行路徑不固定 → 除錯與稽核變難</li>
+        <li>模型會出錯與繞路，結果必須驗證</li>
+        <li>每一輪都花 token，重試也會增加成本</li>
+        <li>路徑不固定，較難除錯與追查</li>
       </ul>
     </div>
   </div>
-  <div class="take">真正的問題不是「要不要自動化」，而是「<b>自動化到什麼程度</b>」。</div>
+  <div class="take"><b>步驟越難預先列出，越需要讓模型選下一步。</b></div>
 </section>
 
-<!-- ============ 3 SPECTRUM NOT BINARY ============ -->
+<!-- ============ 3 NATIVE BLUEPRINT PANORAMA ============ -->
 <section class="slide" id="s3" aria-labelledby="s3t">
-  <p class="meta"><span class="num">03</span><span class="part">PART 1 · 光譜與判準</span></p>
-  <h2 class="h2" id="s3t">不是 workflow 或 agent 二選一——<strong>是「誰決定下一步」</strong></h2>
-  <div class="cmpbar"><span class="cbd">Workflow</span><span class="cbq">同一個問題：任務自動化</span><span class="cba">Agent</span></div>
-  <div class="cols2">
-    <div class="card">
-      <h4 class="d">Workflow：控制流在 code</h4>
-      <div class="ct">N8N · HOOKS · AIRFLOW · 純 CODE</div>
-      <ul>
-        <li>步驟順序<b>寫死</b>：這步做完換下一步，不因模型心情改變</li>
-        <li>LLM 只是其中一個 function call——<b>被關在固定步驟裡</b></li>
-        <li>可測試、可 resume、失敗模式明確（第 3 步掛了就是第 3 步）</li>
-        <li>工具由 <b>code 呼叫</b>，不是模型挑</li>
-      </ul>
+  <p class="meta"><span class="num">03</span><span class="part">NAVIGATION · 全景圖</span></p>
+  <h2 class="h2" id="s3t">先找一件事：<strong>下一步由程式選，還是模型選</strong></h2>
+  <div class="cmpbar"><span class="cbd">程式／規則</span><span class="cbq">唯一判準：誰決定下一步？</span><span class="cba">模型／Agent</span></div>
+  <div class="pano-grid">
+    <div class="pano-panel">
+      <div class="pano-k">① 系統分工</div><div class="pano-h">模型提出動作；執行程式負責檢查與執行</div>
+      <div class="boundary-stack">
+        <div class="boundary-layer"><div class="bl">LLM</div><div class="bd">思考與產生文字<br>CoT 是模型內部思考</div></div>
+        <div class="boundary-layer"><div class="bl">HARNESS</div><div class="bd">反覆執行、保存進度<br>呼叫工具、權限、記錄、回復</div></div>
+        <div class="boundary-layer hot"><div class="bl">DECISION</div><div class="bd">下一個動作<br>由程式還是模型選？</div></div>
+        <div class="boundary-layer"><div class="bl">EXECUTION</div><div class="bd">API／資料庫／檔案<br>真的改變外部系統</div></div>
+      </div>
     </div>
-    <div class="card">
-      <h4 class="a">Agent：控制流在模型</h4>
-      <div class="ct">LANGGRAPH · PYDANTIC AI · CREWAI · ADK</div>
-      <ul>
-        <li>模型看到<b>工具清單</b>，自己挑、自己組合、自己定順序</li>
-        <li>在<a><b>你畫的框架</b>裡選</a>：工具集、狀態、停止條件都是你定義</li>
-        <li>路徑不固定，繞路、重試是常態</li>
-        <li>底層就是一個 loop，直到它不再呼叫工具</li>
-      </ul>
+    <div class="pano-panel">
+      <div class="pano-k">② 自主程度</div><div class="pano-h">兩邊都能用 LLM，差別是誰排下一步</div>
+      <div class="spectrum-mini">
+        <div class="spectrum-card"><div class="sk">A · WORKFLOW 固定流程</div><div class="sh">固定路徑</div><div class="so">程式或流程圖先排好步驟；LLM 只是其中一個功能。</div><div class="owner-line">下一步：程式選</div></div>
+        <div class="spectrum-card"><div class="sk">B · 受限 AGENT</div><div class="sh">有限範圍內自己選</div><div class="so">模型只能在指定工具、權限、預算與人工確認內選動作。</div><div class="owner-line">下一步：模型在限制內選</div></div>
+        <div class="spectrum-card hot"><div class="sk">C · AGENT</div><div class="sh">動態決策</div><div class="so">模型看完結果，再決定下一步、換路或停止。</div><div class="owner-line">下一步：模型選</div></div>
+      </div>
+      <div class="agent-loop-mini">目標 → 選動作 → 執行 → 看結果 → 更新進度 → 再選／停止</div>
+    </div>
+    <div class="pano-panel">
+      <div class="pano-k">③ 多 Agent 怎麼分工</div><div class="pano-h">多 Agent 只改分工方式，不改判斷標準</div>
+      <div class="topology-grid">
+        <div class="topology-card"><div class="th">SUPERVISOR</div><div class="tb">中央 Agent 派工並合併結果</div></div>
+        <div class="topology-card"><div class="th">HANDOFF</div><div class="tb">目前 Agent 直接交給下一位</div></div>
+        <div class="topology-card"><div class="th">TEAMS</div><div class="tb">固定角色，共用任務與進度</div></div>
+        <div class="topology-card"><div class="th">A2A</div><div class="tb">不同 Agent 系統的通訊規格</div></div>
+      </div>
+      <div class="topology-note">分工方式只回答「誰跟誰合作」；仍要看每段由誰選下一步。</div>
     </div>
   </div>
-  <div class="pband same"><span class="pbl">關鍵澄清</span>兩端都可以有 LLM——<b>deterministic 不是「沒有 LLM」，是「LLM 被放在固定步驟裡」</b>。</div>
-  <div class="take">分界線只有一條：<b>誰決定執行哪個工具</b>——寫死的程式碼，還是模型的推理。</div>
+  <div class="pano-controls">
+    <div class="pano-control"><div class="ck">GOAL</div><div class="cb">成功／停止</div></div>
+    <div class="pano-control"><div class="ck">STATE</div><div class="cb">進度／證據</div></div>
+    <div class="pano-control"><div class="ck">TOOLS</div><div class="cb">能力邊界</div></div>
+    <div class="pano-control"><div class="ck">HOOKS</div><div class="cb">前後攔截</div></div>
+    <div class="pano-control"><div class="ck">POLICY</div><div class="cb">權限／批准</div></div>
+    <div class="pano-control"><div class="ck">TRACE + EVAL</div><div class="cb">路徑／品質</div></div>
+    <div class="pano-control"><div class="ck">SANDBOX</div><div class="cb">隔離／回復</div></div>
+  </div>
+  <div class="take">判斷順序：<b>誰選下一步 → 可以做什麼 → 怎麼限制風險。</b></div>
 </section>
 
-<!-- ============ 4 PREDICTABILITY ============ -->
-<section class="slide rv-quad" id="s4" aria-labelledby="s4t">
-  <p class="meta"><span class="num">04</span><span class="part">PART 1 · 光譜與判準</span></p>
-  <h2 class="h2" id="s4t">選哪一端，看<strong>「步驟能不能事先列出來」</strong>——不是複雜度</h2>
+<!-- ============ 4 STARTING POINT ============ -->
+<section class="slide" id="s4" aria-labelledby="s4t">
+  <p class="meta"><span class="num">04</span><span class="part">NAV ② · 自主程度光譜</span></p>
+  <h2 class="h2" id="s4t">路徑可預測就用 Workflow；<strong>不可預測才用 Agent</strong></h2>
   <div class="quad">
     <div class="qblank"></div>
-    <div class="qcolhead">← 不可預測</div>
-    <div class="qcolhead">可預測 →</div>
+    <div class="qcolhead">← 路徑不可預測</div>
+    <div class="qcolhead">路徑可預測 →</div>
     <div class="qrowhead">高<br>複雜度</div>
-    <div class="qcell ag"><div class="qh">高複雜 × 不可預測</div><div class="qe">企業級研究、<b>多領域專家協作</b>、開放式探索</div><div class="qv">→ Agent</div></div>
-    <div class="qcell wf"><div class="qh">高複雜 × 可預測</div><div class="qe">ETL、CI/CD、月結報表——步驟全知道</div><div class="qv">→ Workflow（照樣能用）</div></div>
+    <div class="qcell ag"><div class="qh">研究、診斷、開放探索</div><div class="qe">先讓 Agent 找路；跑通後把固定步驟改成 Workflow</div><div class="qv">→ Agent 起步</div></div>
+    <div class="qcell wf"><div class="qh">ETL、CI/CD、月結流程</div><div class="qe">步驟再多，只要順序已知，就用 Workflow</div><div class="qv">→ Workflow 起步</div></div>
     <div class="qrowhead">低<br>複雜度</div>
-    <div class="qcell ag"><div class="qh">低複雜 × 不可預測</div><div class="qe">「查這家公司創辦人，來源要可靠」</div><div class="qv">→ Agent（輕量）</div></div>
-    <div class="qcell wf"><div class="qh">低複雜 × 可預測</div><div class="qe">定時任務、固定格式轉檔</div><div class="qv">→ Script 就夠</div></div>
+    <div class="qcell ag"><div class="qh">簡短但答案路徑未知</div><div class="qe">例如跨網站查證；模型需要自己選工具</div><div class="qv">→ 輕量 Agent</div></div>
+    <div class="qcell wf"><div class="qh">固定轉檔、排程、規則判斷</div><div class="qe">程式碼或 n8n 已足夠；LLM 只是其中一個步驟</div><div class="qv">→ Script / Workflow</div></div>
   </div>
-  <div class="pband cur"><span class="pbl">次要考量</span><b>成本</b>（agent 每輪燒 token）· <b>失敗模式</b>（可預測 vs 繞 20 輪做錯）· <b>可審計性</b>——都會把選擇往 workflow 拉。</div>
-  <div class="take"><b>複雜度決定「要不要自動化」，可預測性決定「自動化到什麼程度」。</b></div>
+  <div class="pband cur"><span class="pbl">演化路徑</span>先讓 Agent 跑通；重複、昂貴或不穩的步驟再改成 Workflow。</div>
+  <div class="take"><b>已知路徑用 Workflow；未知路徑用 Agent；實務上常混合。</b></div>
 </section>
 
-<!-- ============ 5 ONE LOOP ============ -->
-<section class="slide rv-loop" id="s5" aria-labelledby="s5t">
-  <p class="meta"><span class="num">05</span><span class="part">PART 2 · Harness 心智模型</span></p>
-  <h2 class="h2" id="s5t">所有 Agent 框架，底下都是<strong>同一個 loop</strong></h2>
+<!-- ============ 5 AGENT LOOP ============ -->
+<section class="slide" id="s5" aria-labelledby="s5t">
+  <p class="meta"><span class="num">05</span><span class="part">NAV ① · 系統邊界</span></p>
+  <h2 class="h2" id="s5t">Agent：<strong>看完結果，再選下一步</strong></h2>
   <div class="loopbox">
     <div class="looprow">
-      <div class="loopnode"><div class="lt">使用者</div><div class="ls">一句話任務</div></div>
+      <div class="loopnode"><div class="lt">目標</div><div class="ls">完成條件</div></div>
       <div class="arrow" style="font-size:26px">→</div>
-      <div class="loopnode llm"><div class="lt">LLM（帶工具清單）</div><div class="ls">決定：呼叫工具 or 直接回覆</div></div>
+      <div class="loopnode llm"><div class="lt">選動作</div><div class="ls">模型選工具或停止</div></div>
       <div class="arrow" style="font-size:26px">→</div>
-      <div class="loopnode tool"><div class="lt">執行工具</div><div class="ls">search / calc / API……</div></div>
+      <div class="loopnode tool"><div class="lt">執行</div><div class="ls">程式執行工具</div></div>
       <div class="arrow" style="font-size:26px">→</div>
-      <div class="loopnode"><div class="lt">結果回填</div><div class="ls">塞回 messages 再問一次</div></div>
+      <div class="loopnode"><div class="lt">看結果</div><div class="ls">結果寫回目前進度</div></div>
     </div>
-    <div class="loopback">↺ 迴圈 —— 直到模型不再呼叫工具（或超過你設的步數上限）→ 輸出答案</div>
+    <div class="loopback">↺ 沒完成：把結果交回模型再選一次　｜　完成、超時或超過預算：停止</div>
   </div>
   <div class="cols2">
     <div class="card">
-      <h4 class="a">核心 loop（約 20 行）</h4>
-      <div class="ct">WHILE NOT DONE</div>
+      <h4 class="a">模型負責選下一步</h4>
+      <div class="ct">選工具 · 分支 · 重試</div>
       <ul>
-        <li>模型回傳的可能不是文字，是<b>工具呼叫請求</b></li>
-        <li>執行結果以 <b>tool role</b> 回填，模型再看一次</li>
-        <li>「不再呼叫」或「超過上限」＝結束</li>
+        <li>讀取目前進度與可用工具</li>
+        <li>選下一個動作，或判斷停止</li>
+        <li>CoT 只是模型內部思考，不是流程</li>
       </ul>
     </div>
     <div class="card">
-      <h4 class="d">框架做的事</h4>
-      <div class="ct">LANGGRAPH · PYDANTIC AI · CREWAI · ADK</div>
+      <h4 class="d">執行程式負責真的做</h4>
+      <div class="ct">執行 · 保存進度 · 套用限制</div>
       <ul>
-        <li>把這個 loop 包成 API＋工具註冊＋狀態管理</li>
-        <li>加上可觀測性、checkpoint、暫停恢復</li>
-        <li><b>差別在編排方式，不在 loop 本身</b></li>
+        <li>註冊工具、保存進度、執行工具</li>
+        <li>套用權限、超時、預算與停止條件</li>
+        <li>Workflow 也能用同一套執行程式；差別仍是誰選下一步</li>
       </ul>
     </div>
   </div>
-  <div class="take">看懂這 20 行，就看得懂所有框架——<b>框架是幫你把 loop 的細節藏起來</b>。</div>
+  <div class="take"><b>有迴圈不代表是 Agent；模型能看結果再選下一步才算。</b></div>
 </section>
 
-<!-- ============ 6 HARNESS ============ -->
+<!-- ============ 6 HARNESS BOUNDARY ============ -->
 <section class="slide" id="s6" aria-labelledby="s6t">
   <p class="meta"><span class="num">06</span><span class="part">PART 2 · Harness 心智模型</span></p>
-  <h2 class="h2" id="s6t">模型吐「意圖」，Harness 執行——<strong>分工就這兩句</strong></h2>
+  <h2 class="h2" id="s6t">模型是大腦；<strong>Harness 是身體，工具是手</strong></h2>
   <div class="circuit" style="margin-top:20px">
     <svg viewBox="0 0 1750 430" role="img" aria-label="機器人：指令進大腦、經身體到手的動畫迴路" style="width:100%;height:auto;display:block">
       <defs>
@@ -696,7 +770,7 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
         <circle cx="728" cy="98" r="9" fill="#eef4ff" opacity=".9"/>
         <path d="M 652 132 Q 690 154 728 132" stroke="#ff7a3c" stroke-width="4" fill="none" stroke-linecap="round"/>
         <text x="690" y="178" text-anchor="middle" font-size="21" font-weight="900" fill="#ff7a3c" font-family="'Noto Sans TC',sans-serif">大腦＝模型</text>
-        <text x="690" y="204" text-anchor="middle" font-size="15" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">吐「意圖」</text>
+        <text x="690" y="204" text-anchor="middle" font-size="15" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">選下一步</text>
       </g>
       <!-- 脖子 -->
       <rect x="660" y="208" width="60" height="24" rx="7" fill="#12315f" stroke="#ffffff66" stroke-width="2"/>
@@ -705,8 +779,8 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
         <rect x="570" y="230" width="240" height="150" rx="14" fill="#0d2548cc" stroke="#ffffff77" stroke-width="2"/>
         <circle cx="690" cy="305" r="30" fill="none" stroke="#ff7a3c88" stroke-width="2"/>
         <circle cx="690" cy="305" r="9" fill="#ff7a3c"/>
-        <text x="690" y="272" text-anchor="middle" font-size="19" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">Harness＝身體</text>
-        <text x="690" y="360" text-anchor="middle" font-size="14" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">解析 → 執行 → 回填</text>
+        <text x="690" y="272" text-anchor="middle" font-size="19" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">身體＝Harness</text>
+        <text x="690" y="360" text-anchor="middle" font-size="14" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">檢查 → 執行 → 記錄</text>
       </g>
       <!-- 左臂：身體 → 使用者方向（接收，關節+手） -->
       <line x1="570" y1="268" x2="430" y2="268" stroke="#ffffff77" stroke-width="5"/>
@@ -722,16 +796,16 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
       <!-- 機器人：手 -->
       <g class="st st4">
         <rect x="1205" y="265" width="130" height="80" rx="40" fill="#0d2548cc" stroke="#ffffff77" stroke-width="2"/>
-        <text x="1270" y="303" text-anchor="middle" font-size="19" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">🖐️ 手</text>
-        <text x="1270" y="328" text-anchor="middle" font-size="14" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">執行工具</text>
+        <text x="1270" y="303" text-anchor="middle" font-size="19" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">🖐️ 工具</text>
+        <text x="1270" y="328" text-anchor="middle" font-size="14" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">呼叫 API／DB</text>
       </g>
       <line x1="1335" y1="305" x2="1410" y2="305" stroke="#ff7a3c" stroke-width="4" marker-end="url(#cirArrow)"/>
-      <!-- 工具世界 -->
+      <!-- 外部系統 -->
       <g class="st st4b">
         <rect x="1410" y="230" width="260" height="150" rx="8" fill="#0d2548cc" stroke="#8fd0b566" stroke-width="2"/>
-        <text x="1540" y="288" text-anchor="middle" font-size="20" font-weight="900" fill="#8fd0b5" font-family="'Noto Sans TC',sans-serif">工具世界</text>
-        <text x="1540" y="320" text-anchor="middle" font-size="15" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">search · API · DB</text>
-        <text x="1540" y="352" text-anchor="middle" font-size="13" fill="#6f8db5" font-family="'Noto Sans TC',sans-serif">真實副作用在這裡發生</text>
+        <text x="1540" y="288" text-anchor="middle" font-size="20" font-weight="900" fill="#8fd0b5" font-family="'Noto Sans TC',sans-serif">外部系統</text>
+        <text x="1540" y="320" text-anchor="middle" font-size="15" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">Search · API · DB</text>
+        <text x="1540" y="352" text-anchor="middle" font-size="13" fill="#6f8db5" font-family="'Noto Sans TC',sans-serif">真的讀寫資料</text>
       </g>
       <!-- 回饋虛線：工具 → 底部 → 身體左 → 大腦 → 使用者 -->
       <line x1="1540" y1="380" x2="690" y2="380" stroke="#b8d0f0" stroke-width="3.5" stroke-dasharray="9 7"/>
@@ -740,11 +814,11 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
       <line x1="540" y1="255" x2="583" y2="212" stroke="#b8d0f0" stroke-width="3.5" stroke-dasharray="9 7" marker-end="url(#cirArrowDim)"/>
       <line x1="583" y1="52" x2="270" y2="140" stroke="#8fb0dd" stroke-width="3.5" stroke-dasharray="5 7" marker-end="url(#cirArrowDim)"/>
       <!-- 流程標籤 -->
-      <text x="424" y="104" text-anchor="middle" font-size="17" font-weight="700" fill="#ff7a3c" font-family="'Noto Sans TC',sans-serif">① 指令</text>
-      <text x="775" y="228" text-anchor="middle" font-size="16" font-weight="700" fill="#ff7a3c" font-family="'Noto Sans TC',sans-serif">② 意圖</text>
-      <text x="1010" y="288" text-anchor="middle" font-size="17" font-weight="700" fill="#ff7a3c" font-family="'Noto Sans TC',sans-serif">③ tool call</text>
-      <text x="1120" y="402" text-anchor="middle" font-size="16" font-weight="700" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">④ 執行結果回填</text>
-      <text x="400" y="58" text-anchor="middle" font-size="16" font-weight="700" fill="#6f8db5" font-family="'Noto Sans TC',sans-serif">⑤ 回應使用者</text>
+      <text x="424" y="104" text-anchor="middle" font-size="17" font-weight="700" fill="#ff7a3c" font-family="'Noto Sans TC',sans-serif">① 任務</text>
+      <text x="775" y="228" text-anchor="middle" font-size="16" font-weight="700" fill="#ff7a3c" font-family="'Noto Sans TC',sans-serif">② 選動作</text>
+      <text x="1010" y="288" text-anchor="middle" font-size="17" font-weight="700" fill="#ff7a3c" font-family="'Noto Sans TC',sans-serif">③ 工具請求</text>
+      <text x="1120" y="402" text-anchor="middle" font-size="16" font-weight="700" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">④ 結果寫回模型</text>
+      <text x="400" y="58" text-anchor="middle" font-size="16" font-weight="700" fill="#6f8db5" font-family="'Noto Sans TC',sans-serif">⑤ 回覆</text>
       <!-- 流動光點：橙＝前進，藍＝回饋 -->
       <circle class="pulse-halo" r="13" fill="#ff7a3c33">
         <animateMotion dur="4s" repeatCount="indefinite" path="M282,168 L596,84 L690,208 L690,245 L810,305 L1205,305 L1335,305 L1410,305"/>
@@ -760,231 +834,166 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
       </circle>
     </svg>
   </div>
-  <div class="note" style="font-size:19px;margin-top:8px;text-align:center"><b>動畫示意</b>：<span style="color:#ff7a3c">橙點</span>＝指令進大腦 → 經身體 → 到手執行工具；<span style="color:#9db8dd">藍點</span>＝執行結果回填大腦 → 回應使用者。</div>
+  <div class="note" style="font-size:19px;margin-top:8px;text-align:center"><b>橘線</b>：模型提出動作，Harness 檢查後執行。<b>藍線</b>：結果寫回模型，模型再決定下一步。</div>
   <div class="cols2">
     <div class="card">
-      <h4 class="d">為什麼這個模型有用</h4>
-      <div class="ct">TEXT IN / TEXT OUT</div>
-      <ul>
-        <li>模型是純文字函式——<b>可以任意替換</b>，harness 不動</li>
-        <li>「給模型工具」＝在 prompt 塞 JSON schema＋在 harness 註冊 function</li>
-        <li>工具即協議，沒有魔法</li>
-      </ul>
+      <h4 class="a">模型負責選</h4>
+      <ul><li>看目前進度與可用工具</li><li>提出工具名稱與參數</li></ul>
     </div>
     <div class="card">
-      <h4 class="a">所以安全住在哪</h4>
-      <div class="ct">NOT IN THE MODEL</div>
-      <ul>
-        <li>所有安全機制都是<b>你的 code</b>：權限、sandbox、參數驗證</li>
-        <li>模型只能「建議」動作，能不能做是 harness 說了算</li>
-        <li>你每天用的 AI 助手本身就是一個 harness</li>
-      </ul>
+      <h4 class="d">Harness 負責做</h4>
+      <ul><li>檢查權限與參數，再執行工具</li><li>保存結果，交回模型繼續判斷</li></ul>
     </div>
   </div>
-  <div class="take">tool call 只是一段 JSON——<b>真正執行的是你的程式，別把信任交給模型</b>。</div>
+  <div class="take"><b>模型只能提出動作；真正執行與驗證的是 Harness。</b></div>
 </section>
 
-<!-- ============ 7 FIVE LAYERS 1 ============ -->
-<section class="slide rv-stack" id="s7" aria-labelledby="s7t">
-  <p class="meta"><span class="num">07</span><span class="part">PART 3 · 落地檢查表（上）</span></p>
-  <h2 class="h2" id="s7t">落地檢查表 ①：<strong>定義層＋執行層</strong>——動手前先想清楚</h2>
-  <div class="stack">
-    <div class="srow on"><div class="sl">定義層</div><div class="sd"><b>工具設計</b>：粒度、description 品質（模型靠 description 選工具）· <b>副作用聲明</b>：會寫 DB？會花錢？· <b>狀態 schema</b>：哪些要跨步驟保留</div></div>
-    <div class="srow on"><div class="sl">執行層</div><div class="sd"><b>Loop 上限</b>：max iterations、timeout——沒有上限是燒錢無底洞 · <b>冪等性</b>：retry 工具＝重複副作用 · <b>成本</b>：token 預算、快取、model tiering · <b>context 管理</b>：摘要、壓縮、RAG</div></div>
-    <div class="srow off"><div class="sl">信任層</div><div class="sd">最小權限 · prompt injection · HITL 人審</div></div>
-    <div class="srow off"><div class="sl">觀測層</div><div class="sd">trace · evals · 驗證機制</div></div>
-    <div class="srow off"><div class="sl">營運層</div><div class="sd">版本管理 · CI · 升級路徑</div></div>
+<!-- ============ 7 CONTROL PLANE CORE ============ -->
+<section class="slide" id="s7" aria-labelledby="s7t">
+  <p class="meta"><span class="num">07</span><span class="part">NAV ④ · 目標、進度、工具</span></p>
+  <h2 class="h2" id="s7t">先定三件事：<strong>何時完成、記住什麼、能做什麼</strong></h2>
+  <div class="control-grid">
+    <div class="control-card"><div class="k">01 · GOAL</div><div class="h">何時算完成</div><div class="b">完成條件必須能檢查，模型才能判斷繼續或停止。</div><div class="e">例：測試通過且 PR 已建立</div></div>
+    <div class="control-card"><div class="k">02 · STATE</div><div class="h">目前進度與證據</div><div class="b">保存已做的動作、結果、錯誤與中間產物。</div><div class="e">例：alert、根因、人審、修復與驗證結果</div></div>
+    <div class="control-card"><div class="k">03 · TOOLS</div><div class="h">可以做的動作</div><div class="b">工具說明、參數格式與權限，決定模型能做哪些動作。</div><div class="e">例：查詢與部署使用不同權限</div></div>
   </div>
-  <div class="cols2">
-    <div class="card">
-      <h4 class="a">最常漏的執行層坑</h4>
-      <div class="ct">RETRY = SIDE EFFECT AGAIN</div>
-      <ul>
-        <li>agent 對工具 retry＝<b>重複執行副作用</b>（重複刷卡、重複發信）</li>
-        <li>工具要有冪等設計（idempotency key）或明確禁止重試</li>
-      </ul>
-    </div>
-    <div class="card">
-      <h4 class="d">例子：alert 處理的 10 步 chain</h4>
-      <div class="ct">定義層 × 執行層</div>
-      <ul>
-        <li>定義層：每步的輸入輸出（alert → 診斷 → 修復步驟）、權限範圍、驗證標準</li>
-        <li>執行層：每步一次 LLM 呼叫，失敗只重跑該步</li>
-      </ul>
-    </div>
-  </div>
-  <div class="take">沒有上限與冪等性的 agent，<b>是 production 的隱形炸彈</b>。</div>
+  <div class="take"><b>這三項決定 Agent 的目標、資訊與行動範圍。</b></div>
 </section>
 
-<!-- ============ 8 FIVE LAYERS 2 ============ -->
-<section class="slide rv-stack" id="s8" aria-labelledby="s8t">
-  <p class="meta"><span class="num">08</span><span class="part">PART 3 · 落地檢查表（下）</span></p>
-  <h2 class="h2" id="s8t">落地檢查表 ②：<strong>信任＋觀測＋營運</strong>——demo 到 production 的分水嶺</h2>
-  <div class="stack">
-    <div class="srow off"><div class="sl">定義層</div><div class="sd">工具設計 · 副作用 · 狀態 schema</div></div>
-    <div class="srow off"><div class="sl">執行層</div><div class="sd">loop 上限 · 冪等性 · 成本 · context</div></div>
-    <div class="srow on"><div class="sl">信任層</div><div class="sd"><b>最小權限</b>：blast radius 越小越好 · <b>Prompt injection</b>：工具回傳可能夾帶指令（網頁內容寫「忽略之前指示」）· <b>HITL</b>：付錢、部署、刪資料強制人批准</div></div>
-    <div class="srow on"><div class="sl">觀測層</div><div class="sd"><b>trace</b>：每步工具、token、成本，出問題能回放 · <b>evals</b>：評軌跡不只評答案 · <b>驗證機制</b>：self-report ≠ truth</div></div>
-    <div class="srow on"><div class="sl">營運層</div><div class="sd"><b>版本管理</b>：prompt、模型、工具都有版本 · <b>CI for agents</b>：改 prompt 前先跑 eval · <b>升級／降級路徑</b></div></div>
+<!-- ============ 8 CONTROL PLANE GOVERNANCE ============ -->
+<section class="slide" id="s8" aria-labelledby="s8t">
+  <p class="meta"><span class="num">08</span><span class="part">NAV ④ · 安全限制</span></p>
+  <h2 class="h2" id="s8t">安全限制要放在程式裡，<strong>不能只靠提示詞</strong></h2>
+  <div class="control-grid four">
+    <div class="control-card"><div class="k">04 · HOOKS</div><div class="h">每步前後檢查</div><div class="b">工具執行前檢查參數，執行後讀回結果，停止前做最後驗證。</div><div class="e">例：送出前先顯示差異，等人確認</div></div>
+    <div class="control-card"><div class="k">05 · POLICY</div><div class="h">權限與人工確認</div><div class="b">限制可用權限、資料範圍、預算；高風險動作由人確認。</div><div class="e">例：查詢可自動執行；部署與刪除必須批准</div></div>
+    <div class="control-card"><div class="k">06 · TRACE + EVAL</div><div class="h">記錄過程並測試結果</div><div class="b">Trace 記錄每一步；Eval 測試過程與最後結果。</div><div class="e">例：檢查答案、工具使用與成本</div></div>
+    <div class="control-card"><div class="k">07 · SANDBOX</div><div class="h">隔離與回復</div><div class="b">在可回復的環境執行不可信程式；失敗時能還原。</div><div class="e">例：worktree、container、測試帳號、checkpoint</div></div>
   </div>
-  <div class="pband new"><span class="pbl">agent 特有的攻擊面</span>它會讀外部資料再行動——<b>網頁、文件、API 回傳都可以是注入載體</b>；輸出也要驗證才能當真。</div>
-  <div class="take"><b>demo 與 production 的分水嶺，是 evals 與驗證機制</b>——不是模型選得多好。</div>
+  <div class="take"><b>每個動作都要有權限、記錄、驗證與回復方式。</b></div>
 </section>
 
 <!-- ============ 9 TWO PITFALLS ============ -->
 <section class="slide" id="s9" aria-labelledby="s9t">
-  <p class="meta"><span class="num">09</span><span class="part">PART 3 · 落地檢查表</span></p>
-  <h2 class="h2" id="s9t">兩個最常漏的坑：<strong>冪等性、驗證機制</strong></h2>
+  <p class="meta"><span class="num">09</span><span class="part">NAV ④ · 常見錯誤</span></p>
+  <h2 class="h2" id="s9t">有副作用的動作要防重複；<strong>完成宣告要驗證</strong></h2>
   <div class="cols2" style="margin-top:36px">
     <div class="card">
-      <h4 class="a">坑 1：retry 會重複副作用</h4>
-      <div class="ct">IDEMPOTENCY</div>
-      <ul>
-        <li>agent 掛了重試＝<b>同一個動作再做一次</b></li>
-        <li>重複刷卡、重複發信、重複建帳號</li>
-        <li>解法：idempotency key、先查後寫、副作用工具禁止 retry</li>
-      </ul>
+      <h4 class="a">坑 1：重試可能重複執行</h4><div class="ct">避免重複執行</div>
+      <ul><li>Agent 會重試，同一動作可能執行兩次</li><li>使用唯一操作編號；重試前先查狀態</li><li>超時不代表失敗，重試前先讀回狀態</li></ul>
     </div>
     <div class="card">
-      <h4 class="a">坑 2：self-report ≠ truth</h4>
-      <div class="ct">VERIFICATION</div>
-      <ul>
-        <li>agent 說「完成了」<b>不代表真的完成</b></li>
-        <li>對有副作用的動作做<b>獨立驗證</b>：讀回檔案、查 API 確認</li>
-        <li>子 agent 的報告也要驗——它可能搞錯或自我感覺良好</li>
-      </ul>
+      <h4 class="a">坑 2：模型說完成不算證據</h4><div class="ct">獨立驗證</div>
+      <ul><li>模型可能誤判結果，或只完成一半</li><li>重新查 API、資料庫、檔案或測試結果</li><li>驗證失敗後再決定補救、還原或停止</li></ul>
     </div>
   </div>
   <div class="pairflow" style="margin-top:56px">
-    <div class="pfnode"><div class="ft">Agent 回報</div><div class="fd">「已寄出、已寫入、已完成」</div></div>
-    <div class="arrow" style="font-size:24px">→</div>
-    <div class="pfnode hl"><div class="ft">獨立驗證</div><div class="fd">查 API／讀回檔案／檢查 DB row</div></div>
-    <div class="arrow" style="font-size:24px">→</div>
-    <div class="pfnode"><div class="ft">確認或補救</div><div class="fd">真的成功才往下走</div></div>
+    <div class="pfnode"><div class="ft">提出動作</div><div class="fd">帶唯一操作編號</div></div><div class="arrow" style="font-size:24px">→</div>
+    <div class="pfnode hl"><div class="ft">執行＋讀回</div><div class="fd">查真實系統狀態</div></div><div class="arrow" style="font-size:24px">→</div>
+    <div class="pfnode"><div class="ft">更新 state</div><div class="fd">確認成功／補救／還原</div></div>
   </div>
-  <div class="take" style="margin-top:44px">對有副作用的動作，<b>永遠假設它會重複、會說謊</b>——驗證是你的保險。</div>
+  <div class="take" style="margin-top:44px"><b>寫入前防重複；完成後重新查一次。</b></div>
 </section>
 
-<!-- ============ 10 PATTERNS ============ -->
-<section class="slide rv-pattern" id="s10" aria-labelledby="s10t">
-  <p class="meta"><span class="num">10</span><span class="part">PART 4 · 模式與框架</span></p>
-  <h2 class="h2" id="s10t">chain／multi-agent 不是另一種 workflow——<strong>是 workflow 的形狀</strong></h2>
-  <div class="dg center" style="margin-top:18px">
-    <div class="node ok"><div class="t">Prompt Chaining</div><div class="s">串連：每步輸出是下一步輸入<br>context 乾淨、可驗證、可修正</div></div>
-    <div class="arrow" style="font-size:24px">↔</div>
-    <div class="node warn"><div class="t">Orchestrator-Workers</div><div class="s">平行＋合成：專家各自產出<br>再合併成統一框架</div></div>
+<!-- ============ 10 CHAIN AGENT MULTI-AGENT ============ -->
+<section class="slide" id="s10" aria-labelledby="s10t">
+  <p class="meta"><span class="num">10</span><span class="part">NAV ③ · 多 Agent 分工</span></p>
+  <h2 class="h2" id="s10t">Chain 排順序；Agent 選動作；<strong>Multi-Agent 分工</strong></h2>
+  <div class="triad">
+    <div class="lane"><div class="tag">CHAIN 固定串接</div><div class="lh">程式決定步驟順序</div><div class="lb">每一步只做一件事；中間結果可檢查，失敗只重跑該步。</div><div class="mini-flow">A → B → 檢查 → C<br>下一步由程式選</div></div>
+    <div class="lane"><div class="tag">某一步使用 AGENT</div><div class="lh">模型決定這一步怎麼做</div><div class="lb">B 步可交給 Agent：它自己查資料、重試，再把結果交給 C。</div><div class="mini-flow">B：選動作 ↔ 執行 ↔ 看結果<br>下一步由模型選</div></div>
+    <div class="lane"><div class="tag">多 AGENT 分工</div><div class="lh">定義派工與交接方式</div><div class="lb">Supervisor 中央派工；Handoff 直接交棒；Teams 固定角色；A2A 跨系統通訊。</div><div class="mini-flow">中央派工 · 直接交棒<br>固定角色 · 跨系統通訊</div></div>
   </div>
-  <div class="pband same" style="margin-top:16px"><span class="pbl">關鍵</span>不管怎麼串，<b>底層都是同一個 harness</b>——node 與 edge 的形狀不同，loop、state、工具註冊、可觀測性全部一樣。</div>
-  <div class="dg col" style="gap:10px;margin-top:14px">
-    <div class="node hl" style="align-items:flex-start;text-align:left;padding:13px 20px">
-      <div class="t" style="font-size:21px">組合拳的實際示範：Alert 自動修復（三層結構）</div>
-    </div>
-    <div class="pairflow">
-      <div class="pfnode"><div class="ft">層 1 · 各系統診斷（可並行）</div><div class="fd">Airflow／Spark／HMS／MinIO／Trino／JWT／OPA → 各自的<b>異常摘要</b></div></div>
-      <div class="arrow" style="font-size:24px">→</div>
-      <div class="pfnode"><div class="ft">層 2 · 合成</div><div class="fd">融合成<b>統一事故框架</b>：優先序、衝突規則、修復步驟</div></div>
-      <div class="arrow" style="font-size:24px">→</div>
-      <div class="pfnode"><div class="ft">層 3 · 執行 chain</div><div class="fd">auto-healing 逐步修復 → 驗證 → <b>產出 issue 報告</b></div></div>
-    </div>
-  </div>
-  <div class="pband borrow"><span class="pbl">對照</span>層 1 平行診斷＝<b>orchestrator-workers</b>；層 3 逐步執行＝<b>prompt chaining</b>——同一張圖同時用了兩種形狀。</div>
-  <div class="take">想串 chain 或 multi-agent？<b>底層 harness 不動，只是 node／edge 的形狀不同</b>。</div>
+  <div class="pband borrow" style="margin-top:24px"><span class="pbl">Alert 案例</span>外層固定：偵測 → 診斷 → 人審 → 修復。診斷步驟內可派多個 Agent 並行查原因。</div>
+  <div class="take"><b>三種方式可以混用；每一段仍要標明誰選下一步。</b></div>
 </section>
 
 <!-- ============ 11 CASE 2 LAKEHOUSE ASSISTANT ============ -->
 <section class="slide" id="s11" aria-labelledby="s11t">
   <p class="meta"><span class="num">11</span><span class="part">PART 4 · 模式與框架</span></p>
-  <h2 class="h2" id="s11t">案例 2：Lakehouse 自助助理——<strong>agent 只碰 console API</strong></h2>
-  <p class="sub" style="margin-top:14px">內部自助平台的對話介面：查資料、排錯、診斷、優化、權限——<b>agent 不知道各廠怎麼連，只會呼叫 console API</b>。</p>
+  <h2 class="h2" id="s11t">Lakehouse Agent <strong>只能呼叫 Console API</strong></h2>
+  <p class="sub" style="margin-top:14px">Agent 不拿各系統帳密。所有查詢、驗證與授權都經過 <b>Console API</b>。</p>
   <div class="dg" style="margin-top:20px;gap:9px">
-    <div class="node" style="flex:1;padding:12px 10px"><div class="t" style="font-size:18px">使用者</div><div class="s" style="font-size:14px">自然語言一句話</div></div>
+    <div class="node" style="flex:1;padding:12px 10px"><div class="t" style="font-size:18px">使用者</div><div class="s" style="font-size:14px">輸入問題或需求</div></div>
     <div class="arrow" style="font-size:22px">→</div>
-    <div class="node warn" style="flex:1.2;padding:12px 10px"><div class="t" style="font-size:18px">Lakehouse Agent</div><div class="s" style="font-size:14px">視野只有 console API<br>（JWT workspace 綁定）</div></div>
+    <div class="node warn" style="flex:1.2;padding:12px 10px"><div class="t" style="font-size:18px">Lakehouse Agent</div><div class="s" style="font-size:14px">只知道 Console API<br>登入憑證（JWT）綁定 workspace</div></div>
     <div class="arrow" style="font-size:22px">→</div>
-    <div class="node hl" style="flex:1.3;padding:12px 10px"><div class="t" style="font-size:18px">Console API（唯一入口）</div><div class="s" style="font-size:14px">authn / OPA 授權 / 驗證 / forwarding</div></div>
+    <div class="node hl" style="flex:1.3;padding:12px 10px"><div class="t" style="font-size:18px">Console API（唯一入口）</div><div class="s" style="font-size:14px">登入／OPA 權限規則／驗證／轉送</div></div>
     <div class="arrow" style="font-size:22px">→</div>
     <div class="node" style="flex:1.3;padding:12px 10px"><div class="t" style="font-size:18px">各廠集群</div><div class="s" style="font-size:14px">Trino · Airflow · HMS · MinIO · OPA</div></div>
   </div>
   <div class="dg wrap center" style="margin-top:22px;gap:10px">
     <span class="chip d" style="font-size:17px;padding:5px 16px">查 schema</span>
-    <span class="chip a" style="font-size:17px;padding:5px 16px">排錯：ingestion failed</span>
-    <span class="chip a" style="font-size:17px;padding:5px 16px">診斷 data model／pipeline</span>
-    <span class="chip a" style="font-size:17px;padding:5px 16px">優化 query performance</span>
-    <span class="chip a" style="font-size:17px;padding:5px 16px">權限自助：開 table 給別的 workspace</span>
+    <span class="chip a" style="font-size:17px;padding:5px 16px">排查 ingestion 失敗</span>
+    <span class="chip a" style="font-size:17px;padding:5px 16px">診斷資料模型／流程</span>
+    <span class="chip a" style="font-size:17px;padding:5px 16px">優化查詢</span>
+    <span class="chip a" style="font-size:17px;padding:5px 16px">開放資料表權限</span>
   </div>
   <div class="pairflow" style="margin-top:22px">
-    <div class="pfnode ok"><div class="ft">查（read-only）</div><div class="fd">query / describe / run_status / lineage / explain → <b>直接放行</b></div></div>
+    <div class="pfnode ok"><div class="ft">只讀查詢</div><div class="fd">查 schema、狀態、血緣與執行計畫 → <b>直接執行</b></div></div>
     <div class="arrow" style="font-size:22px">↕</div>
-    <div class="pfnode"><div class="ft">建（寫）</div><div class="fd">產 YAML → validate → <b>★ HITL 確認</b> → submit（權限變更同：先看 diff 再套用）</div></div>
+    <div class="pfnode"><div class="ft">寫入或變更</div><div class="fd">產生 YAML → 驗證 → <b>人工確認</b> → 送出</div></div>
   </div>
-  <div class="pband borrow"><span class="pbl">設計原則</span>agent 的視野＝<b>最小 API 面</b>：它沒有各廠鑰匙，安全邊界在 console；HITL 只放<b>風險最高的那一步</b>，不是每一步都問。</div>
-  <div class="take">自助平台的關鍵不是「agent 什麼都會」，是<b>agent 只碰一個入口、權限一次檢查、風險點一次確認</b>。</div>
+  <div class="take"><b>Agent 只碰一個入口；Console 統一做權限與驗證。</b></div>
 </section>
 
 <!-- ============ 12 FRAMEWORKS ============ -->
 <section class="slide" id="s12" aria-labelledby="s12t">
   <p class="meta"><span class="num">12</span><span class="part">PART 4 · 模式與框架</span></p>
-  <h2 class="h2" id="s12t">框架都是<strong>預組好的 harness</strong>——選的是編排方式</h2>
+  <h2 class="h2" id="s12t">選框架，就是選<strong>你想怎麼寫流程</strong></h2>
   <div class="cols2">
     <div class="card">
       <h4 class="a">LangGraph</h4>
-      <div class="ct">圖結構 · CHECKPOINT · INTERRUPT</div>
+      <div class="ct">流程圖 · 保存進度 · 人審暫停</div>
       <ul>
-        <li>流程畫成 <b>node + edge</b>；edge 可固定、可由 LLM 選</li>
-        <li>checkpoint 可 resume、interrupt 可人審中斷</li>
-        <li>適合多步驟、要人介入的複雜流程</li>
+        <li>用節點表示步驟，用連線表示下一步</li>
+        <li>可保存進度，也可停下來等人確認</li>
+        <li>適合多步驟且需要人審的流程</li>
       </ul>
     </div>
     <div class="card">
       <h4 class="a">Pydantic AI</h4>
-      <div class="ct">單 AGENT · TYPE-SAFE · 上手平緩</div>
+      <div class="ct">單一 AGENT · 輸出格式檢查</div>
       <ul>
-        <li>輸出用 <b>Pydantic 定義</b>，錯型別直接報錯</li>
-        <li>工具用 <b>@agent.tool</b> 註冊，最少的樣板</li>
-        <li>適合「一個 agent + 幾個工具」的規模</li>
+        <li>用 Pydantic 定義輸出欄位，格式錯就報錯</li>
+        <li>用 @agent.tool 註冊工具</li>
+        <li>適合一個 Agent 搭配少量工具</li>
       </ul>
     </div>
   </div>
   <div class="dg" style="margin-top:48px">
-    <div class="node warn"><div class="t">CrewAI</div><div class="s">角色分工：agent 有 role/goal/backstory，任務串成 crew</div></div>
-    <div class="node warn"><div class="t">ADK（Google）</div><div class="s">多 agent 編排、session 持久化、Gemini 生態</div></div>
-    <div class="node ok"><div class="t">n8n</div><div class="s">視覺化 workflow，LLM 只是其中一個節點</div></div>
+    <div class="node warn"><div class="t">CrewAI</div><div class="s">用角色與任務描述分工</div></div>
+    <div class="node warn"><div class="t">ADK（Google）</div><div class="s">多 Agent 流程、保存對話進度</div></div>
+    <div class="node ok"><div class="t">n8n</div><div class="s">用畫布排固定流程，LLM 是其中一步</div></div>
   </div>
-  <div class="take" style="margin-top:44px">每個框架都給你：<b>loop + 狀態 + 工具註冊 + 可觀測性</b>——差別在怎麼編排、多重的抽象。</div>
+  <div class="take" style="margin-top:44px"><b>先按任務選流程寫法，不要先按框架名稱選。</b></div>
 </section>
 
 <!-- ============ 13 CONCLUSION ============ -->
 <section class="slide" id="s13" aria-labelledby="s13t">
   <p class="meta"><span class="num">13</span><span class="part">結論</span></p>
-  <h2 class="h2" id="s13t">實務規則：<strong>從最不自主的開始，不夠再升級</strong></h2>
+  <h2 class="h2" id="s13t">開放任務先跑通；<strong>固定步驟再收回 Workflow</strong></h2>
   <div class="ladder">
-    <div class="lstep"><div class="ln">① 可預測</div><div class="lt2">純 code / n8n</div><div class="ld">步驟寫得死 → <b>最便宜、最好測</b>，不需要框架</div></div>
-    <div class="lstep"><div class="ln">② 單一 agent</div><div class="lt2">Pydantic AI 這類輕框架</div><div class="ld">一個 agent + 幾個工具自主跑 → <b>型別安全、樣板最少</b></div></div>
-    <div class="lstep"><div class="ln">③ 多步多 agent</div><div class="lt2">LangGraph / CrewAI / ADK</div><div class="ld">要人審、要 resume、多角色協作 → <b>圖結構與編排</b></div></div>
+    <div class="lstep"><div class="ln">① 路徑已知</div><div class="lt2">直接用程式或 n8n</div><div class="ld">步驟與分支都知道，直接寫 Workflow</div></div>
+    <div class="lstep"><div class="ln">② 路徑未知</div><div class="lt2">先用 Agent 找到可行路徑</div><div class="ld">讓模型選工具與下一步，先完成目標</div></div>
+    <div class="lstep"><div class="ln">③ 找到固定部分</div><div class="lt2">把重複步驟改成 Workflow</div><div class="ld">降低 token、增加穩定性；只保留必要的自主區段</div></div>
   </div>
-  <div class="closing">
-    <div class="cl"><b>混合最常見：code 定骨架（幾個階段、順序），模型定細節（階段內自己決定）。</b>跑久了發現步驟其實有規律，再把 agent 降級回 workflow。</div>
-  </div>
-  <div class="agenticband" style="margin-top:16px;border-radius:16px;padding:15px 26px;background:linear-gradient(135deg,#2c2418,#4a3a26);color:#f6f0e4;display:flex;flex-direction:column;gap:6px;box-shadow:0 14px 40px #00000022">
-    <span class="ab-main" style="font-size:24px;line-height:1.45;font-weight:800;color:#f6f0e4"><b style="color:#e9c778">一句話總結：</b>模型負責想，你負責決定它能在什麼框架裡想。</span>
-    <span class="ab-sub" style="font-size:18px;color:#d8cdb8;line-height:1.5">下一步：附錄用同一個「Alert 自動修復」任務，看 LangGraph / Pydantic AI / CrewAI / n8n 的程式與架構。</span>
-  </div>
-  <div class="take" style="margin-top:16px">實務口訣：<b>可預測的用 code 寫死，不可預測的才放模型自己決定</b>——先跑起來，再升級。</div>
+  <div class="take" style="margin-top:32px"><b>未知部分交給 Agent；已知部分寫成 Workflow。</b></div>
 </section>
 
 <!-- ============ 14 APPENDIX OPENING ============ -->
 <section class="slide" id="s14" aria-labelledby="s14t">
   <p class="meta"><span class="num">14</span><span class="part">附錄 · 同一件事，四種寫法</span></p>
-  <h2 class="h2" id="s14t">共用範例：<strong>Alert 自動修復</strong></h2>
-  <p class="sub" style="margin-top:26px">「<b>偵測到 Airflow／Spark／HMS／MinIO／Trino／JWT／OPA 的異常 log 或 alert → agentic workflow 自動修復 → 產出 issue 報告</b>」——同一個任務，四個框架各寫一遍，對照「狀態、工具、流程」誰負責。</p>
+  <h2 class="h2" id="s14t">附錄：<strong>同一個 Alert 任務，四種實作</strong></h2>
+  <p class="sub" style="margin-top:26px">任務固定為：偵測異常 → 診斷原因 → 人工確認 → 修復 → 驗證 → 建立 issue。</p>
   <div class="pairflow" style="margin-top:44px">
     <div class="pfnode"><div class="ft">① 偵測 alert</div><div class="fd">log 掃描／告警觸發</div></div>
     <div class="arrow" style="font-size:24px">→</div>
-    <div class="pfnode"><div class="ft">② 診斷根因</div><div class="fd">LLM 分析異常來源</div></div>
+    <div class="pfnode"><div class="ft">② 診斷原因</div><div class="fd">模型分析 log 與狀態</div></div>
     <div class="arrow" style="font-size:24px">→</div>
-    <div class="pfnode"><div class="ft">③ 執行修復</div><div class="fd">auto-healing 動作</div></div>
+    <div class="pfnode"><div class="ft">③ 人審後修復</div><div class="fd">高風險動作先確認</div></div>
     <div class="arrow" style="font-size:24px">→</div>
-    <div class="pfnode"><div class="ft">④ 產出 issue 報告</div><div class="fd">驗證恢復＋開 issue</div></div>
+    <div class="pfnode"><div class="ft">④ 驗證並建 issue</div><div class="fd">確認恢復後記錄結果</div></div>
   </div>
   <div class="dg wrap center" style="margin-top:48px;gap:12px">
     <span class="chip d" style="font-size:21px;padding:6px 20px">LangGraph · 圖</span>
@@ -992,36 +1001,34 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
     <span class="chip a" style="font-size:21px;padding:6px 20px">CrewAI · 角色分工</span>
     <span class="chip g" style="font-size:21px;padding:6px 20px">n8n · 視覺節點</span>
   </div>
-  <div class="note" style="font-size:22px;margin-top:36px">程式碼為<b>最小可跑骨架</b>，語法以官方文件為準（框架改版快）；重點在看每個框架把 harness 的哪些元件替你包好了。</div>
-  <div class="pband same" style="margin-top:20px"><span class="pbl">對照重點</span>同一份知識與任務，<b>四種不同的 harness 編排</b>——圖、型別、角色、畫布，選貼近你團隊的那種。</div>
-  <div class="take" style="margin-top:26px">對照四欄就懂框架差異：<b>狀態、工具註冊、人審中斷、型別安全</b>。</div>
+  <div class="take" style="margin-top:26px"><b>只比較四件事：進度、工具、人審、輸出格式。</b></div>
 </section>
 
 <!-- ============ 15 APPENDIX ARCHITECTURE ============ -->
 <section class="slide" id="s15" aria-labelledby="s15t">
   <p class="meta"><span class="num">15</span><span class="part">附錄 01/06 · 兩案例整體架構</span></p>
-  <h2 class="h2" id="s15t">兩個案例，<strong>同一套 harness 骨架</strong></h2>
+  <h2 class="h2" id="s15t">兩個案例都走：<strong>觸發 → 決定 → 執行 → 驗證</strong></h2>
   <div class="dg" style="margin-top:28px;gap:18px">
     <div style="flex:1;display:flex;flex-direction:column;gap:14px">
-      <div class="node hl" style="padding:14px 16px"><div class="t" style="font-size:20px">案例 1 · 自動修復</div><div class="s" style="font-size:15px">系統主動（reactive）</div></div>
+      <div class="node hl" style="padding:14px 16px"><div class="t" style="font-size:20px">案例 1 · 自動修復</div><div class="s" style="font-size:15px">系統收到 Alert 後觸發</div></div>
       <div class="dg" style="margin-top:0;gap:6px">
         <div class="node" style="flex:1;padding:12px 8px"><div class="t" style="font-size:17px">Alert</div></div>
         <div class="arrow" style="font-size:20px">→</div>
         <div class="node warn" style="flex:1.2;padding:12px 8px"><div class="t" style="font-size:17px">Agent</div></div>
         <div class="arrow" style="font-size:20px">→</div>
-        <div class="node" style="flex:1;padding:12px 8px"><div class="t" style="font-size:17px">工具們</div></div>
+        <div class="node" style="flex:1;padding:12px 8px"><div class="t" style="font-size:17px">系統 API</div></div>
       </div>
       <div class="dg" style="margin-top:0;gap:6px">
         <div class="node" style="flex:1;padding:12px 8px"><div class="t" style="font-size:17px">診斷</div></div>
         <div class="arrow" style="font-size:20px">→</div>
         <div class="node" style="flex:1;padding:12px 8px"><div class="t" style="font-size:17px">★ 人審</div></div>
         <div class="arrow" style="font-size:20px">→</div>
-        <div class="node" style="flex:1;padding:12px 8px"><div class="t" style="font-size:17px">修復＋issue</div></div>
+        <div class="node" style="flex:1;padding:12px 8px"><div class="t" style="font-size:17px">修復、驗證、建 issue</div></div>
       </div>
       <div class="note" style="margin-top:6px;font-size:17px">觸發：<b>log／alert</b>；工具：各系統 API；人審在高風險動作前</div>
     </div>
     <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-      <div class="node hl" style="padding:10px 14px"><div class="t" style="font-size:19px">案例 2 · Lakehouse 自助助理</div><div class="s" style="font-size:14px">使用者驅動（proactive）</div></div>
+      <div class="node hl" style="padding:10px 14px"><div class="t" style="font-size:19px">案例 2 · Lakehouse 自助助理</div><div class="s" style="font-size:14px">使用者提出需求後觸發</div></div>
       <div class="dg" style="margin-top:0;gap:5px">
         <div class="node" style="flex:1;padding:8px 6px"><div class="t" style="font-size:15px">使用者</div></div>
         <div class="arrow" style="font-size:18px">→</div>
@@ -1034,24 +1041,23 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
       <div class="dg" style="margin-top:0;gap:5px">
         <div class="node" style="flex:1;padding:8px 6px"><div class="t" style="font-size:15px">查：直接放行</div></div>
         <div class="arrow" style="font-size:18px">↕</div>
-        <div class="node" style="flex:1;padding:8px 6px"><div class="t" style="font-size:15px">建：★ HITL</div></div>
+        <div class="node" style="flex:1;padding:8px 6px"><div class="t" style="font-size:15px">建：人工確認</div></div>
         <div class="arrow" style="font-size:18px">→</div>
         <div class="node" style="flex:1;padding:8px 6px"><div class="t" style="font-size:15px">submit／權限</div></div>
       </div>
       <div class="note" style="margin-top:4px;font-size:16px">觸發：<b>使用者一句話</b>；agent 只碰 console API；JWT 綁 workspace</div>
     </div>
   </div>
-  <div class="pband same" style="margin-top:40px"><span class="pbl">共通骨架</span>都是「<b>觸發 → agent 選工具 → 執行 → 驗證 → 產出</b>」；差別只在：誰觸發（系統 or 使用者）、agent 視野多寬（各廠 API or 單一 console API）、人審在哪。</div>
-  <div class="take" style="margin-top:44px">案例換了，harness 沒換——<b>骨架不變，邊界與觸發不同</b>。</div>
+  <div class="take" style="margin-top:44px"><b>流程相同；觸發方式、API 範圍與人審位置不同。</b></div>
 </section>
 
 <!-- ============ 16 APPENDIX LANGGRAPH BLUEPRINT ============ -->
 <section class="slide" id="s16" aria-labelledby="s16t">
-  <p class="meta"><span class="num">16</span><span class="part">附錄 02/06 · LANGGRAPH 實作藍圖</span></p>
-  <h2 class="h2" id="s16t">用 LangGraph 實作：<strong>先畫圖，再填節點</strong></h2>
+  <p class="meta"><span class="num">16</span><span class="part">附錄 02/06 · LANGGRAPH 流程圖</span></p>
+  <h2 class="h2" id="s16t">LangGraph：<strong>把流程與人審點畫成圖</strong></h2>
   <div class="dg" style="margin-top:28px;gap:18px">
     <div style="flex:1;display:flex;flex-direction:column;gap:14px">
-      <div class="node hl" style="padding:14px 16px"><div class="t" style="font-size:19px">案例 1：StateGraph</div><div class="s" style="font-size:15px">state：alert / root_cause / fix / report</div></div>
+      <div class="node hl" style="padding:14px 16px"><div class="t" style="font-size:19px">案例 1：Alert 自動修復</div><div class="s" style="font-size:15px">保存 alert、原因、修復與報告</div></div>
       <div class="dg" style="margin-top:0;gap:6px">
         <div class="node" style="flex:1;padding:12px 8px"><div class="t" style="font-size:17px">detect</div></div>
         <div class="arrow" style="font-size:20px">→</div>
@@ -1061,10 +1067,10 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
         <div class="arrow" style="font-size:20px">→</div>
         <div class="node" style="flex:1;padding:12px 8px"><div class="t" style="font-size:17px">heal</div></div>
       </div>
-      <div class="note" style="margin-top:6px;font-size:17px">interrupt 點：<b>修復前等人審核</b>（resume 後繼續）</div>
+      <div class="note" style="margin-top:6px;font-size:17px">修復前用 <b>interrupt()</b> 暫停，批准後繼續</div>
     </div>
     <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-      <div class="node hl" style="padding:10px 14px"><div class="t" style="font-size:18px">案例 2：StateGraph</div><div class="s" style="font-size:14px">state：workspace / intent / yaml / approval / run_id</div></div>
+      <div class="node hl" style="padding:10px 14px"><div class="t" style="font-size:18px">案例 2：Lakehouse 寫入</div><div class="s" style="font-size:14px">保存 workspace、需求、YAML、批准與 run id</div></div>
       <div class="dg" style="margin-top:0;gap:5px">
         <div class="node" style="flex:1;padding:8px 6px"><div class="t" style="font-size:15px">parse</div></div>
         <div class="arrow" style="font-size:18px">→</div>
@@ -1076,74 +1082,80 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
         <div class="arrow" style="font-size:18px">→</div>
         <div class="node" style="flex:1;padding:8px 6px"><div class="t" style="font-size:15px">submit</div></div>
       </div>
-      <div class="note" style="margin-top:4px;font-size:16px">interrupt 點：<b>submit 前看 YAML 確認</b>；route 節點決定查 or 建</div>
+      <div class="note" style="margin-top:4px;font-size:16px">送出前顯示 YAML，批准後再 submit</div>
     </div>
   </div>
-  <div class="pband same" style="margin-top:40px"><span class="pbl">實作要點</span>你只需要寫 <b>node function</b>（state in → state out）＋ 接 edge；<b>checkpoint</b> 讓 interrupt/resume 免自己存狀態，<b>interrupt()</b> 停住等輸入，resume 從同一點繼續。</div>
-  <div class="take" style="margin-top:44px">LangGraph 的價值就在「<b>人審是圖上的一個節點</b>」——HITL 不用自己寫。</div>
+  <div class="take" style="margin-top:44px"><b>人審是流程中的一個節點，批准後從原處繼續。</b></div>
 </section>
 
-<!-- ============ 17 LANGGRAPH ============ -->
+<!-- ============ 17 LANGGRAPH TWO CASES CODE ============ -->
 <section class="slide" id="s17" aria-labelledby="s17t">
-  <p class="meta"><span class="num">17</span><span class="part">附錄 03/06 · LANGGRAPH</span></p>
-  <h2 class="h2" id="s17t">LangGraph：<strong>流程畫成圖，狀態是共享 dict</strong></h2>
-  <div class="dg" style="margin-top:14px;gap:22px">
-    <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-      <div class="node hl" style="padding:11px 14px"><div class="t" style="font-size:19px">State（共享狀態）</div><div class="s" style="font-size:15px">alert / root_cause / fix / report</div></div>
-      <div class="dg" style="margin-top:0;gap:6px">
-        <div class="node" style="flex:1;padding:10px 8px"><div class="t" style="font-size:17px">detect</div><div class="s" style="font-size:14px">偵測 alert</div></div>
-        <div class="arrow" style="font-size:20px">→</div>
-        <div class="node" style="flex:1;padding:10px 8px"><div class="t" style="font-size:17px">diagnose</div><div class="s" style="font-size:14px">診斷根因</div></div>
-        <div class="arrow" style="font-size:20px">→</div>
-        <div class="node" style="flex:1;padding:10px 8px"><div class="t" style="font-size:17px">heal</div><div class="s" style="font-size:14px">修復＋報告</div></div>
-      </div>
-      <div class="note" style="margin-top:4px;font-size:17px"><b>你寫</b>：node function＋edge 順序<br><b>框架給</b>：state 管理、checkpoint（可 resume）、interrupt（人審中斷）、trace</div>
-    </div>
-    <div class="code" style="flex:1.5;margin-top:0">
-<pre><span class="cm"># pip install langgraph</span>
-<span class="kw">from</span> typing <span class="kw">import</span> TypedDict
-<span class="kw">from</span> langgraph.graph <span class="kw">import</span> StateGraph, START, END
+  <p class="meta"><span class="num">17</span><span class="part">附錄 03/06 · LANGGRAPH 程式碼</span></p>
+  <h2 class="h2" id="s17t">LangGraph：<strong>兩個案例都把人審寫成節點</strong></h2>
+  <div class="dg" style="margin-top:14px;gap:18px;align-items:stretch">
+    <div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0">
+      <div class="node hl" style="padding:10px 14px"><div class="t" style="font-size:18px">案例 1 · Alert 自動修復</div><div class="s" style="font-size:14px">detect → diagnose → approve → heal</div></div>
+      <div class="code small" style="margin-top:0;flex:1"><pre style="font-size:14px;line-height:1.42"><span class="kw">from</span> langgraph.types <span class="kw">import</span> interrupt
 
-<span class="kw">class</span> <span class="fn">State</span>(TypedDict):          <span class="cm"># 共享狀態</span>
+<span class="kw">class</span> <span class="fn">AlertState</span>(TypedDict):
     alert: <span class="fn">str</span>
-    root_cause: <span class="fn">str</span>
-    fix: <span class="fn">str</span>
-    report: <span class="fn">str</span>
+    cause: <span class="fn">str</span>
+    approved: <span class="fn">bool</span>
+    result: <span class="fn">str</span>
 
-<span class="kw">def</span> <span class="fn">detect</span>(state):     <span class="cm"># 節點 1：偵測 alert</span>
-    <span class="kw">return</span> {<span class="st">"alert"</span>: check_alerts()}
-<span class="kw">def</span> <span class="fn">diagnose</span>(state):   <span class="cm"># 節點 2：診斷根因</span>
-    <span class="kw">return</span> {<span class="st">"root_cause"</span>: llm(<span class="st">"分析異常來源"</span>, state[<span class="st">"alert"</span>])}
-<span class="kw">def</span> <span class="fn">heal</span>(state):      <span class="cm"># 節點 3：修復＋報告</span>
-    fix = run_fix(state[<span class="st">"root_cause"</span>])
-    <span class="kw">return</span> {<span class="st">"fix"</span>: fix,
-            <span class="st">"report"</span>: llm(<span class="st">"寫 issue 報告"</span>, fix)}
+<span class="kw">def</span> <span class="fn">approve</span>(s):
+    answer = interrupt({<span class="st">"cause"</span>: s[<span class="st">"cause"</span>]})
+    <span class="kw">return</span> {<span class="st">"approved"</span>: answer == <span class="st">"approve"</span>}
 
-g = StateGraph(State)
+g = StateGraph(AlertState)
 g.add_node(<span class="st">"detect"</span>, detect)
 g.add_node(<span class="st">"diagnose"</span>, diagnose)
+g.add_node(<span class="st">"approve"</span>, approve)
 g.add_node(<span class="st">"heal"</span>, heal)
 g.add_edge(START, <span class="st">"detect"</span>)
 g.add_edge(<span class="st">"detect"</span>, <span class="st">"diagnose"</span>)
-g.add_edge(<span class="st">"diagnose"</span>, <span class="st">"heal"</span>)
-g.add_edge(<span class="st">"heal"</span>, END)
-app = g.compile()
-<span class="fn">print</span>(app.invoke({})[<span class="st">"report"</span>])</pre>
+g.add_edge(<span class="st">"diagnose"</span>, <span class="st">"approve"</span>)
+g.add_edge(<span class="st">"approve"</span>, <span class="st">"heal"</span>)</pre></div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0">
+      <div class="node hl" style="padding:10px 14px"><div class="t" style="font-size:18px">案例 2 · Lakehouse 寫入</div><div class="s" style="font-size:14px">parse → route → execute → approve → submit</div></div>
+      <div class="code small" style="margin-top:0;flex:1"><pre style="font-size:14px;line-height:1.42"><span class="kw">from</span> langgraph.types <span class="kw">import</span> interrupt
+
+<span class="kw">class</span> <span class="fn">IngestState</span>(TypedDict):
+    workspace: <span class="fn">str</span>
+    intent: <span class="fn">str</span>
+    yaml: <span class="fn">str</span>
+    approved: <span class="fn">bool</span>
+    run_id: <span class="fn">str</span>
+
+<span class="kw">def</span> <span class="fn">approve_yaml</span>(s):
+    answer = interrupt({<span class="st">"yaml"</span>: s[<span class="st">"yaml"</span>]})
+    <span class="kw">return</span> {<span class="st">"approved"</span>: answer == <span class="st">"approve"</span>}
+
+g = StateGraph(IngestState)
+g.add_node(<span class="st">"parse"</span>, parse)
+g.add_node(<span class="st">"route"</span>, route)
+g.add_node(<span class="st">"execute"</span>, execute)
+g.add_node(<span class="st">"approve"</span>, approve_yaml)
+g.add_node(<span class="st">"submit"</span>, submit)
+g.add_edge(START, <span class="st">"parse"</span>)
+g.add_edge(<span class="st">"execute"</span>, <span class="st">"approve"</span>)
+g.add_edge(<span class="st">"approve"</span>, <span class="st">"submit"</span>)</pre></div>
     </div>
   </div>
-  <div class="take">固定 edge 是 workflow，<b>edge 讓 LLM 選就是 agent</b>——一個框架兩種模式都有。</div>
+  <div class="take"><b>interrupt() 保存目前進度並暫停；收到批准後，從同一個節點繼續。</b></div>
 </section>
 
 <!-- ============ 18 PYDANTIC AI ============ -->
 <section class="slide" id="s18" aria-labelledby="s18t">
   <p class="meta"><span class="num">18</span><span class="part">附錄 04/06 · PYDANTIC AI</span></p>
-  <h2 class="h2" id="s18t">Pydantic AI：<strong>單一 agent，輸出型別安全</strong></h2>
+  <h2 class="h2" id="s18t">Pydantic AI：<strong>用型別檢查 Agent 輸出</strong></h2>
   <div class="dg" style="margin-top:14px;gap:22px">
     <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-      <div class="node warn" style="padding:12px 16px"><div class="t" style="font-size:19px">Agent</div><div class="s" style="font-size:15px">model ＋ system_prompt ＋ result_type</div></div>
-      <div class="node" style="padding:10px 14px"><div class="t" style="font-size:17px">@agent.tool_plain</div><div class="s" style="font-size:14px">run_fix —— 修復動作註冊</div></div>
-      <div class="node hl" style="padding:10px 14px"><div class="t" style="font-size:17px">run_sync()</div><div class="s" style="font-size:14px">一次 agent loop，回傳 typed result</div></div>
-      <div class="note" style="margin-top:4px;font-size:17px"><b>你寫</b>：agent 定義、工具、輸出模型<br><b>框架給</b>：整個 loop、工具註冊、輸出驗證、usage 統計</div>
+      <div class="node warn" style="padding:12px 16px"><div class="t" style="font-size:19px">Agent</div><div class="s" style="font-size:15px">模型＋指示＋輸出欄位</div></div>
+      <div class="node" style="padding:10px 14px"><div class="t" style="font-size:17px">@agent.tool_plain</div><div class="s" style="font-size:14px">把修復函式提供給模型</div></div>
+      <div class="node hl" style="padding:10px 14px"><div class="t" style="font-size:17px">run_sync()</div><div class="s" style="font-size:14px">執行 Agent，回傳已檢查格式的結果</div></div>
+      <div class="note" style="margin-top:4px;font-size:17px"><b>你寫</b>：指示、工具、輸出欄位<br><b>框架處理</b>：反覆執行、工具呼叫、格式驗證、用量</div>
     </div>
     <div class="code" style="flex:1.5;margin-top:0">
 <pre><span class="cm"># pip install pydantic-ai</span>
@@ -1166,25 +1178,24 @@ agent = Agent(
     <span class="kw">return</span> execute_fix(action)  <span class="cm"># 註冊給模型選</span>
 
 result = agent.run_sync(<span class="st">"Trino 節點 alert"</span>)
-<span class="fn">print</span>(result.output.root_cause)    <span class="cm"># 型別安全輸出</span>
-<span class="fn">print</span>(result.usage())             <span class="cm"># token 用量</span></pre>
+<span class="fn">print</span>(result.output.root_cause)    <span class="cm"># 已檢查格式</span></pre>
     </div>
   </div>
-  <div class="take">型別安全是最大賣點——<b>輸出不符 schema 就失敗</b>，錯誤不會默默往下流。</div>
+  <div class="take"><b>輸出欄位或型別不符，就直接失敗，不往下執行。</b></div>
 </section>
 
 <!-- ============ 19 CREWAI ============ -->
 <section class="slide" id="s19" aria-labelledby="s19t">
   <p class="meta"><span class="num">19</span><span class="part">附錄 05/06 · CREWAI</span></p>
-  <h2 class="h2" id="s19t">CrewAI：<strong>角色分工，任務串成 crew</strong></h2>
+  <h2 class="h2" id="s19t">CrewAI：<strong>用角色分配任務</strong></h2>
   <div class="dg" style="margin-top:14px;gap:22px">
     <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-      <div class="node warn" style="padding:11px 14px"><div class="t" style="font-size:18px">Agent 診斷員</div><div class="s" style="font-size:14px">role / goal / backstory / tools</div></div>
+      <div class="node warn" style="padding:11px 14px"><div class="t" style="font-size:18px">診斷 Agent</div><div class="s" style="font-size:14px">role / goal / tools</div></div>
       <div class="node" style="padding:11px 14px"><div class="t" style="font-size:18px">Task ①</div><div class="s" style="font-size:14px">分析 alert 找出根因</div></div>
-      <div class="arrow" style="font-size:20px">↓ sequential</div>
-      <div class="node warn" style="padding:11px 14px"><div class="t" style="font-size:18px">Agent 修復員</div><div class="s" style="font-size:14px">role / goal / backstory</div></div>
+      <div class="arrow" style="font-size:20px">↓ 依序執行</div>
+      <div class="node warn" style="padding:11px 14px"><div class="t" style="font-size:18px">修復 Agent</div><div class="s" style="font-size:14px">role / goal</div></div>
       <div class="node" style="padding:11px 14px"><div class="t" style="font-size:18px">Task ②</div><div class="s" style="font-size:14px">修復＋寫 issue 報告</div></div>
-      <div class="note" style="margin-top:4px;font-size:17px"><b>你寫</b>：agent 角色＋task 描述<br><b>框架給</b>：編排順序、任務間產出傳遞、kickoff 執行</div>
+      <div class="note" style="margin-top:4px;font-size:17px"><b>你寫</b>：角色與任務<br><b>框架處理</b>：執行順序與結果傳遞</div>
     </div>
     <div class="code" style="flex:1.5;margin-top:0">
 <pre><span class="cm"># pip install crewai</span>
@@ -1193,13 +1204,11 @@ result = agent.run_sync(<span class="st">"Trino 節點 alert"</span>)
 diagnoser = Agent(
     role=<span class="st">"異常診斷員"</span>,
     goal=<span class="st">"分析 alert 找出根因"</span>,
-    backstory=<span class="st">"資深維運工程師，熟悉 Airflow/Spark/Trino 生態"</span>,
     tools=[query_logs],          <span class="cm"># 給這個角色的工具</span>
 )
 fixer = Agent(
     role=<span class="st">"修復員"</span>,
     goal=<span class="st">"執行修復並產出 issue 報告"</span>,
-    backstory=<span class="st">"擅長安全的自動修復與變更記錄"</span>,
 )
 
 t1 = Task(description=<span class="st">"分析 Trino 節點 alert"</span>,
@@ -1213,13 +1222,13 @@ crew = Crew(agents=[diagnoser, fixer],
 result = crew.kickoff()</pre>
     </div>
   </div>
-  <div class="take">角色分工寫在 agent 定義裡，<b>任務描述是 agent 之間的合約</b>——分工清楚，責任才清楚。</div>
+  <div class="take"><b>每個角色只拿需要的工具，上一個任務的結果交給下一個。</b></div>
 </section>
 
 <!-- ============ 20 N8N + TABLE ============ -->
 <section class="slide" id="s20" aria-labelledby="s20t">
   <p class="meta"><span class="num">20</span><span class="part">附錄 06/06 · N8N ＋ 對照總表</span></p>
-  <h2 class="h2" id="s20t">n8n：<strong>視覺化畫布，workflow 就是節點串</strong></h2>
+  <h2 class="h2" id="s20t">n8n：<strong>用畫布排固定流程</strong></h2>
   <div class="dg" style="margin-top:12px;gap:18px">
     <div style="flex:1;display:flex;flex-direction:column;gap:8px">
       <div class="dg" style="margin-top:0;gap:5px;flex-wrap:wrap">
@@ -1231,10 +1240,10 @@ result = crew.kickoff()</pre>
         <div class="arrow" style="font-size:18px">→</div>
         <div class="node" style="flex:1;padding:9px 6px"><div class="t" style="font-size:15px">LLM 寫 issue</div></div>
       </div>
-      <div class="note" style="margin-top:4px;font-size:17px">視覺工具，無 code——<b>workflow 本身是 JSON</b>（nodes + connections），可版本控管、可匯出。<br>LLM 節點內可掛工具；人類審核用 <b>Wait 節點</b>暫停等批准。</div>
+      <div class="note" style="margin-top:4px;font-size:17px">流程由節點與連線組成，可匯出成 JSON。LLM 是其中一步；Wait 節點可停下來等人批准。</div>
     </div>
     <div class="code small" style="flex:1.35;margin-top:0">
-<pre>{ <span class="cm">// n8n workflow 骨架</span>
+<pre>{ <span class="cm">// n8n workflow 核心設定</span>
   <span class="st">"name"</span>: <span class="st">"Alert 自動修復"</span>,
   <span class="st">"nodes"</span>: [
     { <span class="st">"name"</span>: <span class="st">"Alert Trigger"</span>,
@@ -1246,11 +1255,7 @@ result = crew.kickoff()</pre>
     { <span class="st">"name"</span>: <span class="st">"寫 issue 報告"</span>,
       <span class="st">"type"</span>: <span class="st">"@n8n/n8n-nodes-langchain.openAi"</span> }
   ],
-  <span class="st">"connections"</span>: {
-    <span class="st">"Alert Trigger"</span>: { <span class="st">"main"</span>: [[{ <span class="st">"node"</span>: <span class="st">"診斷根因"</span>, <span class="st">"type"</span>: <span class="st">"main"</span>, <span class="st">"index"</span>: <span class="nu">0</span> }]] },
-    <span class="st">"診斷根因"</span>: { <span class="st">"main"</span>: [[{ <span class="st">"node"</span>: <span class="st">"執行修復"</span>, <span class="st">"type"</span>: <span class="st">"main"</span>, <span class="st">"index"</span>: <span class="nu">0</span> }]] },
-    <span class="st">"執行修復"</span>: { <span class="st">"main"</span>: [[{ <span class="st">"node"</span>: <span class="st">"寫 issue 報告"</span>, <span class="st">"type"</span>: <span class="st">"main"</span>, <span class="st">"index"</span>: <span class="nu">0</span> }]] }
-  }
+  <span class="st">"connections"</span>: <span class="st">"Trigger → 診斷 → 修復 → issue"</span>
 }</pre>
     </div>
   </div>
@@ -1261,7 +1266,7 @@ result = crew.kickoff()</pre>
     <div class="approw"><div class="an">CrewAI</div><div class="ac">task 產出傳遞</div><div class="ac">tools=[...]</div><div class="ac">無內建</div><div class="ac">output_pydantic</div></div>
     <div class="approw"><div class="an">n8n</div><div class="ac">節點間資料</div><div class="ac">視覺節點</div><div class="ac">Wait 節點</div><div class="ac">無（JSON）</div></div>
   </div>
-  <div class="take" style="margin-top:16px">沒有最好的框架——選「<b>harness 編排最貼近你任務</b>」的那個，先跑起來，再升級。</div>
+  <div class="take" style="margin-top:16px"><b>固定流程優先看 n8n；需要模型選下一步，再使用 Agent 框架。</b></div>
 </section>
 
 <!-- ============ CHROME ============ -->
