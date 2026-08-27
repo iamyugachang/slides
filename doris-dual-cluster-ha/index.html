@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Doris 雙叢集 HA：方案評估與推薦</title>
-<meta name="description" content="Apache Doris 2.x 叢集層級 HA 調查（兩部結構）：第一部中性窮舉 9 同步方案＋Curated 策略＋Query 選項；第二部約束篩選、深評與推薦——雙路 ingestion + HAProxy。21 slides。">
+<meta name="description" content="Apache Doris 4.1 雙叢集 HA 研究結論：R1-R4 情境出發、方案目錄與優缺點、推薦 Hot-Standby 服務＋雙活資料、PoC 與拍板問題。24 slides。">
 <style>
 /* ============================================================
    BLUEPRINT × TEAL STEEL — fixed 1920×1080 stage
@@ -15,6 +15,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&family=IBM+Plex+Mono:wght@400;600&display=swap');
 :root{
   color-scheme:dark;
+  --green:#4ade80;
   --bg-deep:#06181f; --bg:#0a2530; --panel:#0c2b36cc;
   --ink:#ecf6f7; --dim:#9cc3c9; --faint:#6d97a0;
   --teal:#35d0ba; --teal-strong:#19b6a0; --teal-soft:#35d0ba1f;
@@ -243,7 +244,7 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 }
 .navbtn:hover{background:#11414d;transform:translateY(-2px)}
 .progress{position:absolute;left:0;bottom:0;height:4px;background:#ffffff0d;z-index:6;width:100%}
-.progress-bar{height:100%;width:4.76%;background:linear-gradient(90deg,var(--teal),#8be8db);transition:width 300ms ease}
+.progress-bar{height:100%;width:4%;background:linear-gradient(90deg,var(--teal),#8be8db);transition:width 300ms ease}
 .counter{
   position:absolute;right:106px;bottom:44px;font-size:16px;color:var(--faint);
   font-weight:600;letter-spacing:.14em;z-index:5;font-family:"IBM Plex Mono",monospace;
@@ -294,6 +295,24 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{transition:none !important;scroll-behavior:auto !important}
 }
+
+
+/* ---- diagrams ---- */
+.figwrap{margin:26px auto 0}
+.figwrap svg{display:block}
+.dgm{color:var(--ink)}
+.dgm text{fill:currentColor;font-family:"Noto Sans TC",sans-serif;font-size:13px}
+.dgm .sub{font-size:11px;opacity:.62}
+.dgm .lbl{font-size:11px;fill:var(--teal)}
+.dgm .lblb{font-size:11px;fill:var(--red)}
+.dgm .bx{fill:#0c2b36;stroke:currentColor;stroke-opacity:.5}
+.dgm .frame{fill:none;stroke:currentColor;stroke-opacity:.6}
+.dgm .acc{stroke:var(--teal);stroke-width:2;fill:none}
+.dgm .mut{stroke:currentColor;stroke-opacity:.5;stroke-width:1.5;fill:none}
+.dgm .bad{stroke:var(--red);stroke-width:2;fill:none}
+.dgm .ok{stroke:var(--green);stroke-width:2;fill:none}
+.dgm .dsh{stroke-dasharray:6 4}
+.dgm .dead{opacity:.32}
 
 /* ---- mobile portrait: readable scroll mode ---- */
 @media (max-width:900px) and (orientation:portrait){
@@ -349,535 +368,358 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 <div class="stage" id="stage">
 <div class="rmark tl"></div><div class="rmark tr"></div><div class="rmark bl"></div>
 
-<!-- ============ 1 TITLE ============ -->
 <section class="slide" id="s1" aria-labelledby="s1t">
-  <p class="meta"><span class="num">01</span><span class="part">DATA PLATFORM · HA DESIGN REVIEW · v2</span></p>
-  <h2 class="h2 title-h2" id="s1t">Doris 雙叢集 HA：<br><strong>方案評估與推薦</strong></h2>
-  <p class="sub title-sub">兩座獨立 Doris cluster，任一座<b>整座故障</b>時服務可切換。調查分兩部：<br><b>第一部中性窮舉所有方案與優缺點；第二部才做約束篩選、深評與建議。</b></p>
+  <p class="meta"><span class="num">01</span><span class="part">DATA PLATFORM · HA RESEARCH · FINAL</span></p>
+  <h2 class="h2 title-h2" id="s1t">Doris 雙叢集 HA：<br><strong>研究結論與下一步</strong></h2>
+  <p class="sub title-sub">四個需求情境（R1–R4）出發：窮舉方案 → 篩選與優缺點 → <b>推薦架構與 PoC</b>。<br>前提：Doris 4.1・raw/curated 雙 catalog・使用者程式不可控。</p>
   <div class="dg wrap" style="gap:10px;margin-top:40px">
-    <span class="chip g">Doris 2.x · 自建機房</span>
-    <span class="chip g">raw zone：100% Kafka + Spark</span>
-    <span class="chip g">curated zone：使用者自由 ETL</span>
-    <span class="chip t">結論：雙路 ingestion ＋ Curated 登記制鏡像</span>
+    <span class="chip g">Doris 4.1 · 自建機房</span>
+    <span class="chip g">Spark→raw（100% Kafka）</span>
+    <span class="chip g">User Apps→curated（不可控）</span>
+    <span class="chip t">結論：Hot-Standby 服務＋雙活資料</span>
   </div>
-  <div class="take"><b>先看完整目錄、再看取捨</b>——結論在第二部，且每個排除都寫了理由。</div>
+  <div class="take"><b>備援座平時就在寫</b>——failover 只是翻一個 flag；人決策、機器執行。</div>
 </section>
 
-<!-- ============ 2 SCOPE & CONSTRAINTS ============ -->
 <section class="slide" id="s2" aria-labelledby="s2t">
-  <p class="meta"><span class="num">02</span><span class="part">背景與約束</span></p>
-  <h2 class="h2" id="s2t">範圍：<strong>叢集層級</strong>的 HA——與兩個 zone 的現況</h2>
+  <p class="meta"><span class="num">02</span><span class="part">前提與約束</span></p>
+  <h2 class="h2" id="s2t">兩個 catalog、兩條寫入路——<strong>使用者程式不可控</strong></h2>
+
   <div class="cols2" style="margin-top:20px">
     <div class="card accent">
       <h4 class="t">Raw Zone（受控）</h4>
-      <div class="ct">獨立 catalog</div>
-      <ul>
-        <li>寫入 <b>100% 來自 Kafka + Spark Structured Streaming</b>，無旁路</li>
-        <li>Kafka 是 raw 的唯一事實來源，可源頭重放</li>
-      </ul>
+      <ul><li>寫入 <b>100% Kafka + Spark Structured Streaming</b>，可源頭重放</li><li>4.x Unique Key <b>預設 MoW</b>——重放冪等的底</li></ul>
     </div>
     <div class="card warn">
       <h4 class="w">Curated Zone（開放）</h4>
-      <div class="ct">獨立 catalog</div>
-      <ul>
-        <li><b>開放使用者自由操作</b>：自建 ETL、ad-hoc 寫入、自建表</li>
-        <li>寫入路徑不受控——「單一路徑」假設對它不成立，<b>策略須分開評估</b></li>
-      </ul>
+      <ul><li><b>User Apps（統稱，含 BI，皆 JDBC）直寫</b>：可查兩 zone、只能寫 curated</li><li>不經 Kafka、<b>不必然可從 raw 重算</b>；程式不可控——平台唯二控制面＝<b>連線端點（VIP）</b>／（選配）client library</li></ul>
     </div>
   </div>
-  <div class="cols3" style="margin-top:18px">
-    <div class="card bad"><h4 class="r">C-1</h4><p>CCR 官方後續不再維護——採用即以 <b>fork 自維護</b>計成本</p></div>
-    <div class="card bad"><h4 class="r">C-2</h4><p>MinIO 不穩定——<b>不採存算分離</b>、不依賴物件儲存</p></div>
-    <div class="card warn"><h4 class="w">C-3</h4><p>RPO/RTO 未定——以「<b>分鐘級 RPO、半自動切換</b>」為工作假設</p></div>
+  <div class="cols3" style="margin-top:16px">
+    <div class="card bad"><h4 class="r">C-1</h4><p>CCR 不再維護；<b>4.1 更無對應 syncer</b></p></div>
+    <div class="card bad"><h4 class="r">C-2</h4><p>MinIO 不穩——不碰物件儲存/存算分離</p></div>
+    <div class="card warn"><h4 class="w">C-3</h4><p>RPO/RTO 未定——工作假設：<b>30 分內、人工切換</b></p></div>
   </div>
-  <div class="take">節點級 HA（FE 選主、BE 副本）Doris 自理；本次只談「<b>整座掛掉</b>」。</div>
+<div class="take">節點級 HA Doris 自理；本研究只解「<b>整座掛掉</b>」。</div>
 </section>
 
-<!-- ============ 3 FINDING: CCR ============ -->
 <section class="slide" id="s3" aria-labelledby="s3t">
-  <p class="meta"><span class="num">03</span><span class="part">關鍵查證</span></p>
-  <h2 class="h2" id="s3t">查證 ①：C-1 不只是內部消息——<strong>CCR 的公開訊號同樣惡化</strong></h2>
-  <div class="facts">
-    <div class="fact"><span class="fk">F-1</span><span>Apache Doris 官網 <b>2026-07-29</b> 把 CCR 文件從 3.x / 4.x / dev 文件樹<b>整批下架</b>（doris-website PR #4018，92 個檔案），只剩 2.1 文件保留，且無任何 deprecation 說明。</span></div>
-    <div class="fact"><span class="fk">F-2</span><span><code class="mono">selectdb/ccr-syncer</code>：最後 commit <b>2026-04-09</b>（4.5 個月停滯）、2026 年僅 5 個 commit、活躍 maintainer 約 <b>2 人</b>、從未發過 GitHub Release。</span></div>
-    <div class="fact warn"><span class="fk">F-3</span><span>SelectDB <b>Enterprise</b> 文件仍完整保留 CCR、持續出 binary——訊號指向「<b>開源側淡出、商業側承接</b>」。Doris 4.x 的替代機制 Binlog/Table Stream 仍是 Preview，未 GA。</span></div>
-    <div class="fact warn"><span class="fk">F-4</span><span>版本鐵律：Syncer 2.1.8 / 3.0.4 起<b>不再支援 Doris 2.0</b>——若現行叢集是 2.0.x，CCR 路線連版本門檻都過不了。</span></div>
+  <p class="meta"><span class="num">03</span><span class="part">評估主軸</span></p>
+  <h2 class="h2" id="s3t">四個需求情境 <strong>R1–R4</strong>——所有方案用它們評優缺點</h2>
+
+  <div class="cols2" style="margin-top:22px">
+    <div class="card accent"><h4 class="t">R1 快速 failover</h4><p>一座斷掉能切到另一座；<b>≤30 分鐘、接受人工切換</b>——人決策、機器一鍵執行。</p></div>
+    <div class="card accent"><h4 class="t">R2 斷後不能查到「錯」資料</h4><p>拆兩類：<b>舊</b>（落後秒/分，可容忍要定數字）vs <b>錯</b>（重複/半批/矛盾，零容忍靠機制）。特有風險：<b>跨 zone join 時間差</b>。</p></div>
+    <div class="card accent"><h4 class="t">R3 寫入資料要一致</h4><p>Spark→raw、Apps→curated 兩路在兩座間一致——落差要<b>可量測、可告警</b>。</p></div>
+    <div class="card accent"><h4 class="t">R4 恢復之後資料要一致</h4><p>故障座歸隊：補齊、對帳通過、安全切回。</p></div>
   </div>
-  <div class="take">對外報告可以直接引用公開證據，<b>不必搬內部消息</b>——CCR 不適合再當長期依賴。</div>
+  <div class="pband"><span class="pbl">邊界</span>不涵蓋「程式 bug 寫髒資料」（雙活不防，靠重放）與「Kafka 自身故障」（前提依賴）。</div>
+<div class="take">先對齊「要保什麼」——每個方案的優缺點都按 R1–R4 講。</div>
 </section>
 
-<!-- ============ 4 FINDING: CONNECTOR ============ -->
 <section class="slide" id="s4" aria-labelledby="s4t">
   <p class="meta"><span class="num">04</span><span class="part">關鍵查證</span></p>
-  <h2 class="h2" id="s4t">查證 ②：Spark connector <strong>給不了 exactly-once</strong>——冪等只能靠表模型</h2>
-  <div class="cols2">
-    <div class="card bad">
-      <h4 class="r">官方自承非 exactly-once</h4>
-      <div class="ct">doris-spark-connector PR #364 · 2026-07</div>
-      <ul>
-        <li>「stream load write path is <b>not exactly-once</b> across a client-side retry」——官方原文</li>
-        <li>修復（retry 重用 label）<b>尚未包含在任何 release</b>（最新 26.0.0 為 2026-04）</li>
-      </ul>
-    </div>
-    <div class="card bad">
-      <h4 class="r">Label 非決定性</h4>
-      <div class="ct">含 timestamp + JVM 序號</div>
-      <ul>
-        <li>job <b>restart 後重放</b>同段 offsets → 全新 label，Doris label 去重完全擋不住</li>
-        <li>對照：Flink connector 用 checkpoint id 綁 label 才有 exactly-once，Spark 側無等價機制</li>
-      </ul>
-    </div>
-    <div class="card warn">
-      <h4 class="w">2PC 的真實定位</h4>
-      <div class="ct">sink.enable-2pc · 預設 false</div>
-      <ul>
-        <li>只保 <b>micro-batch 原子可見</b>；epoch 去重僅存 driver 記憶體、跨 restart 不保留</li>
-        <li>曾有 txn 超時被清、commit 失敗<b>不拋例外</b>的無聲丟數 bug（issue #205）</li>
-      </ul>
-    </div>
-    <div class="card warn">
-      <h4 class="w">Label 去重窗口太小</h4>
-      <div class="ct">streaming_label_keep_max_second</div>
-      <ul>
-        <li>高頻導入類 label 保留<b>預設僅 12 小時</b>、per-DB 上限 2000 個</li>
-        <li>不能作為長時間 failback 追資料的冪等依據</li>
-      </ul>
-    </div>
+  <h2 class="h2" id="s4t">查證 ①：CCR——治理惡化，且 <strong>4.1 根本不在支援矩陣</strong></h2>
+
+  <div class="facts">
+    <div class="fact"><span class="fk">F-1</span><span>官方 <b>2026-07-29</b> 把 CCR 文件從 3.x/4.x/dev 整批下架（PR #4018）</span></div>
+    <div class="fact"><span class="fk">F-2</span><span>ccr-syncer：2025 低速 bugfix → <b>2026-04 起停滯</b>；issue 大面積零回覆</span></div>
+    <div class="fact bad"><span class="fk">F-4</span><span><b>無 4.1 版 syncer</b>（最高 4.0.1-rc03）＋版本鐵律 Syncer ≥ 下游 ≥ 上游 ⇒ <b>4.1 連「一次性工具」用法都不行</b></span></div>
+    <div class="fact warn"><span class="fk">誠實</span><span>相悖證據如實記錄：SelectDB 2025 Roadmap 曾承諾 CCR 增強（未落地）；<b>Doris 圈公開雙叢集案例其實以 CCR 為多</b>——我們不選它是因約束，不是因主流</span></div>
   </div>
-  <div class="take warn">結論：<b>冪等必須由表模型承擔</b>——Unique Key（Merge-on-Write）重放天然收斂；Duplicate / SUM Aggregate 重放必髒。</div>
+<div class="take">在 4.1 上「用 CCR」＝「自己移植＋維護 CCR」——沒有搭便車的中間態。</div>
 </section>
 
-<!-- ============ 5 PART I DIVIDER ============ -->
 <section class="slide" id="s5" aria-labelledby="s5t">
-  <p class="meta"><span class="num">05</span><span class="part">第一部 · 方案目錄</span></p>
-  <p class="divider-kicker">Part Ⅰ · Solution Catalog</p>
-  <h2 class="h2 divider-title" id="s5t">第一部：<strong>方案目錄</strong></h2>
-  <p class="divider-sub">目標是「<b>窮舉</b>」：同步層 9 個方案、Curated zone 4 個策略、Query 層 7 個選項——中性列出機制與優缺點，<b>本部不做取捨、不含建議</b>。看完可以先自己形成判斷，再對照第二部。</p>
+  <p class="meta"><span class="num">05</span><span class="part">關鍵查證</span></p>
+  <h2 class="h2" id="s5t">查證 ②：Spark 寫入語義（精確版）——<strong>MoW 冪等是必要兜底</strong></h2>
+
+  <div class="cols2">
+    <div class="card warn"><h4 class="w">官方說法</h4><ul><li>文件宣稱 2PC 可達 <b>checkpoint 級 exactly-once</b></li><li>但 2PC 歷史上有 txn 超時<b>靜默丟數</b> bug（#205，已修）與運維坑</li></ul></div>
+    <div class="card bad"><h4 class="r">兩個保護不到的洞</h4><ul><li>官方 PR #364 自承 <b>client retry 段非 exactly-once</b>（修復未發版）</li><li>跨 restart 的 <b>label 非決定性</b>——重放去重失效，不在 2PC 範圍</li></ul></div>
+  </div>
+  <div class="pband"><span class="pbl">結論</span>表模型冪等不是可選項：<b>Unique Key MoW（4.x 預設）承擔重放去重</b>；Duplicate / SUM Aggregate 表重放必髒——存量清查是 PoC 第一項。</div>
+<div class="take warn">connector 的保證有邊界——<b>架構不能把正確性押在邊界內側</b>。</div>
 </section>
 
-<!-- ============ 6 CATALOG S1-S5 ============ -->
 <section class="slide" id="s6" aria-labelledby="s6t">
   <p class="meta"><span class="num">06</span><span class="part">第一部 · 方案目錄</span></p>
-  <h2 class="h2" id="s6t">同步層目錄（1/2）：<strong>S-1 ～ S-5</strong></h2>
-  <div class="ctbl">
-    <div class="crow head"><div>方案 · 機制</div><div>優點</div><div>缺點與限制</div></div>
-    <div class="crow"><div><span class="cid">S-1</span>CCR（官方跨叢集複製）<br><span style="font-weight:400;color:var(--faint);font-size:15px">Syncer 拉 FE binlog 重放到對座</span></div><div class="p">寫入方無感；DDL 大多自動同步；lag 秒級～33s；不依賴外部儲存</div><div class="c">RPO 非零；FE 切主觸發 full sync；無反向同步；不支援清單長；開源維護停滯；需 2.1.8+</div></div>
-    <div class="crow"><div><span class="cid">S-2</span>上游雙路 Ingestion<br><span style="font-weight:400;color:var(--faint);font-size:15px">兩座各跑獨立 Spark job 消費同一 Kafka</span></div><div class="p">兩座互相獨立、ingestion RPO≈0；failback 走 checkpoint 續讀；元件全自控</div><div class="c">前提為表模型冪等（Unique Key MoW）；靜默漂移靠對帳兜底；DDL 雙邊自管；資源 ×2</div></div>
-    <div class="crow"><div><span class="cid">S-3</span>Routine Load ×2<br><span style="font-weight:400;color:var(--faint);font-size:15px">兩座各建 Doris 原生 Kafka 消費 job</span></div><div class="p">消費側 exactly-once 由 Doris 保證（強於 Spark connector）；少一層元件</div><div class="c">只支援簡單映射／過濾——Spark 內複雜轉換無法直接搬；其餘同 S-2</div></div>
-    <div class="crow"><div><span class="cid">S-4</span>應用層雙寫<br><span style="font-weight:400;color:var(--faint);font-size:15px">同一 job 內對兩座各掛 sink</span></div><div class="p">概念直觀、零新基礎設施；兩座時間差最小</div><div class="c">失敗域耦合（一座慢拖垮全部）；半批失敗即分歧且無源頭對齊；query library 侵入 client</div></div>
-    <div class="crow"><div><span class="cid">S-5</span>定期批次同步<br><span style="font-weight:400;color:var(--faint);font-size:15px">Multi-Catalog INSERT INTO SELECT 排程搬</span></div><div class="p">零新元件、粒度可控、行為透明</div><div class="c">RPO = 排程週期；每表維護增量邏輯；DDL 全手動（錢大媽用過後棄用）</div></div>
-  </div>
-  <div class="take">此頁與下頁為<b>中性目錄</b>——判定在第二部（第 10 頁起）。</div>
+  <p class="divider-kicker">Part Ⅰ · Solution Catalog</p>
+  <h2 class="h2 divider-title" id="s6t">第一部：<strong>方案目錄</strong></h2>
+  <p class="divider-sub">窮舉：同步層 9 方案＋Curated 6 策略＋Query 層 7 選項——<b>中性列優缺點、不做取捨</b>。取捨在第二部，且每個去留都寫理由。</p>
 </section>
 
-<!-- ============ 7 CATALOG S6-S9 + CU ============ -->
 <section class="slide" id="s7" aria-labelledby="s7t">
   <p class="meta"><span class="num">07</span><span class="part">第一部 · 方案目錄</span></p>
-  <h2 class="h2" id="s7t">同步層目錄（2/2）：<strong>S-6 ～ S-9</strong>＋Curated 策略 ×4</h2>
+  <h2 class="h2" id="s7t">同步層目錄（1/2）：<strong>S-1 ～ S-5</strong></h2>
+
   <div class="ctbl">
     <div class="crow head"><div>方案 · 機制</div><div>優點</div><div>缺點與限制</div></div>
-    <div class="crow"><div><span class="cid">S-6</span>Backup / Restore 冷備</div><div class="p">機制最簡；提供時間點快照（可防邏輯錯誤）</div><div class="c">RPO 小時～天；無增量備份；repository 僅 S3/HDFS</div></div>
-    <div class="crow"><div><span class="cid">S-7</span>MM2 雙 Kafka ＋ 兩條自足鏈路</div><div class="p">連 Kafka 都不是單點；跨機房標準做法</div><div class="c">多一套 Kafka + MM2 成本最高；單機房價值有限</div></div>
-    <div class="crow"><div><span class="cid">S-8</span>Doris 3.x 存算分離</div><div class="p">單一資料源，無雙份一致性問題</div><div class="c">可用性押在共享儲存上；此模式不支援 backup/CCR；2.x 不能原地升級</div></div>
-    <div class="crow"><div><span class="cid">S-9</span>自研 CDC 橋（Flink 讀 A 寫 B）</div><div class="p">不依賴 ccr-syncer；可挑表可加轉換</div><div class="c">等於自研小型 CCR；成本同 fork 但無現成碼、無先例</div></div>
+    <div class="crow"><div><span class="cid">S-1</span>CCR（官方跨叢集複製）</div><div class="p">寫入方無感；DDL 自動同步；lag 秒級；raw＋curated 同一條流（跨 zone skew 最小）</div><div class="c">RPO 非零；FE 切主觸發 full sync；無反向同步；<b>4.1 無 syncer</b></div></div>
+    <div class="crow"><div><span class="cid">S-2</span>上游雙路 Ingestion</div><div class="p">兩座獨立、raw RPO≈0；failback 走 checkpoint；全自控</div><div class="c">前提＝表模型冪等；漂移靠對帳兜底；資源 ×2</div></div>
+    <div class="crow"><div><span class="cid">S-3</span>Routine Load ×2</div><div class="p">消費側 exactly-once 由 Doris 保證；少一層元件；4.1 增強</div><div class="c">只支援簡單映射——Spark 複雜轉換搬不動</div></div>
+    <div class="crow"><div><span class="cid">S-4</span>應用層雙寫（同 job 雙 sink）</div><div class="p">概念直觀、零新元件</div><div class="c">失敗域耦合；半批失敗即分歧無法對齊</div></div>
+    <div class="crow"><div><span class="cid">S-5</span>定期批次同步（Multi-Catalog）</div><div class="p">零新元件、粒度可控</div><div class="c">RPO＝排程週期；每表維護增量邏輯</div></div>
   </div>
-  <div class="ctbl" style="margin-top:14px">
-    <div class="crow head"><div>Curated 策略（curated = f(raw) 衍生層）</div><div>優點</div><div>缺點與限制</div></div>
-    <div class="crow"><div><span class="cid">CU-1</span>雙跑重算（ETL 平台對兩座各跑一次）</div><div class="p">與雙路哲學一致；備座 curated 常態可用</div><div class="c">要求 ETL 平台化＋決定性＋冪等——與「自由操作」現況相衝</div></div>
-    <div class="crow"><div><span class="cid">CU-2</span>排程鏡像（主座 curated → 備座）</div><div class="p">對使用者零侵入；無 CCR 依賴；可配登記制</div><div class="c">RPO = 鏡像週期（小時級）；要處理使用者 DDL</div></div>
-    <div class="crow"><div><span class="cid">CU-3</span>限定範圍 CCR（只同步 curated）</div><div class="p">使用者 DDL 自動跟隨、秒級 lag</div><div class="c">C-1 全額適用；使用者行為最易踩不支援清單</div></div>
-    <div class="crow"><div><span class="cid">CU-4</span>Best-effort：災後以 raw 重算</div><div class="p">零常態成本；衍生層可重算的自洽取捨</div><div class="c">RTO 無上限；不可重算的表直接丟失</div></div>
-  </div>
+<div class="take">中性目錄——判定與理由在第二部（p.10）。</div>
 </section>
 
-<!-- ============ 8 CATALOG QUERY ============ -->
 <section class="slide" id="s8" aria-labelledby="s8t">
   <p class="meta"><span class="num">08</span><span class="part">第一部 · 方案目錄</span></p>
-  <h2 class="h2" id="s8t">Query Failover 選項目錄：<strong>7 個選項</strong></h2>
+  <h2 class="h2" id="s8t">同步層目錄（2/2）：<strong>S-6 ～ S-9</strong></h2>
+
   <div class="ctbl">
-    <div class="crow head"><div>選項 · 機制</div><div>優點</div><div>缺點</div></div>
-    <div class="crow"><div>HAProxy + keepalived<br><span style="font-weight:400;color:var(--faint);font-size:15px">L4 代理 + VRRP VIP</span></div><div class="p">開源即有 active check；external-check 可跑真實 SQL；client 零修改</div><div class="c">自管兩台 proxy；VIP 需同 L2 網段</div></div>
-    <div class="crow"><div>ProxySQL<br><span style="font-weight:400;color:var(--faint);font-size:15px">MySQL 協議感知代理</span></div><div class="p">hostgroup 動態切換不斷線；官方文件有範例</div><div class="c">Doris 非真 MySQL，monitor 模組相容性有坑</div></div>
-    <div class="crow"><div>Nginx stream（開源版）</div><div class="p">團隊多半已熟悉</div><div class="c">僅 passive check——須先失敗才摘除</div></div>
-    <div class="crow"><div>MySQL Router</div><div class="p">—</div><div class="c">綁 InnoDB Cluster metadata，Doris 無此結構</div></div>
-    <div class="crow"><div>JDBC multi-host URL</div><div class="p">零基礎設施</div><div class="c">每個 client 都要改；只感知連線錯誤；非 Java 無解</div></div>
-    <div class="crow"><div>DNS 切換</div><div class="p">概念簡單</div><div class="c">JVM 預設快取 DNS、長連線不斷開——實務不可靠</div></div>
-    <div class="crow"><div>Client library 路由</div><div class="p">路由邏輯可最細緻</div><div class="c">侵入所有接入方，維護推廣成本最高</div></div>
+    <div class="crow head"><div>方案 · 機制</div><div>優點</div><div>缺點與限制</div></div>
+    <div class="crow"><div><span class="cid">S-6</span>Backup / Restore 冷備</div><div class="p">機制最簡；時間點快照可防邏輯錯誤</div><div class="c">RPO 小時～天；repo 僅 S3/HDFS（C-2 卡）</div></div>
+    <div class="crow"><div><span class="cid">S-7</span>MM2 雙 Kafka 自足鏈路</div><div class="p">連 Kafka 都不是單點；跨機房標準做法</div><div class="c">成本最高；單機房價值有限</div></div>
+    <div class="crow"><div><span class="cid">S-8</span>Doris 存算分離</div><div class="p">單一資料源，無雙份一致性問題</div><div class="c">可用性押在共享儲存（C-2 直接衝突）</div></div>
+    <div class="crow"><div><span class="cid">S-9</span>自研 CDC 橋（Flink 讀 A 寫 B）</div><div class="p">不依賴 syncer、可挑表</div><div class="c">＝自寫小 CCR：成本同 fork、無現成碼無先例</div></div>
   </div>
-  <div class="take">與同步方案<b>正交</b>——任何同步方案都要配其一。細部比較在第 16 頁。</div>
+  <div class="ctbl" style="margin-top:14px">
+    <div class="crow head"><div>Curated 策略（app 直寫的一手資料）</div><div>優點</div><div>缺點與限制</div></div>
+    <div class="crow"><div><span class="cid">CU-2</span>常駐排程鏡像（主→備）</div><div class="p">使用者零侵入；loss window 可設計＋可監控</div><div class="c">RPO＝鏡像週期；要處理使用者 DDL</div></div>
+    <div class="crow"><div><span class="cid">CU-6</span>App 寫入改道 Kafka</div><div class="p">curated 與 raw 同構、RPO≈0</div><div class="c">使用者不可控→採用時程無法保證</div></div>
+    <div class="crow"><div><span class="cid">其他</span>CU-1 雙跑重算／CU-3 限定 CCR／CU-4 災後重算／CU-5 app 雙寫</div><div class="p">—</div><div class="c">分別受限：只保 ETL／4.1 不可行／app 資料無從重算／問題轉嫁每個 app</div></div>
+  </div>
+
 </section>
 
-<!-- ============ 9 PART II DIVIDER + FILTER ============ -->
 <section class="slide" id="s9" aria-labelledby="s9t">
-  <p class="meta"><span class="num">09</span><span class="part">第二部 · 篩選與深評</span></p>
-  <h2 class="h2" id="s9t">第二部開始：<strong>約束篩選</strong>——每個去留都寫理由</h2>
-  <div class="ctbl" style="margin-top:20px">
-    <div class="frow head"><div>方案</div><div>對本案約束的衝突</div><div>結果</div></div>
-    <div class="frow"><div>S-1 CCR</div><div>C-1 → fork 自維護；需 Doris 2.1.8+</div><div><span class="chip w">條件入圍 · 深評 p.10</span></div></div>
-    <div class="frow"><div>S-2 雙路 Spark</div><div>無硬衝突；前提為表模型冪等</div><div><span class="chip t">入圍 · 深評 p.12</span></div></div>
-    <div class="frow"><div>S-3 Routine Load ×2</div><div>Spark 內轉換複雜度待盤點</div><div><span class="chip w">併入 S-2 作簡化變體</span></div></div>
-    <div class="frow"><div>S-4 應用層雙寫</div><div>失敗域耦合；client 侵入違反需求</div><div><span class="chip w">入圍對照 · 深評 p.11</span></div></div>
-    <div class="frow"><div>S-5 批次同步</div><div>RPO 分鐘～小時，僅邊緣符合 C-3</div><div><span class="chip w">保留為工具（failback / CU-2）</span></div></div>
-    <div class="frow"><div>S-6 冷備</div><div>C-2：需 HDFS；RPO 不符 C-3</div><div><span class="chip w">條件保留（兜底）</span></div></div>
-    <div class="frow"><div>S-7 MM2 雙 Kafka</div><div>單機房價值有限；跨機房需求未確立</div><div><span class="chip g">暫不入圍</span></div></div>
-    <div class="frow"><div>S-8 存算分離</div><div>C-2 直接衝突</div><div><span class="chip r">排除</span></div></div>
-    <div class="frow"><div>S-9 自研 CDC 橋</div><div>成本同 fork 但無現成碼、無先例</div><div><span class="chip r">排除</span></div></div>
+  <p class="meta"><span class="num">09</span><span class="part">第一部 · 方案目錄</span></p>
+  <h2 class="h2" id="s9t">Query 層 7 選項＋<strong>控制面：URL vs Library</strong></h2>
+
+  <div class="ctbl">
+    <div class="crow head"><div>選項</div><div>優點</div><div>缺點</div></div>
+    <div class="crow"><div>HAProxy + keepalived VIP</div><div class="p">開源 active check；external-check 跑真實 SQL；client 零修改</div><div class="c">自管兩台；VIP 需同 L2</div></div>
+    <div class="crow"><div>ProxySQL / Nginx / JDBC URL / DNS / MySQL Router</div><div class="p">各有部署簡易處</div><div class="c">相容性坑／passive-only／要改所有 client／JVM 快取 DNS／綁 InnoDB metadata</div></div>
+    <div class="crow"><div>Client library 路由</div><div class="p">可內建「哪座活著」判斷</div><div class="c">不可控使用者→無法強制採用升版；非 Java 無解；決策點分裂</div></div>
   </div>
-  <div class="take">Curated 策略篩選：<b>CU-2 鏡像為主、CU-4 為未登記表預設</b>；CU-3 因 C-1 不常駐、CU-1 列長期方向（p.15）。</div>
+  <div class="pband"><span class="pbl">控制面結論</span>使用者不可控 ⇒ <b>URL/VIP 是唯一可強制的機制</b>（路由權 100% 在平台）；library 只能當<b>選配加值</b>，且判斷邏輯應「讀平台主座 flag」而非自行探測——維持決策單點。</div>
+<div class="take">failover 機制必須建在 <b>VIP</b> 上——這也是 app 寫入能自動跟切的原因。</div>
 </section>
 
-<!-- ============ 10 DEEP DIVE CCR ============ -->
 <section class="slide" id="s10" aria-labelledby="s10t">
-  <p class="meta"><span class="num">10</span><span class="part">第二部 · 深評</span></p>
-  <h2 class="h2" id="s10t">深評 S-1（CCR）：技術能跑，<strong>但你要養它一輩子</strong></h2>
-  <div class="dg center">
-    <div class="node"><div class="t">Spark job</div><div class="s">單寫路徑</div></div>
-    <div class="arrow">→</div>
-    <div class="node hl"><div class="t">A 座（主）</div><div class="s">FE binlog</div></div>
-    <div class="arrow">→<label class="lbl">ccr-syncer (fork)</label></div>
-    <div class="node"><div class="t">B 座（備）</div><div class="s">is_being_synced<br>不可寫</div></div>
+  <p class="meta"><span class="num">10</span><span class="part">第二部 · 篩選</span></p>
+  <h2 class="h2" id="s10t">約束篩選：<strong>每個去留都有理由</strong></h2>
+
+  <div class="ctbl" style="margin-top:18px">
+    <div class="frow head"><div>方案</div><div>理由</div><div>結果</div></div>
+    <div class="frow"><div>S-2 雙路 Spark</div><div>無硬衝突；前提＝表模型冪等（4.x MoW 預設助攻）</div><div><span class="chip t">入圍・推薦</span></div></div>
+    <div class="frow"><div>S-3 Routine Load ×2</div><div>轉換簡單的 topic 可用（4.1 增強）</div><div><span class="chip w">併入 S-2 變體</span></div></div>
+    <div class="frow"><div>S-1 CCR</div><div><b>4.1 無 syncer</b>——常駐與工具用法皆不可行；要走＝自行移植＋維護（成本見 p.17）</div><div><span class="chip r">排除</span></div></div>
+    <div class="frow"><div>S-4 同 job 雙寫</div><div>失敗域耦合；半批失敗無法收斂</div><div><span class="chip r">排除（對照組）</span></div></div>
+    <div class="frow"><div>S-5 批次同步</div><div>RPO 邊緣</div><div><span class="chip w">降為工具（鏡像/重建）</span></div></div>
+    <div class="frow"><div>S-6 冷備</div><div>C-2 需 HDFS；RPO 不符</div><div><span class="chip w">兜底保留</span></div></div>
+    <div class="frow"><div>S-7 / S-8 / S-9</div><div>單機房價值低／C-2 衝突／自研小 CCR 無先例</div><div><span class="chip g">暫不入圍</span>／<span class="chip r">排除 ×2</span></div></div>
   </div>
-  <div class="cols2" style="margin-top:20px">
-    <div class="card bad">
-      <h4 class="r">Fork 維護 = 永續跟版</h4>
-      <ul>
-        <li>手寫核心 <b>~2.2 萬行 Go</b>（單檔 job.go 近 5,000 行狀態機）</li>
-        <li>內嵌 <b>~1.1 萬行 Doris Thrift IDL</b>——Doris 每次升級都要 regenerate + 適配 + 完整雙叢集 regression</li>
-        <li>已知靜默 bug：表級任務<b>忽略上游 DROP TABLE</b>（#654）</li>
-      </ul>
-    </div>
-    <div class="card bad">
-      <h4 class="r">HA 語意先天不足</h4>
-      <ul>
-        <li>非同步複製：<b>RPO 必然非零</b>；FE 切主觸發<b>整庫 full sync</b>，期間 RPO 惡化到小時級</li>
-        <li><b>無反向同步</b>：failback 只能反向重建全量，官方無 runbook</li>
-        <li>B 座誤寫的資料會在下次 full sync 被<b>原子替換洗掉</b></li>
-      </ul>
-    </div>
-  </div>
-  <div class="take"><b>判定：不推薦常駐</b>——降級為「超出 Kafka retention 的一次性重建工具」，用完即拆。</div>
+<div class="take">Curated：<b>CU-2 鏡像為主力、CU-6 為中期方向</b>；CU-3 在 4.1 不可行。</div>
 </section>
 
-<!-- ============ 11 DEEP DIVE DUAL WRITE ============ -->
 <section class="slide" id="s11" aria-labelledby="s11t">
-  <p class="meta"><span class="num">11</span><span class="part">第二部 · 深評</span></p>
-  <h2 class="h2" id="s11t">深評 S-4（雙寫）：<strong>雙寫的位置放錯了</strong></h2>
-  <p class="sub">raw zone 只有 Spark 一條寫入路徑，「client 雙寫」實際上 = <b>同一個 job 內掛兩個 sink</b>。與 S-2 的差別是「同 job 雙寫」vs「兩個獨立 job」——逐項比全面落敗：</p>
-  <div class="cols3">
-    <div class="card bad">
-      <h4 class="r">失敗域耦合</h4>
-      <ul>
-        <li>B 座變慢 → <b>背壓拖垮整條 pipeline</b>，連 A 座一起慢</li>
-        <li>S-2 兩條 pipeline 完全隔離</li>
-      </ul>
-    </div>
-    <div class="card bad">
-      <h4 class="r">半批失敗無法收斂</h4>
-      <ul>
-        <li>A 成功 B 失敗：跳過 → 分歧且 checkpoint 已前進，<b>無法靠源頭重放對齊</b></li>
-        <li>整批重試 → 冪等前提照樣要，等於沒省</li>
-      </ul>
-    </div>
-    <div class="card bad">
-      <h4 class="r">Query library 侵入全部 client</h4>
-      <ul>
-        <li>所有 JDBC 接入方都要改；<b>非 Java client 無解</b></li>
-        <li>路由本該收斂到 proxy 層</li>
-      </ul>
-    </div>
-  </div>
-  <div class="pband"><span class="pbl">業界教訓</span>京東：Flink/Spark 雙寫兩座 ClickHouse——公開承認「只能最終一致、業務端複雜度高、切換分鐘級」。攜程也記錄過雙寫一致性做不到。</div>
-  <div class="take">雙寫值得做的位置在 <b>Kafka 之後的兩條獨立鏈路</b>——那就是 S-2。</div>
+  <p class="meta"><span class="num">11</span><span class="part">第二部 · 推薦架構</span></p>
+  <h2 class="h2" id="s11t">推薦架構總圖：<strong>Hot-Standby 服務 ＋ 雙活資料</strong></h2>
+<div class="figwrap" style="width:1292px"><svg class="dgm" role="img" width="680" height="270" viewBox="0 0 680 270" style="width:100%;height:auto"><defs>
+<marker id="mAd2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
+<marker id="mMd2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".5"/></marker>
+<marker id="mBd2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--red)"/></marker>
+<marker id="mGd2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--green)"/></marker>
+</defs><g><rect class="bx" x="14" y="108" width="96" height="44" rx="6"/><text x="62.0" y="129.0" text-anchor="middle">Kafka</text><text class="sub" x="62.0" y="144.0" text-anchor="middle">事實來源</text></g><g><rect class="bx" x="126" y="44" width="74" height="32" rx="6"/><text x="163.0" y="64.0" text-anchor="middle">Spark Job A</text></g><g><rect class="bx" x="126" y="182" width="74" height="32" rx="6"/><text x="163.0" y="202.0" text-anchor="middle">Spark Job B</text></g><g><rect class="frame" x="210" y="14" width="250" height="100" rx="8"/><text x="220" y="30" style="font-weight:700">A 座（主）</text><g><rect class="bx" x="220" y="42" width="111" height="56" rx="6"/><text x="275.5" y="74.0" text-anchor="middle">raw</text></g><g><rect class="bx" x="339" y="42" width="111" height="56" rx="6"/><text x="394.5" y="74.0" text-anchor="middle">curated</text></g></g><g><rect class="frame" x="210" y="150" width="250" height="100" rx="8"/><text x="220" y="166" style="font-weight:700">B 座（hot standby）</text><g><rect class="bx" x="220" y="178" width="111" height="56" rx="6"/><text x="275.5" y="210.0" text-anchor="middle">raw</text></g><g><rect class="bx" x="339" y="178" width="111" height="56" rx="6"/><text x="394.5" y="210.0" text-anchor="middle">curated</text></g></g><g><rect class="bx" x="568" y="20" width="98" height="58" rx="6"/><text x="617.0" y="48.0" text-anchor="middle">User Apps</text><text class="sub" x="617.0" y="63.0" text-anchor="middle">JDBC・含 BI</text></g><g><rect class="bx" x="568" y="118" width="98" height="52" rx="6"/><text x="617.0" y="143.0" text-anchor="middle">HAProxy</text><text class="sub" x="617.0" y="158.0" text-anchor="middle">VIP・唯一入口</text></g><line class="mut" x1="617" y1="78" x2="617" y2="118" marker-end="url(#mMd2)"/><text class="sub" x="617" y="92" text-anchor="middle">讀 raw+curated</text><text class="sub" x="617" y="104" text-anchor="middle">寫 curated</text><line class="mut" x1="568" y1="132" x2="462" y2="70" marker-end="url(#mMd2)"/><text class="lbl" x="520" y="96" text-anchor="middle">單活服務：query＋curated 寫入</text><line class="mut dsh" x1="568" y1="158" x2="462" y2="190" marker-end="url(#mMd2)"/><text class="lbl" x="556" y="186" text-anchor="middle">failover：翻 flag</text><g><rect class="bx" x="500" y="196" width="80" height="48" rx="6"/><text x="540.0" y="219.0" text-anchor="middle">對帳 job</text><text class="sub" x="540.0" y="234.0" text-anchor="middle">count+hash</text></g><line class="acc" x1="110" y1="116" x2="126" y2="64" marker-end="url(#mAd2)"/><line class="acc" x1="200" y1="60" x2="220" y2="60" marker-end="url(#mAd2)"/><text class="lbl" x="300" y="50" text-anchor="middle">雙活資料：同源＋MoW 冪等</text><line class="acc" x1="110" y1="140" x2="126" y2="196" marker-end="url(#mAd2)"/><line class="acc" x1="200" y1="198" x2="220" y2="198" marker-end="url(#mAd2)"/><line class="acc dsh" x1="395" y1="114" x2="395" y2="150" marker-end="url(#mAd2)"/><text class="lbl" x="442" y="136" text-anchor="middle">curated 鏡像（常駐排程）</text><line class="ok dsh" x1="500" y1="208" x2="462" y2="84" marker-end="url(#mGd2)"/><line class="ok dsh" x1="500" y1="228" x2="462" y2="206" marker-end="url(#mGd2)"/></svg></div>
+  <div class="note" style="margin-top:14px">定位：ingestion（raw）＝<b>Active-Active</b>；服務面（query＋curated 寫入）＝<b>Active-Standby</b>（VIP 單活）。刻意不做全 AA——雙邊寫 curated 是無仲裁的雙主衝突。可選延伸：唯讀報表分流 B 座。</div>
+<div class="take"><b>單活服務、雙路資料</b>——接下來四頁：這套架構如何應對 R1–R4。</div>
 </section>
 
-<!-- ============ 12 S-2 ARCH ============ -->
 <section class="slide" id="s12" aria-labelledby="s12t">
-  <p class="meta"><span class="num">12</span><span class="part">第二部 · 推薦方案</span></p>
-  <h2 class="h2" id="s12t">推薦 S-2（雙路 Ingestion）：<strong>三個狀態，一張圖</strong>——覆蓋 raw zone</h2>
-  <div class="fig" data-fig="FIG.01 — 正常態 · Kafka 是 raw zone 的唯一事實來源">
-    <div class="dg center" style="margin-top:0">
-      <div class="node hl"><div class="t">Kafka</div><div class="s">single source of truth</div></div>
-      <div class="arrow">⇉<label class="lbl">獨立 checkpoint ×2</label></div>
-      <div class="node"><div class="t">Job A → A 座 raw</div><div class="s">獨立消費進度</div></div>
-      <div class="node"><div class="t">Job B → B 座 raw</div><div class="s">獨立消費進度</div></div>
-      <div class="arrow dim">←<label class="lbl">query</label></div>
-      <div class="node"><div class="t">HAProxy VIP</div><div class="s">主指 A 座</div></div>
-    </div>
-  </div>
-  <div class="cols2" style="margin-top:18px">
-    <div class="card accent">
-      <h4 class="t">故障態：A 整座掛</h4>
-      <ul>
-        <li>Job A 停擺（無妨）；<b>Job B 完全不受影響、持續寫入</b></li>
-        <li>Ingestion 側<b>零切換動作</b>；query 半自動切到 B（proxy 翻轉）</li>
-      </ul>
-    </div>
-    <div class="card accent">
-      <h4 class="t">恢復態：A 修好歸隊</h4>
-      <ul>
-        <li>重啟 Job A，從<b>自己的 checkpoint</b> 續讀 Kafka 追平</li>
-        <li>對帳確認追平 → 低峰期把 query 切回</li>
-      </ul>
-    </div>
-  </div>
-  <div class="take">Spark 的 Kafka source 自管 offset——<b>兩條鏈路天然互不干擾</b>。curated zone 另有策略（p.15）。</div>
+  <p class="meta"><span class="num">12</span><span class="part">情境檢驗</span></p>
+  <h2 class="h2" id="s12t">R1 快速 failover：<strong>人只做一件事——翻 flag</strong></h2>
+<div class="figwrap" style="width:1292px"><svg class="dgm" role="img" width="680" height="270" viewBox="0 0 680 270" style="width:100%;height:auto"><defs>
+<marker id="mAr1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
+<marker id="mMr1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".5"/></marker>
+<marker id="mBr1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--red)"/></marker>
+<marker id="mGr1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--green)"/></marker>
+</defs><g><rect class="bx" x="14" y="108" width="96" height="44" rx="6"/><text x="62.0" y="129.0" text-anchor="middle">Kafka</text><text class="sub" x="62.0" y="144.0" text-anchor="middle">事實來源</text></g><g><rect class="bx" x="126" y="44" width="74" height="32" rx="6"/><text x="163.0" y="64.0" text-anchor="middle">Job A ✕</text></g><g><rect class="bx" x="126" y="182" width="74" height="32" rx="6"/><text x="163.0" y="202.0" text-anchor="middle">Job B</text></g><g class="dead"><rect class="frame" x="210" y="14" width="250" height="100" rx="8"/><text x="220" y="30" style="font-weight:700">A 座（整座故障）</text><g><rect class="bx" x="220" y="42" width="111" height="56" rx="6"/><text x="275.5" y="74.0" text-anchor="middle">raw</text></g><g><rect class="bx" x="339" y="42" width="111" height="56" rx="6"/><text x="394.5" y="74.0" text-anchor="middle">curated</text></g></g><g><rect class="frame" x="210" y="150" width="250" height="100" rx="8"/><text x="220" y="166" style="font-weight:700">B 座</text><g><rect class="bx" x="220" y="178" width="111" height="56" rx="6"/><text x="275.5" y="210.0" text-anchor="middle">raw</text></g><g><rect class="bx" x="339" y="178" width="111" height="56" rx="6"/><text x="394.5" y="210.0" text-anchor="middle">curated</text></g></g><g><rect class="bx" x="568" y="20" width="98" height="58" rx="6"/><text x="617.0" y="48.0" text-anchor="middle">User Apps</text><text class="sub" x="617.0" y="63.0" text-anchor="middle">JDBC・含 BI</text></g><g><rect class="bx" x="568" y="118" width="98" height="52" rx="6"/><text x="617.0" y="143.0" text-anchor="middle">HAProxy</text><text class="sub" x="617.0" y="158.0" text-anchor="middle">VIP・唯一入口</text></g><line class="mut" x1="617" y1="78" x2="617" y2="118" marker-end="url(#mMr1)"/><text class="sub" x="617" y="92" text-anchor="middle">讀 raw+curated</text><text class="sub" x="617" y="104" text-anchor="middle">寫 curated</text><line class="acc" x1="110" y1="140" x2="126" y2="196" marker-end="url(#mAr1)"/><text class="lbl" x="96" y="178" text-anchor="middle">持續寫入・零切換</text><line class="acc" x1="200" y1="198" x2="220" y2="198" marker-end="url(#mAr1)"/><line class="bad dsh" x1="568" y1="132" x2="462" y2="70" marker-end="url(#mBr1)"/><text class="lblb" x="536" y="96" text-anchor="middle">✕ 停止指向 A</text><line class="ok" x1="568" y1="158" x2="462" y2="190" marker-end="url(#mGr1)"/><text class="lbl" x="520" y="214" text-anchor="middle">人工翻 flag → B（讀寫自動跟切）</text></svg></div>
+  <div class="note" style="margin-top:12px">B 的 ingestion 本來就在跑（<b>零動作、raw 零遺失</b>）；User Apps 讀寫都經 VIP，<b>自動跟切</b>。30 分鐘預算：告警 2 分 → 值班上線 10 分 → 判讀 5 分 → 一鍵切換 2 分 → 驗證 5 分 ≈ 24 分——<b>前提是演練過</b>。</div>
+<div class="take">人工切換成立的條件：<b>監控先把答案算好</b>（p.20）。</div>
 </section>
 
-<!-- ============ 13 WHY IT WINS ============ -->
 <section class="slide" id="s13" aria-labelledby="s13t">
-  <p class="meta"><span class="num">13</span><span class="part">第二部 · 推薦方案</span></p>
-  <h2 class="h2" id="s13t">憑什麼贏：<strong>四個結構性優勢</strong></h2>
-  <div class="cols2">
-    <div class="card accent">
-      <h4 class="t">① Ingestion RPO ≈ 0、零切換</h4>
-      <p>備援座<b>平時就在寫</b>，A 故障不會讓 B 丟任何資料；唯一的「落後」是 B 自身秒級處理延遲。CCR 類主從複製在數學上做不到這件事。</p>
-    </div>
-    <div class="card accent">
-      <h4 class="t">② 唯一同時避開 C-1 與 C-2</h4>
-      <p>不依賴 CCR、不碰物件儲存。目錄 9 個方案裡<b>只有它</b>不用對任何一條硬性約束付前提成本。</p>
-    </div>
-    <div class="card accent">
-      <h4 class="t">③ Raw zone 現況正是理想前提</h4>
-      <p>raw 寫入 <b>100% 走 Kafka + Spark</b>、無旁路——「源頭重放」不需要對例外路徑打補丁。這個條件很多團隊沒有，我們的 raw zone 剛好有。</p>
-    </div>
-    <div class="card accent">
-      <h4 class="t">④ 元件全部自主可控</h4>
-      <p>新增的只有第二套 job、proxy 層、對帳與鏡像工具——<b>常規工程</b>，沒有外部黑盒、沒有 fork 要養。</p>
-    </div>
-  </div>
-  <div class="take">京東（雙寫兩座 OLAP）與攜程（多寫 + 一致性巡檢 job）都驗證過<b>同構模式的長期可運維性</b>。</div>
+  <p class="meta"><span class="num">13</span><span class="part">情境檢驗</span></p>
+  <h2 class="h2" id="s13t">R2 查詢正確性：<strong>「錯」已由機制消除，剩「時間差」要管理</strong></h2>
+<div class="figwrap" style="width:1292px"><svg class="dgm" role="img" width="680" height="240" viewBox="0 0 680 240" style="width:100%;height:auto"><defs>
+<marker id="mAr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
+<marker id="mMr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".5"/></marker>
+<marker id="mBr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--red)"/></marker>
+<marker id="mGr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--green)"/></marker>
+</defs><g><rect class="frame" x="210" y="60" width="250" height="100" rx="8"/><text x="220" y="76" style="font-weight:700">B 座（切換後承接）</text><g><rect class="bx" x="220" y="88" width="111" height="56" rx="6"/><text x="275.5" y="115.0" text-anchor="middle">raw</text><text class="sub" x="275.5" y="130.0" text-anchor="middle">落後 ~秒級</text></g><g><rect class="bx" x="339" y="88" width="111" height="56" rx="6"/><text x="394.5" y="115.0" text-anchor="middle">curated</text><text class="sub" x="394.5" y="130.0" text-anchor="middle">停在鏡像時點</text></g></g><g><rect class="bx" x="568" y="30" width="98" height="58" rx="6"/><text x="617.0" y="58.0" text-anchor="middle">User Apps</text><text class="sub" x="617.0" y="73.0" text-anchor="middle">JDBC・含 BI</text></g><g><rect class="bx" x="568" y="128" width="98" height="44" rx="6"/><text x="617.0" y="149.0" text-anchor="middle">HAProxy</text><text class="sub" x="617.0" y="164.0" text-anchor="middle">VIP</text></g><line class="mut" x1="617" y1="88" x2="617" y2="128" marker-end="url(#mMr2)"/><line class="mut" x1="568" y1="146" x2="462" y2="110" marker-end="url(#mMr2)"/><text class="lbl" x="530" y="120" text-anchor="middle">query</text><line class="bad dsh" x1="330" y1="60" x2="330" y2="34" marker-end="url(#mBr2)"/><text class="lblb" x="330" y="24" text-anchor="middle">join raw × curated → 可能矛盾（R2 殘留風險）</text><text class="sub" x="330" y="192" text-anchor="middle">raw：只落後處理延遲（秒）；curated：停在上次鏡像（分鐘級）</text><text class="sub" x="330" y="212" text-anchor="middle">重複／半批＝機制已消除——剩下的只有時間差管理</text></svg></div>
+  <div class="note" style="margin-top:12px">重複＝MoW 冪等消除；半批＝寫入原子性消除。殘留：<b>raw（秒）與 curated（鏡像時點）兩種「舊法」不同</b>——跨 zone join 在切換窗口可能矛盾。手段：縮短鏡像間隔＋切換公告資料時點。</div>
+<div class="take warn">對業務的問法：「切換瞬間 curated 舊 N 分鐘，可以嗎？」——N 是要他們拍板的數字。</div>
 </section>
 
-<!-- ============ 14 PRECONDITIONS ============ -->
 <section class="slide" id="s14" aria-labelledby="s14t">
-  <p class="meta"><span class="num">14</span><span class="part">第二部 · 推薦方案</span></p>
-  <h2 class="h2" id="s14t">代價講清楚：<strong>三個硬前提</strong>——沒滿足前方案不成立</h2>
-  <div class="cols3">
-    <div class="card warn">
-      <h4 class="w">① 表模型收斂 Unique Key MoW</h4>
-      <ul>
-        <li>重放冪等<b>只在 Unique Key（Merge-on-Write）成立</b>——UPSERT 覆蓋、天然收斂</li>
-        <li>Duplicate 表重放 = 重複行；SUM Aggregate = 重複累加</li>
-        <li>注意：2.0 預設是 Merge-on-Read，要<b>顯式開 MoW</b>；2.1 起才是預設</li>
-      </ul>
-    </div>
-    <div class="card warn">
-      <h4 class="w">② Kafka retention 政策</h4>
-      <ul>
-        <li>retention ≥ <b>最長離線時間 + 追平耗時 + 餘量</b></li>
-        <li>預設 7 天不夠，建議關鍵 topic 拉到 <b>14–30 天</b></li>
-        <li>Kafka 升格為兩座的共同上游——其 HA 等級要重新審視</li>
-      </ul>
-    </div>
-    <div class="card warn">
-      <h4 class="w">③ 對帳先行</h4>
-      <ul>
-        <li>雙路寫入<b>沒有複製協議兜底</b>——分 partition 的 count + hash 對帳是唯一一致性防線</li>
-        <li>搭配 DDL 統一入口（版本化 migration 對兩座執行 + drift 偵測），涵蓋權限/UDF</li>
-      </ul>
-    </div>
-  </div>
-  <div class="take warn">最大改造項是<b>表模型盤點與遷移</b>——工作量取決於現況有多少 Duplicate / SUM 表，PoC 第一項就是它。</div>
+  <p class="meta"><span class="num">14</span><span class="part">情境檢驗</span></p>
+  <h2 class="h2" id="s14t">R3 寫入一致：<strong>協議面（raw）＋搬運面（curated）＋驗證面（對帳）</strong></h2>
+<div class="figwrap" style="width:1292px"><svg class="dgm" role="img" width="680" height="270" viewBox="0 0 680 270" style="width:100%;height:auto"><defs>
+<marker id="mAr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
+<marker id="mMr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".5"/></marker>
+<marker id="mBr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--red)"/></marker>
+<marker id="mGr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--green)"/></marker>
+</defs><g><rect class="bx" x="14" y="108" width="96" height="44" rx="6"/><text x="62.0" y="129.0" text-anchor="middle">Kafka</text><text class="sub" x="62.0" y="144.0" text-anchor="middle">事實來源</text></g><g><rect class="bx" x="126" y="44" width="74" height="32" rx="6"/><text x="163.0" y="64.0" text-anchor="middle">Spark Job A</text></g><g><rect class="bx" x="126" y="182" width="74" height="32" rx="6"/><text x="163.0" y="202.0" text-anchor="middle">Spark Job B</text></g><g><rect class="frame" x="210" y="14" width="250" height="100" rx="8"/><text x="220" y="30" style="font-weight:700">A 座</text><g><rect class="bx" x="220" y="42" width="111" height="56" rx="6"/><text x="275.5" y="74.0" text-anchor="middle">raw</text></g><g><rect class="bx" x="339" y="42" width="111" height="56" rx="6"/><text x="394.5" y="74.0" text-anchor="middle">curated</text></g></g><g><rect class="frame" x="210" y="150" width="250" height="100" rx="8"/><text x="220" y="166" style="font-weight:700">B 座</text><g><rect class="bx" x="220" y="178" width="111" height="56" rx="6"/><text x="275.5" y="210.0" text-anchor="middle">raw</text></g><g><rect class="bx" x="339" y="178" width="111" height="56" rx="6"/><text x="394.5" y="210.0" text-anchor="middle">curated</text></g></g><g><rect class="bx" x="568" y="20" width="98" height="58" rx="6"/><text x="617.0" y="48.0" text-anchor="middle">User Apps</text><text class="sub" x="617.0" y="63.0" text-anchor="middle">JDBC・含 BI</text></g><g><rect class="bx" x="568" y="118" width="98" height="44" rx="6"/><text x="617.0" y="139.0" text-anchor="middle">HAProxy</text><text class="sub" x="617.0" y="154.0" text-anchor="middle">VIP</text></g><g><rect class="bx" x="500" y="196" width="80" height="48" rx="6"/><text x="540.0" y="219.0" text-anchor="middle">對帳 job</text><text class="sub" x="540.0" y="234.0" text-anchor="middle">count+hash</text></g><line class="mut" x1="617" y1="78" x2="617" y2="118" marker-end="url(#mMr3)"/><line class="mut" x1="568" y1="132" x2="462" y2="60" marker-end="url(#mMr3)"/><text class="lbl" x="530" y="102" text-anchor="middle">寫 curated（經 VIP）</text><line class="acc" x1="110" y1="116" x2="126" y2="64" marker-end="url(#mAr3)"/><line class="acc" x1="200" y1="60" x2="220" y2="60" marker-end="url(#mAr3)"/><text class="lbl" x="290" y="50" text-anchor="middle">同源＋MoW 冪等</text><line class="acc" x1="110" y1="140" x2="126" y2="196" marker-end="url(#mAr3)"/><line class="acc" x1="200" y1="198" x2="220" y2="198" marker-end="url(#mAr3)"/><line class="acc dsh" x1="395" y1="114" x2="395" y2="150" marker-end="url(#mAr3)"/><text class="lbl" x="436" y="136" text-anchor="middle">curated 鏡像</text><line class="ok dsh" x1="500" y1="208" x2="462" y2="84" marker-end="url(#mGr3)"/><line class="ok dsh" x1="500" y1="228" x2="462" y2="206" marker-end="url(#mGr3)"/><text class="lbl" x="540" y="252" text-anchor="middle">逐 partition 比對</text></svg></div>
+  <div class="note" style="margin-top:12px">raw：同源重放＋MoW 冪等（協議保證）。curated：<b>常駐鏡像</b>——每 N 分鐘搬變動 partition、記錄各表鏡像時點；loss window ＝ <b>設計值</b>（頻率＋單輪耗時，與業務議定）＋<b>監控</b>（即時顯示、超標告警）。對帳 job 對兩座逐 partition 比對兜底。</div>
+<div class="take">一致性可以是「驗證出來的」——前提是<b>落差可量測、可告警</b>。</div>
 </section>
 
-<!-- ============ 15 CURATED ZONE ============ -->
 <section class="slide" id="s15" aria-labelledby="s15t">
-  <p class="meta"><span class="num">15</span><span class="part">第二部 · 推薦方案</span></p>
-  <h2 class="h2" id="s15t">Curated zone 怎麼辦：<strong>登記制鏡像 ＋ best-effort 重算</strong></h2>
-  <div class="fig warn" data-fig="FIG.02 — 雙 zone 資料流 · curated 不經 Kafka，源頭重放不成立">
-    <div class="dg center" style="margin-top:0">
-      <div class="node hl"><div class="t">Kafka</div><div class="s">raw 唯一來源</div></div>
-      <div class="arrow">⇉</div>
-      <div class="node"><div class="t">raw（A、B 各自寫）</div><div class="s">S-2 雙路覆蓋</div></div>
-      <div class="arrow warn" style="color:var(--amber)">→<label class="lbl">使用者 ETL（只在主座）</label></div>
-      <div class="node warn"><div class="t">curated（主座）</div><div class="s">自由操作</div></div>
-      <div class="arrow warn" style="color:var(--amber)">→<label class="lbl">CU-2 排程鏡像</label></div>
-      <div class="node"><div class="t">curated（備座）</div><div class="s">登記表才鏡像</div></div>
-    </div>
-  </div>
-  <div class="cols2" style="margin-top:16px">
-    <div class="card accent">
-      <h4 class="t">建議組合：CU-2 ＋ CU-4</h4>
-      <ul>
-        <li><b>登記制</b>：重要表登記 → 排程 job 經 Multi-Catalog 鏡像到備座（RPO = 鏡像週期，小時級）＋鏡像後對帳</li>
-        <li><b>未登記 = best-effort</b>：災後由使用者以備座的 raw 重算——保障等級變成明確契約</li>
-        <li>對使用者<b>零侵入</b>、無 CCR 依賴；CU-1 雙跑重算列為 ETL 平台化後的長期方向</li>
-      </ul>
-    </div>
-    <div class="card warn">
-      <h4 class="w">三個新增注意點</h4>
-      <ul>
-        <li><b>寫入方向</b>：failover 後使用者只在 B 座寫 curated；A 恢復時先「反向鏡像 B→A 追平＋A 座 curated 禁寫」再切回</li>
-        <li><b>對帳分層</b>：raw 全量對帳；curated 只對登記表</li>
-        <li><b>切換體感</b>：查 curated 的人切換後看到「上次鏡像時點」——與 raw 的秒級落後不同，要先講清楚</li>
-      </ul>
-    </div>
-  </div>
-  <div class="take warn">curated 是衍生層：<b>登記的用鏡像保、沒登記的用 raw 重算</b>——保障等級是契約，不是默契。</div>
+  <p class="meta"><span class="num">15</span><span class="part">情境檢驗</span></p>
+  <h2 class="h2" id="s15t">R4 恢復後一致：<strong>raw 續讀、curated 反向鏡像、對帳把關</strong></h2>
+<div class="figwrap" style="width:1292px"><svg class="dgm" role="img" width="680" height="270" viewBox="0 0 680 270" style="width:100%;height:auto"><defs>
+<marker id="mAr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
+<marker id="mMr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".5"/></marker>
+<marker id="mBr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--red)"/></marker>
+<marker id="mGr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--green)"/></marker>
+</defs><g><rect class="bx" x="14" y="108" width="96" height="44" rx="6"/><text x="62.0" y="129.0" text-anchor="middle">Kafka</text><text class="sub" x="62.0" y="144.0" text-anchor="middle">事實來源</text></g><g><rect class="bx" x="126" y="44" width="74" height="32" rx="6"/><text x="163.0" y="64.0" text-anchor="middle">Job A 重啟</text></g><g><rect class="frame" x="210" y="14" width="250" height="100" rx="8"/><text x="220" y="30" style="font-weight:700">A 座（歸隊中）</text><g><rect class="bx" x="220" y="42" width="111" height="56" rx="6"/><text x="275.5" y="74.0" text-anchor="middle">raw</text></g><g><rect class="bx" x="339" y="42" width="111" height="56" rx="6"/><text x="394.5" y="69.0" text-anchor="middle">curated</text><text class="sub" x="394.5" y="84.0" text-anchor="middle">禁寫</text></g></g><g><rect class="frame" x="210" y="150" width="250" height="100" rx="8"/><text x="220" y="166" style="font-weight:700">B 座（現任主座）</text><g><rect class="bx" x="220" y="178" width="111" height="56" rx="6"/><text x="275.5" y="210.0" text-anchor="middle">raw</text></g><g><rect class="bx" x="339" y="178" width="111" height="56" rx="6"/><text x="394.5" y="210.0" text-anchor="middle">curated</text></g></g><g><rect class="bx" x="568" y="20" width="98" height="58" rx="6"/><text x="617.0" y="48.0" text-anchor="middle">User Apps</text><text class="sub" x="617.0" y="63.0" text-anchor="middle">JDBC・含 BI</text></g><g><rect class="bx" x="568" y="118" width="98" height="52" rx="6"/><text x="617.0" y="143.0" text-anchor="middle">HAProxy</text><text class="sub" x="617.0" y="158.0" text-anchor="middle">VIP・唯一入口</text></g><line class="mut" x1="617" y1="78" x2="617" y2="118" marker-end="url(#mMr4)"/><text class="sub" x="617" y="92" text-anchor="middle">讀 raw+curated</text><text class="sub" x="617" y="104" text-anchor="middle">寫 curated</text><line class="acc" x1="110" y1="116" x2="126" y2="64" marker-end="url(#mAr4)"/><text class="lbl" x="96" y="86" text-anchor="middle">checkpoint 續讀追平</text><line class="acc" x1="200" y1="60" x2="220" y2="60" marker-end="url(#mAr4)"/><line class="acc dsh" x1="395" y1="150" x2="395" y2="114" marker-end="url(#mAr4)"/><text class="lbl" x="440" y="136" text-anchor="middle">反向鏡像 B→A</text><line class="mut" x1="568" y1="158" x2="462" y2="190" marker-end="url(#mMr4)"/><text class="lbl" x="548" y="186" text-anchor="middle">VIP 暫指 B</text><line class="ok dsh" x1="568" y1="132" x2="462" y2="70" marker-end="url(#mGr4)"/><text class="lbl" x="536" y="96" text-anchor="middle">對帳全綠 → 擇時切回</text></svg></div>
+  <div class="note" style="margin-top:12px">A 歸隊：raw 從自己 checkpoint 續讀（retention 窗口內天然追平）；curated 反向鏡像 B→A、<b>A 座禁寫由端點層強制</b>（VIP 只指 B，使用者連不到 A）；對帳全綠才擇時切回。超窗重建：Multi-Catalog 全量搬（4.1 唯一路徑）。</div>
+<div class="take">每次故障都會經歷 failback——<b>它是流程，不是意外</b>。</div>
 </section>
 
-<!-- ============ 16 QUERY FAILOVER ============ -->
 <section class="slide" id="s16" aria-labelledby="s16t">
-  <p class="meta"><span class="num">16</span><span class="part">第二部 · 推薦方案</span></p>
-  <h2 class="h2" id="s16t">Query failover：<strong>HAProxy 勝出</strong>——client 連 VIP、設定零修改</h2>
+  <p class="meta"><span class="num">16</span><span class="part">第二部 · 比較</span></p>
+  <h2 class="h2" id="s16t">情境 × 方案矩陣：<strong>R1–R4 逐格對比</strong></h2>
+
   <div class="tbl">
-    <div class="trow head"><div>能力</div><div>HAProxy</div><div>ProxySQL</div><div>Nginx（開源）</div><div>JDBC URL</div></div>
-    <div class="trow"><div>Doris 官方範例</div><div class="win">有</div><div>有</div><div>有</div><div>有</div></div>
-    <div class="trow"><div>Active check</div><div class="win">開源即有（inter/rise/fall）</div><div>connect/ping</div><div class="lose">無——僅 passive，須先失敗才摘除</div><div class="lose">只看連線錯誤</div></div>
-    <div class="trow"><div>查詢級健康</div><div class="win">external-check 跑真實 SQL + 資料新鮮度</div><div class="cond">相容性有坑（非真 MySQL）</div><div class="lose">無</div><div class="lose">無</div></div>
-    <div class="trow"><div>侵入性</div><div class="win">VIP，client 零修改</div><div class="win">同左</div><div class="win">同左</div><div class="lose">每個 client 都要改</div></div>
+    <div class="trow head"><div></div><div>S-1 CCR（自移植）</div><div>S-4 同 job 雙寫</div><div>S-2＋CU-2（推薦）</div><div>S-6 冷備</div></div>
+    <div class="trow"><div>R1 failover ≤30 分</div><div class="cond">可達成；full sync 窗口是變數</div><div class="cond">切換快但背壓先卡死</div><div class="win">最快：僅翻 flag</div><div class="lose">小時級</div></div>
+    <div class="trow"><div>R2 查詢正確性</div><div class="win">單一複製流，跨 zone skew 最小（獨有優點）</div><div class="lose">半批分歧＝真的錯</div><div class="cond">錯已消；時間差要管理</div><div class="cond">內部一致但整體舊</div></div>
+    <div class="trow"><div>R3 寫入一致</div><div class="win">協議保證</div><div class="lose">最脆弱</div><div class="cond">驗證型一致（可量測告警）</div><div class="lose">平時即不一致</div></div>
+    <div class="trow"><div>R4 恢復後一致</div><div class="lose">反向全量重建、無官方流程</div><div class="lose">無法收斂</div><div class="win">續讀＋反向鏡像＋對帳</div><div class="cond">反向 restore 慢</div></div>
   </div>
-  <div class="cols2" style="margin-top:16px">
-    <div class="card">
-      <h4 class="d">「整座故障」三層偵測</h4>
-      <ul>
-        <li><b>FE 層</b>：全部 9030 不可連 / 失去 quorum（3 FE 掛 2 即無法選主）</li>
-        <li><b>查詢層</b>：FE 可連但真實 SQL 持續失敗（BE 大面積掛）</li>
-        <li><b>新鮮度層</b>：ingestion 水位心跳表停滯</li>
-      </ul>
-    </div>
-    <div class="card">
-      <h4 class="d">Proxy 自身 HA 與決策一致</h4>
-      <ul>
-        <li>HAProxy ×2 + keepalived VRRP VIP；<b>nopreempt</b> 防回搶抖動、防火牆放行 VRRP</li>
-        <li>切換決策集中化：external-check 讀<b>集中式主座 flag</b>——proxy 只執行、不判斷</li>
-      </ul>
-    </div>
-  </div>
-  <div class="take">半自動：<b>告警 + 人工確認 → 翻 flag</b>；「A 全滅」情境可用 backup server 全自動接手。</div>
+  <div class="note" style="margin-top:12px">誠實註記：R2 那格是 CCR 的結構性優點——若業務對跨 zone join 一致性<b>極度敏感</b>，是唯一值得付 p.17 成本的理由。</div>
+<div class="take">S-2 組合在 <b>R1／R4 明顯佔優</b>，R3 以對帳補位，R2 靠鏡像頻率管理。</div>
 </section>
 
-<!-- ============ 17 FAILBACK ============ -->
 <section class="slide" id="s17" aria-labelledby="s17t">
-  <p class="meta"><span class="num">17</span><span class="part">第二部 · 推薦方案</span></p>
-  <h2 class="h2" id="s17t">Failback：raw 走 checkpoint、<strong>curated 走反向鏡像</strong></h2>
-  <div class="fig" data-fig="FIG.03 — 常規路徑 · Kafka retention 窗口內">
-    <div class="dg center" style="margin-top:0">
-      <div class="node"><div class="t">A 座修復</div><div class="s">硬體/系統排除</div></div>
-      <div class="arrow">→</div>
-      <div class="node hl"><div class="t">raw：重啟 Job A</div><div class="s">checkpoint 續讀追平</div></div>
-      <div class="arrow">→</div>
-      <div class="node warn"><div class="t">curated：反向鏡像</div><div class="s">B→A 追平＋A 禁寫</div></div>
-      <div class="arrow">→<label class="lbl">對帳全綠</label></div>
-      <div class="node"><div class="t">低峰切回</div><div class="s">翻主座 flag、鏡像轉正向</div></div>
-    </div>
-  </div>
-  <div class="fig warn" data-fig="FIG.04 — 超窗 / checkpoint 遺失 · 整座重建" style="margin-top:22px">
-    <div class="cols2" style="margin-top:0">
-      <div class="card warn" style="border-left:none">
-        <h4 class="w">路徑 A：CCR 一次性搬遷</h4>
-        <p>以活座為源全量搬到重建座，<b>用完即拆、不常駐</b>——C-1 成本壓到最低。前提：Doris 2.1.8+。</p>
-      </div>
-      <div class="card warn" style="border-left:none">
-        <h4 class="w">路徑 B：Multi-Catalog INSERT INTO SELECT</h4>
-        <p>分 partition 搬，慢但<b>零額外元件</b>（錢大媽採 CCR 前的做法）。fork 不堪用時的保底。</p>
-      </div>
-    </div>
-  </div>
-  <div class="take">重建後把 checkpoint 重置到<b>重建涵蓋的 offset 水位</b>再啟動增量——縫合點靠 Unique Key 冪等吸收重疊。</div>
-</section>
+  <p class="meta"><span class="num">17</span><span class="part">保留可能性</span></p>
+  <h2 class="h2" id="s17t">若仍要走 CCR：<strong>自維護的三大卡點與五筆帳</strong></h2>
 
-<!-- ============ 18 COMPARISON ============ -->
-<section class="slide" id="s18" aria-labelledby="s18t">
-  <p class="meta"><span class="num">18</span><span class="part">第二部 · 總結</span></p>
-  <h2 class="h2" id="s18t">入圍方案比較總表：<strong>六個決勝維度</strong></h2>
-  <div class="tbl">
-    <div class="trow head"><div></div><div>S-1 CCR (fork)</div><div>S-4 同 job 雙寫</div><div>S-2 雙路 Ingestion</div><div>S-6 冷備</div></div>
-    <div class="trow"><div>Ingestion RPO</div><div class="cond">秒～分鐘（非零）</div><div>≈0（但會分歧）</div><div class="win">≈ 0</div><div class="lose">小時～天</div></div>
-    <div class="trow"><div>Failover 動作</div><div class="cond">desync + proxy + 切 Spark 端點</div><div class="lose">library 推廣</div><div class="win">僅 query 切換</div><div class="lose">restore 全套</div></div>
-    <div class="trow"><div>Failback</div><div class="lose">反向全量重建（無官方流程）</div><div class="lose">無源頭對齊</div><div class="win">checkpoint 續讀追平</div><div class="cond">反向 restore</div></div>
-    <div class="trow"><div>DDL / 權限 / UDF</div><div class="cond">DDL 自動（限制多）；權限/UDF 仍自管</div><div>全自管</div><div class="cond">全自管（統一 pipeline）</div><div>隨快照</div></div>
-    <div class="trow"><div>關鍵前提</div><div class="lose">fork 自維護 + Doris ≥2.1.8</div><div class="lose">改所有 client</div><div class="cond">表模型 MoW + retention</div><div class="lose">需 HDFS（C-2 卡死）</div></div>
-    <div class="trow"><div>長期維運</div><div class="lose">高：每次升級自行驗證相容</div><div class="lose">高：耦合排障</div><div class="win">中：常規 pipeline</div><div class="win">低</div></div>
-  </div>
-  <div class="take">結論：<b>S-2 雙路 Ingestion（raw）＋ CU-2/CU-4（curated）</b>；S-1 降級為重建工具，S-4 排除，S-6 兜底。</div>
-</section>
-
-<!-- ============ 19 RISKS ============ -->
-<section class="slide" id="s19" aria-labelledby="s19t">
-  <p class="meta"><span class="num">19</span><span class="part">第二部 · 總結</span></p>
-  <h2 class="h2" id="s19t">誠實面對：<strong>防什麼、不防什麼</strong></h2>
-  <div class="cols2">
-    <div class="card">
-      <h4 class="d">殘餘風險（要管理）</h4>
-      <ul>
-        <li><b>Kafka 是共同上游單點</b>：掛了兩座都停寫（query 不受影響）——其 HA 等級升格為一級依賴</li>
-        <li><b>靜默漂移</b>：兩條 pipeline 的 code/設定/UDF 漂移不會報錯——防線是對帳 + 同 artifact 部署紀律</li>
-        <li><b>Curated 寫入紀律</b>：failover 期間使用者誤寫 A 座 curated → 分歧；需權限鎖或公告紀律（未決）</li>
-        <li><b>雙座同時異常</b>：需實體隔離（機櫃/電力/網路）壓低相關性</li>
-      </ul>
-    </div>
-    <div class="card bad">
-      <h4 class="r">明確不防（要別的防線）</h4>
-      <ul>
-        <li><b>程式 bug 同毒兩座</b>：raw 兩座跑同一份 code——防機器故障、不防邏輯錯誤；靠 Kafka retention 重放修復＋（未來有 HDFS 時）週級冷備</li>
-        <li><b>不可重算的 curated 表</b>：手工修正、外部匯入的表若未登記鏡像，災難即丟失——盤點時要抓出來</li>
-        <li><b>Split-brain</b>：寫入側天然無主從爭議；殘留在 query 決策層——集中式 flag + VRRP 單活收斂</li>
-      </ul>
-    </div>
-  </div>
-  <div class="pband"><span class="pbl">切換體感</span>raw 落後<b>數秒</b>、curated 落後<b>至上次鏡像</b>——兩種不同的回退幅度，都要先跟使用單位講好。</div>
-  <div class="take">「都在寫、但寫得不一樣」是唯一深水區——<b>對帳不是配件，是方案的一部分</b>。</div>
-</section>
-
-<!-- ============ 20 POC ============ -->
-<section class="slide" id="s20" aria-labelledby="s20t">
-  <p class="meta"><span class="num">20</span><span class="part">下一步</span></p>
-  <h2 class="h2" id="s20t">PoC 清單：<strong>P01 是 go / no-go</strong></h2>
-  <div class="pocs">
-    <div class="poc first"><span class="pn">P01</span><span><b>表模型盤點 + MoW 壓測</b>——raw zone Duplicate/SUM 表有多少、主鍵可得性、MoW 吞吐 vs 現況。<b>直接決定方案成立與改造規模。</b></span></div>
-    <div class="poc"><span class="pn">P02</span><span><b>重放冪等驗證</b>——kill -9 重啟 + 回捲 checkpoint 大範圍重放，對帳驗證零重複零遺漏</span></div>
-    <div class="poc"><span class="pn">P03</span><span><b>2PC 行為驗證</b>——延遲影響、長 batch 逼近 txn timeout（#205 情境）</span></div>
-    <div class="poc"><span class="pn">P04</span><span><b>external-check 腳本</b>——三層探測 + 集中 flag；量測斷電到切換完成的實際 RTO</span></div>
-    <div class="poc"><span class="pn">P05</span><span><b>keepalived VIP 演練</b>——nopreempt、VRRP 防火牆、各語言連線池重連行為</span></div>
-    <div class="poc"><span class="pn">P06</span><span><b>雙座落後量測</b>——水位心跳表上線，給業務 p50/p99 的「切換回退幾秒」實數</span></div>
-    <div class="poc"><span class="pn">P07</span><span><b>追平演練</b>——停 24h 重啟，量測追平耗時 → 反推 Kafka retention 目標值</span></div>
-    <div class="poc"><span class="pn">P08</span><span><b>整座重建演練</b>——CCR 一次性搬遷 vs Multi-Catalog 兩條路各走一遍</span></div>
-    <div class="poc"><span class="pn">P09</span><span><b>對帳工具 MVP</b>——分 partition count + sum(hash)，跑滿一週看誤報率</span></div>
-    <div class="poc"><span class="pn">P10</span><span><b>DDL pipeline</b>——migration 對兩座執行 + 失敗阻斷 + 每日 drift 偵測</span></div>
-    <div class="poc"><span class="pn">P11</span><span><b>Curated 盤點與分級</b>——表數量、產出方式、可重算性；與使用者議定登記名單與鏡像頻率</span></div>
-    <div class="poc"><span class="pn">P12</span><span><b>Curated 鏡像 MVP ＋ 含 curated 切換演練</b>——Multi-Catalog 鏡像 job 實測耗時；failover→B 寫→反向鏡像→切回全流程</span></div>
-  </div>
-  <div class="take">P01 → P02 → P07 → P11 做完，就能對「方案成不成立、retention 買多少、curated 承諾什麼」給出<b>有數字的答案</b>。</div>
-</section>
-
-<!-- ============ 21 OPEN QUESTIONS ============ -->
-<section class="slide" id="s21" aria-labelledby="s21t">
-  <p class="meta"><span class="num">21</span><span class="part">下一步</span></p>
-  <h2 class="h2" id="s21t">帶走六個問題——<strong>需要業務方 / 管理層拍板</strong></h2>
   <div class="cols3">
-    <div class="card warn">
-      <h4 class="w">Q1 · RPO / RTO 正式定義</h4>
-      <p>現假設分鐘級、半自動。要秒級全自動就要追加自動決策——風險升級，建議分階段。</p>
-    </div>
-    <div class="card warn">
-      <h4 class="w">Q2 · 切換時的讀回退容忍</h4>
-      <p>raw 舊幾秒、curated 舊到上次鏡像——報表可接受；<b>交易對帳類要明確確認</b>。</p>
-    </div>
-    <div class="card warn">
-      <h4 class="w">Q3 · 兩座實體隔離度</h4>
-      <p>同機房同電力？機房級事件下相關性高，方案價值打折。</p>
-    </div>
-    <div class="card warn">
-      <h4 class="w">Q4 · 表模型改造排期</h4>
-      <p>Duplicate 補主鍵、SUM 改明細——下游查詢改寫的範圍與時程。</p>
-    </div>
-    <div class="card warn">
-      <h4 class="w">Q5 · Curated 保障等級</h4>
-      <p>小時級鏡像 RPO 可否接受？登記制使用者買不買單？有沒有<b>不可重算</b>的 curated 表？</p>
-    </div>
-    <div class="card warn">
-      <h4 class="w">Q6 · 切換期寫入紀律</h4>
-      <p>failover 後 A 座 curated 禁寫——用權限機制強制（要開發）還是公告紀律（有風險）？</p>
-    </div>
+    <div class="card bad"><h4 class="r">① 接手欠帳 repo</h4><p>issue 關閉率 33%、存量 31；商業版修的 bug 開源看不到——要<b>自己重踩一次</b></p></div>
+    <div class="card bad"><h4 class="r">② 升版強耦合</h4><p>鐵律 Syncer ≥ 下游 ≥ 上游：每次升 Doris 前必須先移植 syncer，<b>不可跳過</b>；4.1 這次無上游可抄</p></div>
+    <div class="card bad"><h4 class="r">③ 技能門檻</h4><p>2.2 萬行 Go 核心＋要讀 Doris FE（Java）對照 binlog——雙重稀缺技能</p></div>
   </div>
-  <div class="note" style="margin-top:16px">配套提醒：若現行為 Doris 2.0.x，建議把<b>升級 2.1.8+</b> 納入配套（CCR 重建工具與 MoW 預設都綁 2.1+）。完整報告（兩部結構、40+ 來源）另附連結。</div>
-  <div class="take"><b>模型負責算，架構負責活。</b>先做 P01 與 P11 兩個盤點——那是整個方案的 go / no-go。</div>
+  <div class="pband"><span class="pbl">五筆帳</span>E0 移植 4.1（1–2 人月・風險最高）→ E1 接手 2–3 人月 → E2 穩態 0.3–0.5 FTE/年 → E3 每次升級 0.5–3 人月 → E4 常備雙叢集測試環境。<b>首年 3–5 人月＋年化 0.4–0.6 FTE</b>。實作範例（真實 PR 足跡：新增 DDL 14 檔／改邏輯 6 檔／加功能 11 檔）在報告第三部。</div>
+<div class="take">4.1 上<b>沒有「凍結版本」的中間態</b>——用 CCR 就是維護 CCR。</div>
+</section>
+
+<section class="slide" id="s18" aria-labelledby="s18t">
+  <p class="meta"><span class="num">18</span><span class="part">落地前提</span></p>
+  <h2 class="h2" id="s18t">三個硬前提：<strong>沒滿足前，方案不成立</strong></h2>
+
+  <div class="cols3">
+    <div class="card warn"><h4 class="w">① 存量表模型清查</h4><ul><li>4.x 新表預設 MoW ✓</li><li><b>存量 Duplicate / SUM 表</b>重放必髒——MoW 不可事後切換，改造＝重建表</li></ul></div>
+    <div class="card warn"><h4 class="w">② Kafka retention</h4><ul><li>≥ 最長離線＋追平＋餘量 → <b>14–30 天</b></li><li>Kafka 升格一級依賴，其 HA 重新體檢</li></ul></div>
+    <div class="card warn"><h4 class="w">③ 對帳與鏡像先行</h4><ul><li>雙路無協議兜底——<b>對帳是方案的一部分</b></li><li>curated 鏡像頻率＝業務容忍窗口</li></ul></div>
+  </div>
+<div class="take warn">最大改造項＝<b>存量表模型盤點</b>——PoC 第一項、go/no-go。</div>
+</section>
+
+<section class="slide" id="s19" aria-labelledby="s19t">
+  <p class="meta"><span class="num">19</span><span class="part">落地設計</span></p>
+  <h2 class="h2" id="s19t">Curated 深看：<strong>單邊寫＋常駐鏡像＋可量化 loss window</strong></h2>
+
+  <div class="cols2">
+    <div class="card accent"><h4 class="t">解法主體（CU-2）</h4><ul>
+      <li>app 只寫一座（VIP 指誰寫誰）——<b>刻意單邊寫</b>，不可控的使用者無法參與任何雙寫協議</li>
+      <li><b>常駐鏡像 job</b>：每 N 分鐘搬變動 partition 到備座、記錄各表鏡像時點</li>
+      <li>failback：反向鏡像 B→A＋端點層禁寫</li></ul></div>
+    <div class="card warn"><h4 class="w">誠實的代價與出路</h4><ul>
+      <li>failover 丟「上次鏡像之後」的 app 寫入——<b>要業務拍板容忍幾分鐘</b></li>
+      <li>若答案是「一分鐘都不能丟」→ 唯一值得考慮 p.17 成本的情境</li>
+      <li>根治＝CU-6（寫入改道 Kafka）——但採用時程不可控，列中期</li></ul></div>
+  </div>
+<div class="take">目標不是消滅 loss window，是把它<b>變小、變可量測、變成業務同意過的數字</b>。</div>
+</section>
+
+<section class="slide" id="s20" aria-labelledby="s20t">
+  <p class="meta"><span class="num">20</span><span class="part">落地設計</span></p>
+  <h2 class="h2" id="s20t">監控與人工切換：<strong>人決策、機器執行</strong></h2>
+
+  <div class="ctbl" style="margin-top:16px">
+    <div class="crow head"><div>監控面</div><div>內容</div><div>回答的問題</div></div>
+    <div class="crow"><div>① 兩座健康總覽</div><div class="p">FE 連通 × 真實 SQL 成功率 × BE 存活，單頁紅黃綠</div><div>哪一座還能接客？</div></div>
+    <div class="crow"><div>② 資料水位</div><div class="p">raw offset lag＋curated 各表鏡像時點</div><div>切過去會舊多少？（直接給數字）</div></div>
+    <div class="crow"><div>③ 一鍵切換</div><div class="p">翻主座 flag 單一操作＋前置自動檢查＋審計</div><div>決定了，2 分鐘內安全執行</div></div>
+    <div class="crow"><div>④ 告警分級</div><div class="p">page 級（叫醒人）vs 工單級；page 接值班</div><div>什麼情況叫人？</div></div>
+    <div class="crow"><div>⑤ 對帳與漂移</div><div class="p">raw 對帳＋curated 鏡像比對＋schema drift</div><div>兩座現在真的一致嗎？</div></div>
+  </div>
+  <div class="note" style="margin-top:12px">人工切換的紅利：split-brain 決策難題消失（決策單點＝人）；external-check 降為資訊提供者。<b>新未決：on-call 制度</b>——沒有值班，30 分鐘承諾不成立。</div>
+<div class="take">堪用 HA 的等價交換：<b>把自動化的預算花在監控與一鍵執行上</b>。</div>
+</section>
+
+<section class="slide" id="s21" aria-labelledby="s21t">
+  <p class="meta"><span class="num">21</span><span class="part">誠實面對</span></p>
+  <h2 class="h2" id="s21t">防什麼、不防什麼</h2>
+
+  <div class="cols2">
+    <div class="card"><h4 class="d">殘餘風險（要管理）</h4><ul>
+      <li><b>Kafka 共同上游單點</b>：掛了兩座停寫（查詢不受影響）——HA 等級升格體檢</li>
+      <li><b>靜默漂移</b>：兩條 pipeline 設定/版本漂移——同 artifact 部署＋對帳兜底</li>
+      <li><b>4.1 生態尚新</b>：上線 ~4 個月、零公開升級覆盤——connector 相容要自測（P14）</li></ul></div>
+    <div class="card bad"><h4 class="r">明確不防（要別的防線）</h4><ul>
+      <li><b>程式 bug 同毒兩座</b>：防機器不防邏輯——靠 Kafka 重放；未來有 HDFS 補冷備</li>
+      <li><b>不可重算的 curated 表未入鏡像</b>：災難即丟失——盤點時抓出來</li></ul></div>
+  </div>
+<div class="take">「都在寫、但寫得不一樣」是唯一深水區——<b>對帳不是配件</b>。</div>
+</section>
+
+<section class="slide" id="s22" aria-labelledby="s22t">
+  <p class="meta"><span class="num">22</span><span class="part">下一步</span></p>
+  <h2 class="h2" id="s22t">PoC 清單：<strong>P01 與 P11 是 go / no-go</strong></h2>
+
+  <div class="pocs">
+    <div class="poc first"><span class="pn">P01</span><span><b>存量表模型盤點＋MoW 壓測</b>——決定方案成立與改造規模</span></div>
+    <div class="poc first"><span class="pn">P11</span><span><b>Curated 三分類盤點</b>——app 直寫／ETL 衍生／ad-hoc＋容忍窗口</span></div>
+    <div class="poc"><span class="pn">P02</span><span>重放冪等驗證（kill -9＋回捲 checkpoint＋對帳）</span></div>
+    <div class="poc"><span class="pn">P04</span><span>external-check 三層探測＋集中 flag；量實際 RTO</span></div>
+    <div class="poc"><span class="pn">P07</span><span>停 24h 追平演練 → 反推 retention 目標</span></div>
+    <div class="poc"><span class="pn">P08</span><span>Multi-Catalog 全量重建吞吐實測（4.1 唯一重建路徑）</span></div>
+    <div class="poc"><span class="pn">P12</span><span>curated 鏡像 MVP：15 分鐘級頻率×主座壓力</span></div>
+    <div class="poc"><span class="pn">P14</span><span>connector × 4.1 相容煙霧測試（官方僅「1.0+」口徑）</span></div>
+    <div class="poc"><span class="pn">P15</span><span>CU-6 試點：一條低風險 app 寫入流改道 Kafka</span></div>
+    <div class="poc"><span class="pn">…</span><span>其餘（2PC 行為、VIP 演練、水位量測、DDL pipeline、含 curated 切換演練）見報告 §Ⅱ·12</span></div>
+  </div>
+<div class="take">P01＋P11 兩個盤點做完，才有資格談時程。</div>
+</section>
+
+<section class="slide" id="s23" aria-labelledby="s23t">
+  <p class="meta"><span class="num">23</span><span class="part">下一步</span></p>
+  <h2 class="h2" id="s23t">要業務方／管理層拍板的 <strong>7 個問題</strong></h2>
+
+  <div class="cols3" style="margin-top:16px">
+    <div class="card warn"><h4 class="w">Q1 RPO/RTO 正式數字</h4><p>現假設：30 分內、人工切換</p></div>
+    <div class="card warn"><h4 class="w">Q2 切換讀回退容忍</h4><p>raw 舊秒級、curated 舊到鏡像時點</p></div>
+    <div class="card warn"><h4 class="w">Q3 app 寫入遺失窗口</h4><p><b>最重要</b>——決定鏡像頻率與成本</p></div>
+    <div class="card warn"><h4 class="w">Q4 實體隔離度</h4><p>同機櫃同電力＝白做</p></div>
+    <div class="card warn"><h4 class="w">Q5 存量表改造排期</h4><p>Duplicate 補主鍵、SUM 改明細</p></div>
+    <div class="card warn"><h4 class="w">Q6 on-call 制度</h4><p>沒值班，30 分鐘承諾不成立</p></div>
+  </div>
+  <div class="pband" style="margin-top:16px"><span class="pbl">Q7</span>CU-6（app 寫入改道 Kafka）的推行意願與 read-your-writes 例外清單——決定 curated 的長期形態。</div>
+
+</section>
+
+<section class="slide" id="s24" aria-labelledby="s24t">
+  <p class="meta"><span class="num">24</span><span class="part">結語</span></p>
+  <h2 class="h2 title-h2" id="s24t" style="font-size:72px">單活服務、雙路資料——<br><strong>人決策、機器執行、對帳把關</strong></h2>
+  <p class="sub" style="margin-top:36px">研究完整版（三部結構：目錄／分析／CCR 自維護代價，含 23 張圖、50 項來源）已另附連結。<br>下一步：<b>P01 存量表盤點 ＋ P11 curated 盤點</b>——兩週內可完成，結果決定一切排程。</p>
+  <div class="dg wrap" style="gap:10px;margin-top:40px">
+    <span class="chip t">R1 翻 flag ≈ 分鐘級</span>
+    <span class="chip t">R2 錯已消、時間差可管理</span>
+    <span class="chip t">R3 驗證型一致</span>
+    <span class="chip t">R4 續讀＋反向鏡像</span>
+  </div>
+  <div class="take"><b>模型負責算，架構負責活。</b></div>
 </section>
 
 <!-- ============ CHROME ============ -->
 <div class="progress"><div class="progress-bar" id="progressbar"></div></div>
-<div class="counter" id="counter">01 / 21</div>
+<div class="counter" id="counter">01 / 24</div>
 <div class="hint">⬅️➡️ 換頁 <span class="hsep">·</span> 🗺️ O 總覽 <span class="hsep">·</span> ⛶ F 全螢幕 <span class="hsep">·</span> ❓ 說明</div>
 <div class="nav">
   <button class="navbtn" id="prevBtn" aria-label="上一頁">‹</button>
