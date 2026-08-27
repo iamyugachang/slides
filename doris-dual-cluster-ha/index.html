@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Doris 雙叢集 HA：方案評估與推薦</title>
-<meta name="description" content="Apache Doris 4.1 雙叢集 HA 研究結論：R1-R4 情境出發、方案目錄與優缺點、推薦 Hot-Standby 服務＋雙活資料、PoC 與拍板問題。30 slides。">
+<meta name="description" content="Apache Doris 4.1 雙叢集 HA 研究結論：R1-R4 情境出發、方案目錄與優缺點、推薦 Hot-Standby 服務＋雙活資料、PoC 與拍板問題。33 slides。">
 <style>
 /* ============================================================
    BLUEPRINT × TEAL STEEL — fixed 1920×1080 stage
@@ -244,7 +244,7 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 }
 .navbtn:hover{background:#11414d;transform:translateY(-2px)}
 .progress{position:absolute;left:0;bottom:0;height:4px;background:#ffffff0d;z-index:6;width:100%}
-.progress-bar{height:100%;width:3.33%;background:linear-gradient(90deg,var(--teal),#8be8db);transition:width 300ms ease}
+.progress-bar{height:100%;width:3.03%;background:linear-gradient(90deg,var(--teal),#8be8db);transition:width 300ms ease}
 .counter{
   position:absolute;right:106px;bottom:44px;font-size:16px;color:var(--faint);
   font-weight:600;letter-spacing:.14em;z-index:5;font-family:"IBM Plex Mono",monospace;
@@ -313,6 +313,15 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 .dgm .ok{stroke:var(--green);stroke-width:2;fill:none}
 .dgm .dsh{stroke-dasharray:6 4}
 .dgm .dead{opacity:.32}
+.dgm .tl{font-family:"IBM Plex Mono",monospace;font-size:12px;fill:var(--teal);font-weight:600}
+.dgm .lane{font-size:12.5px;font-weight:700}
+.dgm .barlbl{font-size:11.5px;fill:#06181f;font-weight:700}
+.dgm .cap{font-size:12px;opacity:.7}
+.dgm .bx2{fill:#0c2b36}
+.dgm .bt{font-size:13px;font-weight:700}
+.dgm .lbl2{font-size:11px;fill:var(--teal)}
+.dgm .acc2{stroke:var(--teal);stroke-width:2}
+.dgm .mut2{stroke:currentColor;stroke-opacity:.5;stroke-width:1.5}
 
 /* ---- mobile portrait: readable scroll mode ---- */
 @media (max-width:900px) and (orientation:portrait){
@@ -499,7 +508,31 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 </section>
 <section class="slide" id="s10" aria-labelledby="s10t">
   <p class="meta"><span class="num">10</span><span class="part">第一部 · 方案目錄・圖解</span></p>
-  <h2 class="h2" id="s10t">圖解（1/6）：<strong>S-1 CCR ｜ S-2 雙路</strong>——正面對決的兩個</h2>
+  <h2 class="h2" id="s10t">HAProxy ＋ keepalived ＋ VIP <strong>到底是什麼</strong></h2>
+  <div style="display:flex;gap:40px;justify-content:center;align-items:center;margin-top:10px">
+    <div style="width:1050px"><svg class="dgm tld" role="img" aria-label="HAProxy + keepalived + VIP 架構：浮動 IP、雙 proxy VRRP 接手、依主座 flag 轉發到 A 或 B" width="900" height="470" viewBox="0 0 900 470" style="width:100%;height:auto"><defs>
+    <marker id="va-acc2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
+    <marker id="va-mut2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".5"/></marker>
+    </defs><rect x="330" y="16" width="240" height="50" rx="7" class="bx2" stroke="currentColor" stroke-opacity=".45"/><text class="bt" x="450.0" y="36" text-anchor="middle">所有 User Apps / BI</text><text class="sub" x="450.0" y="54" text-anchor="middle">連線字串永遠只寫一個位址</text><rect x="330" y="110" width="240" height="44" rx="7" class="bx2" stroke="var(--teal)" stroke-width="2"/><text class="bt" x="450.0" y="136.0" text-anchor="middle">VIP 10.x.x.100（浮動 IP）</text><line class="acc2" x1="450" y1="66" x2="450" y2="110" marker-end="url(#va-acc2)"/><text class="lbl2" x="450.0" y="82.0" text-anchor="middle">唯一入口</text><rect x="120" y="206" width="280" height="84" rx="7" class="bx2" stroke="var(--green)" stroke-width="2"/><text class="bt" x="260.0" y="226" text-anchor="middle">HAProxy #1（Active）</text><text class="sub" x="260.0" y="244" text-anchor="middle">keepalived 持有 VIP・active health check</text><rect x="500" y="206" width="280" height="84" rx="7" class="bx2" stroke="currentColor" stroke-opacity=".45"/><text class="bt" x="640.0" y="226" text-anchor="middle">HAProxy #2（Backup）</text><text class="sub" x="640.0" y="244" text-anchor="middle">state BACKUP・nopreempt（不回搶）</text><line class="None" x1="430" y1="154" x2="300" y2="206" marker-end="url(#va-None)"/><text class="lbl2" x="320" y="186" text-anchor="middle">VIP 目前掛在 #1</text><line class="mut2" x1="470" y1="154" x2="600" y2="206" stroke-dasharray="6 4" marker-end="url(#va-mut2)"/><text class="lbl2" x="612" y="186" text-anchor="middle">#1 掛 → 秒級漂移到 #2</text><line class="mut2" x1="400" y1="248" x2="500" y2="248" stroke-dasharray="3 5"/><text class="lbl2" x="450" y="240" text-anchor="middle">VRRP 心跳（protocol 112，防火牆要放行）</text><rect x="710" y="110" width="170" height="60" rx="7" class="bx2" stroke="currentColor" stroke-opacity=".45"/><text class="bt" x="795.0" y="130" text-anchor="middle">主座 flag</text><text class="sub" x="795.0" y="148" text-anchor="middle">人工切換時翻轉；external-check 只讀它</text><line class="mut2" x1="710" y1="160" x2="650" y2="206" stroke-dasharray="6 4" marker-end="url(#va-mut2)"/><rect x="120" y="370" width="280" height="60" rx="7" class="bx2" stroke="currentColor" stroke-opacity=".45"/><text class="bt" x="260.0" y="390" text-anchor="middle">A 座 FE ×3（9030）</text><text class="sub" x="260.0" y="408" text-anchor="middle">正常態流量</text><rect x="500" y="370" width="280" height="60" rx="7" class="bx2" stroke="currentColor" stroke-opacity=".45"/><text class="bt" x="640.0" y="390" text-anchor="middle">B 座 FE ×3（9030）</text><text class="sub" x="640.0" y="408" text-anchor="middle">failover 後流量</text><line class="acc2" x1="240" y1="290" x2="240" y2="370" marker-end="url(#va-acc2)"/><text class="lbl2" x="240.0" y="324.0" text-anchor="middle">flag=A：轉發到 A</text><line class="mut2" x1="300" y1="290" x2="560" y2="370" stroke-dasharray="6 4" marker-end="url(#va-mut2)"/><text class="lbl2" x="430.0" y="324.0" text-anchor="middle">flag=B：轉發到 B</text><text class="cap" x="450" y="460" text-anchor="middle">三個角色：VIP＝client 唯一看到的位址；keepalived＝讓 VIP 在兩台 proxy 間自動漂移；HAProxy＝檢查後端健康並依 flag 轉發。</text></svg></div>
+    <div class="card" style="width:520px">
+      <h4 class="t">三個角色</h4>
+      <ul>
+        <li><b>VIP</b>：浮動 IP——client 連線字串<b>永遠只寫它</b></li>
+        <li><b>HAProxy</b>：健康檢查＋依「主座 flag」轉發到 A 或 B</li>
+        <li><b>keepalived</b>：兩台 proxy VRRP 心跳，Active 掛了 <b>VIP 秒級漂移</b>到 Backup</li>
+      </ul>
+      <h4 class="w" style="margin-top:14px">兩層故障、兩種解法</h4>
+      <ul>
+        <li>後端叢集掛 → <b>翻 flag</b> 換轉發目標（人工決策）</li>
+        <li>proxy 自己掛 → <b>VIP 漂移</b>（全自動、秒級）</li>
+      </ul>
+    </div>
+  </div>
+  <div class="take">client 從頭到尾只認一個位址——<b>這就是「切換零侵入」的全部原理</b>。</div>
+</section>
+<section class="slide" id="s11" aria-labelledby="s11t">
+  <p class="meta"><span class="num">11</span><span class="part">第一部 · 方案目錄・圖解</span></p>
+  <h2 class="h2" id="s11t">圖解（1/6）：<strong>S-1 CCR ｜ S-2 雙路</strong>——正面對決的兩個</h2>
 <div style="display:flex;gap:36px;justify-content:center;margin-top:14px"><div style="width:880px"><svg class="dgm" role="img" width="680" height="270" viewBox="0 0 680 270" style="width:100%;height:auto"><defs>
 <marker id="mAx1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
 <marker id="mMx1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".5"/></marker>
@@ -512,9 +545,9 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 <marker id="mGx2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--green)"/></marker>
 </defs><g><rect class="bx" x="14" y="108" width="96" height="44" rx="6"/><text x="62.0" y="129.0" text-anchor="middle">Kafka</text><text class="sub" x="62.0" y="144.0" text-anchor="middle">事實來源</text></g><g><rect class="bx" x="126" y="44" width="74" height="32" rx="6"/><text x="163.0" y="64.0" text-anchor="middle">Spark Job A</text></g><g><rect class="bx" x="126" y="182" width="74" height="32" rx="6"/><text x="163.0" y="202.0" text-anchor="middle">Spark Job B</text></g><g><rect class="frame" x="210" y="14" width="250" height="100" rx="8"/><text x="220" y="30" style="font-weight:700">A 座（主）</text><g><rect class="bx" x="220" y="42" width="111" height="56" rx="6"/><text x="275.5" y="74.0" text-anchor="middle">raw</text></g><g><rect class="bx" x="339" y="42" width="111" height="56" rx="6"/><text x="394.5" y="74.0" text-anchor="middle">curated</text></g></g><g><rect class="frame" x="210" y="150" width="250" height="100" rx="8"/><text x="220" y="166" style="font-weight:700">B 座</text><g><rect class="bx" x="220" y="178" width="111" height="56" rx="6"/><text x="275.5" y="210.0" text-anchor="middle">raw</text></g><g><rect class="bx" x="339" y="178" width="111" height="56" rx="6"/><text x="394.5" y="210.0" text-anchor="middle">curated</text></g></g><g><rect class="bx" x="568" y="20" width="98" height="58" rx="6"/><text x="617.0" y="48.0" text-anchor="middle">User Apps</text><text class="sub" x="617.0" y="63.0" text-anchor="middle">JDBC・含 BI</text></g><g><rect class="bx" x="568" y="118" width="98" height="52" rx="6"/><text x="617.0" y="143.0" text-anchor="middle">HAProxy</text><text class="sub" x="617.0" y="158.0" text-anchor="middle">VIP</text></g><line class="mut" x1="617" y1="78" x2="617" y2="118" marker-end="url(#mMx2)"/><text class="sub" x="617" y="92" text-anchor="middle">讀 raw+curated</text><text class="sub" x="617" y="104" text-anchor="middle">寫 curated</text><line class="mut" x1="568" y1="132" x2="462" y2="70" marker-end="url(#mMx2)"/><text class="lbl" x="540" y="96" text-anchor="middle">正常態 → A</text><line class="mut dsh" x1="568" y1="158" x2="462" y2="190" marker-end="url(#mMx2)"/><text class="lbl" x="556" y="186" text-anchor="middle">failover → B</text><line class="acc" x1="110" y1="116" x2="126" y2="64" marker-end="url(#mAx2)"/><text class="lbl" x="96" y="86" text-anchor="middle">獨立 checkpoint</text><line class="acc" x1="200" y1="60" x2="220" y2="60" marker-end="url(#mAx2)"/><line class="acc" x1="110" y1="140" x2="126" y2="196" marker-end="url(#mAx2)"/><text class="lbl" x="96" y="178" text-anchor="middle">獨立 checkpoint</text><line class="acc" x1="200" y1="198" x2="220" y2="198" marker-end="url(#mAx2)"/></svg><div class="note" style="margin-top:6px;font-size:18px;text-align:center"><b>S-2 雙路</b>｜兩獨立 job 各寫一座 raw——推薦的第①層</div></div></div>
 </section>
-<section class="slide" id="s11" aria-labelledby="s11t">
-  <p class="meta"><span class="num">11</span><span class="part">第一部 · 方案目錄・圖解</span></p>
-  <h2 class="h2" id="s11t">圖解（2/6）：<strong>S-3 Routine Load ×2 ｜ S-4 同 job 雙寫</strong></h2>
+<section class="slide" id="s12" aria-labelledby="s12t">
+  <p class="meta"><span class="num">12</span><span class="part">第一部 · 方案目錄・圖解</span></p>
+  <h2 class="h2" id="s12t">圖解（2/6）：<strong>S-3 Routine Load ×2 ｜ S-4 同 job 雙寫</strong></h2>
 <div style="display:flex;gap:36px;justify-content:center;margin-top:14px"><div style="width:880px"><svg class="dgm" role="img" width="680" height="270" viewBox="0 0 680 270" style="width:100%;height:auto"><defs>
 <marker id="mAx3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
 <marker id="mMx3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".5"/></marker>
@@ -527,9 +560,9 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 <marker id="mGx4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--green)"/></marker>
 </defs><g><rect class="bx" x="14" y="108" width="96" height="44" rx="6"/><text x="62.0" y="129.0" text-anchor="middle">Kafka</text><text class="sub" x="62.0" y="144.0" text-anchor="middle">事實來源</text></g><g><rect class="bx" x="126" y="110" width="74" height="40" rx="6"/><text x="163.0" y="129.0" text-anchor="middle">同一個</text><text class="sub" x="163.0" y="144.0" text-anchor="middle">Spark Job</text></g><g><rect class="frame" x="210" y="14" width="250" height="100" rx="8"/><text x="220" y="30" style="font-weight:700">A 座</text><g><rect class="bx" x="220" y="42" width="111" height="56" rx="6"/><text x="275.5" y="74.0" text-anchor="middle">raw</text></g><g><rect class="bx" x="339" y="42" width="111" height="56" rx="6"/><text x="394.5" y="74.0" text-anchor="middle">curated</text></g></g><g><rect class="frame" x="210" y="150" width="250" height="100" rx="8"/><text x="220" y="166" style="font-weight:700">B 座</text><g><rect class="bx" x="220" y="178" width="111" height="56" rx="6"/><text x="275.5" y="210.0" text-anchor="middle">raw</text></g><g><rect class="bx" x="339" y="178" width="111" height="56" rx="6"/><text x="394.5" y="210.0" text-anchor="middle">curated</text></g></g><g><rect class="bx" x="568" y="20" width="98" height="58" rx="6"/><text x="617.0" y="48.0" text-anchor="middle">User Apps</text><text class="sub" x="617.0" y="63.0" text-anchor="middle">JDBC・含 BI</text></g><g><rect class="bx" x="568" y="118" width="98" height="52" rx="6"/><text x="617.0" y="143.0" text-anchor="middle">HAProxy</text><text class="sub" x="617.0" y="158.0" text-anchor="middle">VIP</text></g><line class="mut" x1="617" y1="78" x2="617" y2="118" marker-end="url(#mMx4)"/><text class="sub" x="617" y="92" text-anchor="middle">讀 raw+curated</text><text class="sub" x="617" y="104" text-anchor="middle">寫 curated</text><line class="mut" x1="568" y1="132" x2="462" y2="70" marker-end="url(#mMx4)"/><text class="lbl" x="540" y="96" text-anchor="middle">正常態 → A</text><line class="mut dsh" x1="568" y1="158" x2="462" y2="190" marker-end="url(#mMx4)"/><text class="lbl" x="556" y="186" text-anchor="middle">failover → B</text><line class="mut" x1="110" y1="128" x2="126" y2="128" marker-end="url(#mMx4)"/><line class="acc" x1="200" y1="120" x2="220" y2="66" marker-end="url(#mAx4)"/><text class="lbl" x="206" y="88" text-anchor="middle">寫 A</text><line class="bad" x1="200" y1="140" x2="220" y2="194" marker-end="url(#mBx4)"/><text class="lblb" x="230" y="238" text-anchor="middle">寫 B（半批失敗→分歧）</text></svg><div class="note" style="margin-top:6px;font-size:18px;text-align:center"><b>S-4 同 job 雙寫</b>｜失敗域耦合——排除</div></div></div>
 </section>
-<section class="slide" id="s12" aria-labelledby="s12t">
-  <p class="meta"><span class="num">12</span><span class="part">第一部 · 方案目錄・圖解</span></p>
-  <h2 class="h2" id="s12t">圖解（3/6）：<strong>S-5 批次同步 ｜ S-6 冷備</strong></h2>
+<section class="slide" id="s13" aria-labelledby="s13t">
+  <p class="meta"><span class="num">13</span><span class="part">第一部 · 方案目錄・圖解</span></p>
+  <h2 class="h2" id="s13t">圖解（3/6）：<strong>S-5 批次同步 ｜ S-6 冷備</strong></h2>
 <div style="display:flex;gap:36px;justify-content:center;margin-top:14px"><div style="width:880px"><svg class="dgm" role="img" width="680" height="270" viewBox="0 0 680 270" style="width:100%;height:auto"><defs>
 <marker id="mAx5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
 <marker id="mMx5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".5"/></marker>
@@ -542,9 +575,9 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 <marker id="mGx6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--green)"/></marker>
 </defs><g><rect class="bx" x="14" y="108" width="96" height="44" rx="6"/><text x="62.0" y="129.0" text-anchor="middle">Kafka</text><text class="sub" x="62.0" y="144.0" text-anchor="middle">事實來源</text></g><g><rect class="bx" x="126" y="44" width="74" height="32" rx="6"/><text x="163.0" y="64.0" text-anchor="middle">Spark Job</text></g><g><rect class="frame" x="210" y="14" width="250" height="100" rx="8"/><text x="220" y="30" style="font-weight:700">A 座（主）</text><g><rect class="bx" x="220" y="42" width="111" height="56" rx="6"/><text x="275.5" y="74.0" text-anchor="middle">raw</text></g><g><rect class="bx" x="339" y="42" width="111" height="56" rx="6"/><text x="394.5" y="74.0" text-anchor="middle">curated</text></g></g><g><rect class="frame" x="210" y="150" width="250" height="100" rx="8"/><text x="220" y="166" style="font-weight:700">B 座（平時空轉）</text><g><rect class="bx" x="220" y="178" width="111" height="56" rx="6"/><text x="275.5" y="210.0" text-anchor="middle">raw</text></g><g><rect class="bx" x="339" y="178" width="111" height="56" rx="6"/><text x="394.5" y="210.0" text-anchor="middle">curated</text></g></g><g><rect class="bx" x="568" y="104" width="98" height="56" rx="6"/><text x="617.0" y="131.0" text-anchor="middle">Repository</text><text class="sub" x="617.0" y="146.0" text-anchor="middle">S3 相容 / HDFS</text></g><line class="mut" x1="110" y1="118" x2="126" y2="66" marker-end="url(#mMx6)"/><line class="mut" x1="200" y1="60" x2="220" y2="60" marker-end="url(#mMx6)"/><line class="acc dsh" x1="462" y1="72" x2="568" y2="116" marker-end="url(#mAx6)"/><text class="lbl" x="516" y="80" text-anchor="middle">BACKUP（週期）</text><line class="mut dsh" x1="568" y1="150" x2="462" y2="182" marker-end="url(#mMx6)"/><text class="lbl" x="524" y="178" text-anchor="middle">RESTORE（災時）</text></svg><div class="note" style="margin-top:6px;font-size:18px;text-align:center"><b>S-6 冷備</b>｜RPO 小時～天、C-2 需 HDFS——兜底</div></div></div>
 </section>
-<section class="slide" id="s13" aria-labelledby="s13t">
-  <p class="meta"><span class="num">13</span><span class="part">第一部 · 方案目錄・圖解</span></p>
-  <h2 class="h2" id="s13t">圖解（4/6）：<strong>S-7 MM2 雙 Kafka ｜ S-8 存算分離</strong></h2>
+<section class="slide" id="s14" aria-labelledby="s14t">
+  <p class="meta"><span class="num">14</span><span class="part">第一部 · 方案目錄・圖解</span></p>
+  <h2 class="h2" id="s14t">圖解（4/6）：<strong>S-7 MM2 雙 Kafka ｜ S-8 存算分離</strong></h2>
 <div style="display:flex;gap:36px;justify-content:center;margin-top:14px"><div style="width:880px"><svg class="dgm" role="img" width="680" height="270" viewBox="0 0 680 270" style="width:100%;height:auto"><defs>
 <marker id="mAx7" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
 <marker id="mMx7" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".5"/></marker>
@@ -557,9 +590,9 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 <marker id="mGx8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--green)"/></marker>
 </defs><g><rect class="bx" x="14" y="108" width="96" height="44" rx="6"/><text x="62.0" y="129.0" text-anchor="middle">Kafka</text><text class="sub" x="62.0" y="144.0" text-anchor="middle">事實來源</text></g><g><rect class="bx" x="210" y="20" width="250" height="50" rx="6"/><text x="335.0" y="44.0" text-anchor="middle">Compute Group A</text><text class="sub" x="335.0" y="59.0" text-anchor="middle">無本地資料</text></g><g><rect class="bx" x="210" y="92" width="250" height="50" rx="6"/><text x="335.0" y="116.0" text-anchor="middle">Compute Group B</text><text class="sub" x="335.0" y="131.0" text-anchor="middle">無本地資料</text></g><g><rect class="bx" x="210" y="182" width="250" height="52" rx="6"/><text x="335.0" y="207.0" text-anchor="middle">共享儲存＋FoundationDB</text><text class="sub" x="335.0" y="222.0" text-anchor="middle">單一資料源</text></g><g><rect class="bx" x="568" y="20" width="98" height="58" rx="6"/><text x="617.0" y="48.0" text-anchor="middle">User Apps</text><text class="sub" x="617.0" y="63.0" text-anchor="middle">JDBC・含 BI</text></g><g><rect class="bx" x="568" y="118" width="98" height="52" rx="6"/><text x="617.0" y="143.0" text-anchor="middle">HAProxy</text><text class="sub" x="617.0" y="158.0" text-anchor="middle">VIP</text></g><line class="mut" x1="617" y1="78" x2="617" y2="118" marker-end="url(#mMx8)"/><text class="sub" x="617" y="92" text-anchor="middle">讀 raw+curated</text><text class="sub" x="617" y="104" text-anchor="middle">寫 curated</text><line class="mut" x1="568" y1="132" x2="462" y2="50" marker-end="url(#mMx8)"/><text class="lbl" x="540" y="104" text-anchor="middle">路由到任一 group</text><line class="mut" x1="110" y1="124" x2="210" y2="110" marker-end="url(#mMx8)"/><line class="mut" x1="335" y1="70" x2="335" y2="92" marker-end="url(#mMx8)"/><line class="acc" x1="335" y1="142" x2="335" y2="182" marker-end="url(#mAx8)"/><text class="lbl" x="335.0" y="156.0" text-anchor="middle">讀寫同一份資料</text><text class="lblb" x="335" y="252" text-anchor="middle">共享儲存＝單點（C-2 衝突）</text></svg><div class="note" style="margin-top:6px;font-size:18px;text-align:center"><b>S-8 存算分離</b>｜可用性押在共享儲存——排除</div></div></div>
 </section>
-<section class="slide" id="s14" aria-labelledby="s14t">
-  <p class="meta"><span class="num">14</span><span class="part">第一部 · 方案目錄・圖解</span></p>
-  <h2 class="h2" id="s14t">圖解（5/6）：<strong>S-9 自研 CDC 橋 ｜ CU-2 排程鏡像</strong></h2>
+<section class="slide" id="s15" aria-labelledby="s15t">
+  <p class="meta"><span class="num">15</span><span class="part">第一部 · 方案目錄・圖解</span></p>
+  <h2 class="h2" id="s15t">圖解（5/6）：<strong>S-9 自研 CDC 橋 ｜ CU-2 排程鏡像</strong></h2>
 <div style="display:flex;gap:36px;justify-content:center;margin-top:14px"><div style="width:880px"><svg class="dgm" role="img" width="680" height="270" viewBox="0 0 680 270" style="width:100%;height:auto"><defs>
 <marker id="mAx9" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
 <marker id="mMx9" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".5"/></marker>
@@ -572,9 +605,9 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 <marker id="mGxa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--green)"/></marker>
 </defs><g><rect class="frame" x="210" y="14" width="250" height="100" rx="8"/><text x="220" y="30" style="font-weight:700">A 座（主）</text><g><rect class="bx" x="220" y="42" width="111" height="56" rx="6"/><text x="275.5" y="74.0" text-anchor="middle">raw</text></g><g><rect class="bx" x="339" y="42" width="111" height="56" rx="6"/><text x="394.5" y="74.0" text-anchor="middle">curated</text></g></g><g><rect class="frame" x="210" y="150" width="250" height="100" rx="8"/><text x="220" y="166" style="font-weight:700">B 座（備）</text><g><rect class="bx" x="220" y="178" width="111" height="56" rx="6"/><text x="275.5" y="210.0" text-anchor="middle">raw</text></g><g><rect class="bx" x="339" y="178" width="111" height="56" rx="6"/><text x="394.5" y="210.0" text-anchor="middle">curated</text></g></g><g><rect class="bx" x="568" y="20" width="98" height="58" rx="6"/><text x="617.0" y="48.0" text-anchor="middle">User Apps</text><text class="sub" x="617.0" y="63.0" text-anchor="middle">JDBC・含 BI</text></g><g><rect class="bx" x="568" y="118" width="98" height="52" rx="6"/><text x="617.0" y="143.0" text-anchor="middle">HAProxy</text><text class="sub" x="617.0" y="158.0" text-anchor="middle">VIP</text></g><line class="mut" x1="617" y1="78" x2="617" y2="118" marker-end="url(#mMxa)"/><text class="sub" x="617" y="92" text-anchor="middle">讀 raw+curated</text><text class="sub" x="617" y="104" text-anchor="middle">寫 curated</text><line class="mut" x1="568" y1="132" x2="462" y2="60" marker-end="url(#mMxa)"/><text class="lbl" x="530" y="102" text-anchor="middle">寫 curated（經 VIP）</text><line class="acc dsh" x1="395" y1="114" x2="395" y2="150" marker-end="url(#mAxa)"/><text class="lbl" x="395" y="140" text-anchor="middle">常駐排程鏡像（頻率＝容忍窗口）</text></svg><div class="note" style="margin-top:6px;font-size:18px;text-align:center"><b>CU-2 排程鏡像</b>｜app 可寫表全保——curated 主力策略</div></div></div>
 </section>
-<section class="slide" id="s15" aria-labelledby="s15t">
-  <p class="meta"><span class="num">15</span><span class="part">第一部 · 方案目錄・圖解</span></p>
-  <h2 class="h2" id="s15t">圖解（6/6）：<strong>CU-6 App 寫入改道 Kafka</strong>——curated 的長期形態</h2>
+<section class="slide" id="s16" aria-labelledby="s16t">
+  <p class="meta"><span class="num">16</span><span class="part">第一部 · 方案目錄・圖解</span></p>
+  <h2 class="h2" id="s16t">圖解（6/6）：<strong>CU-6 App 寫入改道 Kafka</strong>——curated 的長期形態</h2>
 <div style="display:flex;gap:36px;justify-content:center;margin-top:14px"><div style="width:880px"><svg class="dgm" role="img" width="680" height="270" viewBox="0 0 680 270" style="width:100%;height:auto"><defs>
 <marker id="mAxb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
 <marker id="mMxb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".5"/></marker>
@@ -583,9 +616,9 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 </defs><g><rect class="bx" x="14" y="108" width="96" height="44" rx="6"/><text x="62.0" y="129.0" text-anchor="middle">Kafka</text><text class="sub" x="62.0" y="144.0" text-anchor="middle">curated topics</text></g><g><rect class="frame" x="210" y="14" width="250" height="100" rx="8"/><text x="220" y="30" style="font-weight:700">A 座</text><g><rect class="bx" x="220" y="42" width="111" height="56" rx="6"/><text x="275.5" y="74.0" text-anchor="middle">raw</text></g><g><rect class="bx" x="339" y="42" width="111" height="56" rx="6"/><text x="394.5" y="74.0" text-anchor="middle">curated</text></g></g><g><rect class="frame" x="210" y="150" width="250" height="100" rx="8"/><text x="220" y="166" style="font-weight:700">B 座</text><g><rect class="bx" x="220" y="178" width="111" height="56" rx="6"/><text x="275.5" y="210.0" text-anchor="middle">raw</text></g><g><rect class="bx" x="339" y="178" width="111" height="56" rx="6"/><text x="394.5" y="210.0" text-anchor="middle">curated</text></g></g><g><rect class="bx" x="568" y="96" width="98" height="64" rx="6"/><text x="617.0" y="127.0" text-anchor="middle">User Apps</text><text class="sub" x="617.0" y="142.0" text-anchor="middle">改發事件</text></g><line class="acc" x1="568" y1="128" x2="110" y2="128" marker-end="url(#mAxb)"/><text class="lbl" x="330" y="120" text-anchor="middle">寫入改道 Kafka</text><line class="acc" x1="110" y1="116" x2="340" y2="62" marker-end="url(#mAxb)"/><text class="lbl" x="210" y="72" text-anchor="middle">消費寫入</text><line class="acc" x1="110" y1="140" x2="340" y2="196" marker-end="url(#mAxb)"/><text class="lbl" x="210" y="186" text-anchor="middle">消費寫入</text></svg><div class="note" style="margin-top:6px;font-size:18px;text-align:center"><b>CU-6 改道 Kafka</b>｜curated 與 raw 同構、RPO≈0——中期方向</div></div><div class="card warn" style="width:560px;align-self:center"><h4 class="w">其他 CU 策略一句話</h4><ul><li><b>CU-1</b> 雙跑重算：只保排程 ETL 產物</li><li><b>CU-3</b> 限定 CCR：4.1 不可行</li><li><b>CU-4</b> 災後重算：app 直寫資料無從重算</li><li><b>CU-5</b> app 雙寫：問題轉嫁每個 app</li></ul></div></div>
 </section>
 
-<section class="slide" id="s16" aria-labelledby="s16t">
-  <p class="meta"><span class="num">16</span><span class="part">第二部 · 篩選</span></p>
-  <h2 class="h2" id="s16t">約束篩選：<strong>每個去留都有理由</strong></h2>
+<section class="slide" id="s17" aria-labelledby="s17t">
+  <p class="meta"><span class="num">17</span><span class="part">第二部 · 篩選</span></p>
+  <h2 class="h2" id="s17t">約束篩選：<strong>每個去留都有理由</strong></h2>
 
   <div class="ctbl" style="margin-top:18px">
     <div class="frow head"><div>方案</div><div>理由</div><div>結果</div></div>
@@ -600,9 +633,9 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 <div class="take">Curated：<b>CU-2 鏡像為主力、CU-6 為中期方向</b>；CU-3 在 4.1 不可行。</div>
 </section>
 
-<section class="slide" id="s17" aria-labelledby="s17t">
-  <p class="meta"><span class="num">17</span><span class="part">第二部 · 推薦架構</span></p>
-  <h2 class="h2" id="s17t">推薦架構總圖：<strong>Hot-Standby 服務 ＋ 雙活資料</strong></h2>
+<section class="slide" id="s18" aria-labelledby="s18t">
+  <p class="meta"><span class="num">18</span><span class="part">第二部 · 推薦架構</span></p>
+  <h2 class="h2" id="s18t">推薦架構總圖：<strong>Hot-Standby 服務 ＋ 雙活資料</strong></h2>
 <div class="figwrap" style="width:1292px"><svg class="dgm" role="img" width="680" height="270" viewBox="0 0 680 270" style="width:100%;height:auto"><defs>
 <marker id="mAd2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
 <marker id="mMd2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".5"/></marker>
@@ -613,9 +646,9 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 <div class="take"><b>單活服務、雙路資料</b>——接下來四頁：這套架構如何應對 R1–R4。</div>
 </section>
 
-<section class="slide" id="s18" aria-labelledby="s18t">
-  <p class="meta"><span class="num">18</span><span class="part">情境檢驗</span></p>
-  <h2 class="h2" id="s18t">R1 快速 failover：<strong>人只做一件事——翻 flag</strong></h2>
+<section class="slide" id="s19" aria-labelledby="s19t">
+  <p class="meta"><span class="num">19</span><span class="part">情境檢驗</span></p>
+  <h2 class="h2" id="s19t">R1 快速 failover：<strong>人只做一件事——翻 flag</strong></h2>
 <div class="figwrap" style="width:1292px"><svg class="dgm" role="img" width="680" height="270" viewBox="0 0 680 270" style="width:100%;height:auto"><defs>
 <marker id="mAr1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
 <marker id="mMr1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".5"/></marker>
@@ -626,9 +659,9 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 <div class="take">人工切換成立的條件：<b>監控先把答案算好</b>（p.20）。</div>
 </section>
 
-<section class="slide" id="s19" aria-labelledby="s19t">
-  <p class="meta"><span class="num">19</span><span class="part">情境檢驗</span></p>
-  <h2 class="h2" id="s19t">R2 查詢正確性：<strong>「錯」已由機制消除，剩「時間差」要管理</strong></h2>
+<section class="slide" id="s20" aria-labelledby="s20t">
+  <p class="meta"><span class="num">20</span><span class="part">情境檢驗</span></p>
+  <h2 class="h2" id="s20t">R2 查詢正確性：<strong>「錯」已由機制消除，剩「時間差」要管理</strong></h2>
 <div class="figwrap" style="width:1292px"><svg class="dgm" role="img" width="680" height="240" viewBox="0 0 680 240" style="width:100%;height:auto"><defs>
 <marker id="mAr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
 <marker id="mMr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".5"/></marker>
@@ -639,9 +672,9 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 <div class="take warn">對業務的問法：「切換瞬間 curated 舊 N 分鐘，可以嗎？」——N 是要他們拍板的數字。</div>
 </section>
 
-<section class="slide" id="s20" aria-labelledby="s20t">
-  <p class="meta"><span class="num">20</span><span class="part">情境檢驗</span></p>
-  <h2 class="h2" id="s20t">R3 寫入一致：<strong>協議面（raw）＋搬運面（curated）＋驗證面（對帳）</strong></h2>
+<section class="slide" id="s21" aria-labelledby="s21t">
+  <p class="meta"><span class="num">21</span><span class="part">情境檢驗</span></p>
+  <h2 class="h2" id="s21t">R3 寫入一致：<strong>協議面（raw）＋搬運面（curated）＋驗證面（對帳）</strong></h2>
 <div class="figwrap" style="width:1292px"><svg class="dgm" role="img" width="680" height="270" viewBox="0 0 680 270" style="width:100%;height:auto"><defs>
 <marker id="mAr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
 <marker id="mMr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".5"/></marker>
@@ -652,9 +685,9 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 <div class="take">一致性可以是「驗證出來的」——前提是<b>落差可量測、可告警</b>。</div>
 </section>
 
-<section class="slide" id="s21" aria-labelledby="s21t">
-  <p class="meta"><span class="num">21</span><span class="part">情境檢驗</span></p>
-  <h2 class="h2" id="s21t">R4 恢復後一致：<strong>raw 續讀、curated 反向鏡像、對帳把關</strong></h2>
+<section class="slide" id="s22" aria-labelledby="s22t">
+  <p class="meta"><span class="num">22</span><span class="part">情境檢驗</span></p>
+  <h2 class="h2" id="s22t">R4 恢復後一致：<strong>raw 續讀、curated 反向鏡像、對帳把關</strong></h2>
 <div class="figwrap" style="width:1292px"><svg class="dgm" role="img" width="680" height="270" viewBox="0 0 680 270" style="width:100%;height:auto"><defs>
 <marker id="mAr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
 <marker id="mMr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".5"/></marker>
@@ -664,10 +697,16 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
   <div class="note" style="margin-top:12px">A 歸隊：raw 從自己 checkpoint 續讀（retention 窗口內天然追平）；curated 反向鏡像 B→A、<b>A 座禁寫由端點層強制</b>（VIP 只指 B，使用者連不到 A）；對帳全綠才擇時切回。超窗重建：Multi-Catalog 全量搬（4.1 唯一路徑）。</div>
 <div class="take">每次故障都會經歷 failback——<b>它是流程，不是意外</b>。</div>
 </section>
+<section class="slide" id="s23" aria-labelledby="s23t">
+  <p class="meta"><span class="num">23</span><span class="part">情境檢驗</span></p>
+  <h2 class="h2" id="s23t">全程時間線：<strong>斷掉 → 切換 → 追平 → 切回</strong>，五個面向一張圖</h2>
+  <div style="width:1700px;margin:26px auto 0"><svg class="dgm tld" role="img" aria-label="故障到恢復的全程時間線：VIP 路由、raw 兩條 job、curated 鏡像方向、對帳判定五條泳道" width="1000" height="392" viewBox="0 0 1000 392" style="width:100%;height:auto"><text class="lane" x="10" y="85" text-anchor="start">VIP 路由</text><text class="lane" x="10" y="143" text-anchor="start">raw・Job A</text><text class="lane" x="10" y="191" text-anchor="start">raw・Job B</text><text class="lane" x="10" y="249" text-anchor="start">curated 寫入＋鏡像</text><text class="lane" x="10" y="315" text-anchor="start">對帳／判定</text><line x1="300" y1="46" x2="300" y2="334" stroke="currentColor" stroke-opacity=".35" stroke-dasharray="4 4"/><text class="tl" x="300" y="30" text-anchor="middle">T1</text><text class="sub" x="300" y="42" text-anchor="middle">A 整座故障</text><line x1="400" y1="46" x2="400" y2="334" stroke="currentColor" stroke-opacity=".35" stroke-dasharray="4 4"/><text class="tl" x="400" y="30" text-anchor="middle">T2</text><text class="sub" x="400" y="42" text-anchor="middle">人工翻 flag</text><line x1="500" y1="46" x2="500" y2="334" stroke="currentColor" stroke-opacity=".35" stroke-dasharray="4 4"/><text class="tl" x="500" y="30" text-anchor="middle">T3</text><text class="sub" x="500" y="42" text-anchor="middle">A 修復</text><line x1="760" y1="46" x2="760" y2="334" stroke="currentColor" stroke-opacity=".35" stroke-dasharray="4 4"/><text class="tl" x="760" y="30" text-anchor="middle">T5</text><text class="sub" x="760" y="42" text-anchor="middle">計畫切回</text><text class="tl" x="220.0" y="30" text-anchor="middle">正常態</text><text class="tl" x="580.0" y="30" text-anchor="middle">B 為主・A 歸隊追平</text><text class="tl" x="885.0" y="30" text-anchor="middle">恢復常態</text><rect x="140" y="70" width="160" height="22" rx="4" fill="var(--teal)" fill-opacity="0.75"/><text class="barlbl" x="220.0" y="85.0" text-anchor="middle">→ A 座</text><rect x="300" y="70" width="100" height="22" rx="4" fill="var(--red)" fill-opacity="0.55"/><text class="barlbl" x="350.0" y="85.0" text-anchor="middle">偵測＋判斷（≤30 分預算）</text><rect x="400" y="70" width="360" height="22" rx="4" fill="var(--teal)" fill-opacity="0.75"/><text class="barlbl" x="580.0" y="85.0" text-anchor="middle">→ B 座（app 讀寫自動跟切）</text><rect x="760" y="70" width="40" height="22" rx="4" fill="var(--amber)" fill-opacity="0.85"/><text class="barlbl" x="780.0" y="85.0" text-anchor="middle">凍結</text><rect x="800" y="70" width="170" height="22" rx="4" fill="var(--teal)" fill-opacity="0.75"/><text class="barlbl" x="885.0" y="85.0" text-anchor="middle">→ A 座</text><rect x="140" y="128" width="160" height="22" rx="4" fill="var(--green)" fill-opacity="0.75"/><text class="barlbl" x="220.0" y="143.0" text-anchor="middle">寫 A.raw</text><rect x="300" y="128" width="200" height="22" rx="4" fill="var(--red)" fill-opacity="0.45"/><text class="barlbl" x="400.0" y="143.0" text-anchor="middle">停</text><rect x="500" y="128" width="260" height="22" rx="4" fill="var(--amber)" fill-opacity="0.75"/><text class="barlbl" x="630.0" y="143.0" text-anchor="middle">checkpoint 續讀追平</text><rect x="760" y="128" width="210" height="22" rx="4" fill="var(--green)" fill-opacity="0.75"/><text class="barlbl" x="865.0" y="143.0" text-anchor="middle">寫 A.raw</text><rect x="140" y="176" width="830" height="22" rx="4" fill="var(--green)" fill-opacity="0.75"/><text class="barlbl" x="555.0" y="191.0" text-anchor="middle">寫 B.raw——全程不中斷（RPO≈0 的來源）</text><rect x="140" y="234" width="160" height="22" rx="4" fill="var(--teal)" fill-opacity="0.75"/><text class="barlbl" x="220.0" y="249.0" text-anchor="middle">使用者寫 A・鏡像 A→B（每 N 分）</text><circle cx="300" cy="245" r="5" fill="var(--red)"/><text class="lblb" x="300" y="278" text-anchor="middle">認賠窗口＝上次鏡像之後</text><rect x="400" y="234" width="100" height="22" rx="4" fill="var(--teal)" fill-opacity="0.6"/><text class="barlbl" x="450.0" y="249.0" text-anchor="middle">使用者寫 B</text><rect x="500" y="234" width="260" height="22" rx="4" fill="var(--amber)" fill-opacity="0.75"/><text class="barlbl" x="630.0" y="249.0" text-anchor="middle">寫 B・反向鏡像 B→A（覆蓋）・A 禁寫</text><rect x="760" y="234" width="40" height="22" rx="4" fill="var(--amber)" fill-opacity="0.95"/><text class="barlbl" x="780.0" y="249.0" text-anchor="middle">最後 delta</text><rect x="800" y="234" width="170" height="22" rx="4" fill="var(--teal)" fill-opacity="0.75"/><text class="barlbl" x="885.0" y="249.0" text-anchor="middle">寫 A・鏡像 A→B</text><rect x="140" y="300" width="160" height="22" rx="4" fill="var(--green)" fill-opacity="0.5"/><text class="barlbl" x="220.0" y="315.0" text-anchor="middle">例行對帳</text><rect x="500" y="300" width="260" height="22" rx="4" fill="var(--green)" fill-opacity="0.75"/><text class="barlbl" x="630.0" y="315.0" text-anchor="middle">追平判定：raw 水位差＜閾值 ＋ curated 對帳全綠 → 才准切回</text><rect x="800" y="300" width="170" height="22" rx="4" fill="var(--green)" fill-opacity="0.5"/><text class="barlbl" x="885.0" y="315.0" text-anchor="middle">例行對帳</text><text class="cap" x="555.0" y="368" text-anchor="middle">T1→T2 是唯一的服務中斷段；T3 起「追平」與「服務」並行；T5 的凍結幾分鐘讓切回零丟失。</text></svg></div>
+  <div class="take">唯一的服務中斷是 <b>T1→T2 的偵測＋人工判斷</b>；Job B 全程沒停過——這就是 raw RPO≈0 的意思。</div>
+</section>
 
-<section class="slide" id="s22" aria-labelledby="s22t">
-  <p class="meta"><span class="num">22</span><span class="part">第二部 · 比較</span></p>
-  <h2 class="h2" id="s22t">情境 × 方案矩陣：<strong>R1–R4 逐格對比</strong></h2>
+<section class="slide" id="s24" aria-labelledby="s24t">
+  <p class="meta"><span class="num">24</span><span class="part">第二部 · 比較</span></p>
+  <h2 class="h2" id="s24t">情境 × 方案矩陣：<strong>R1–R4 逐格對比</strong></h2>
 
   <div class="tbl">
     <div class="trow head"><div></div><div>S-1 CCR（自移植）</div><div>S-4 同 job 雙寫</div><div>S-2＋CU-2（推薦）</div><div>S-6 冷備</div></div>
@@ -680,9 +719,9 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 <div class="take">S-2 組合在 <b>R1／R4 明顯佔優</b>，R3 以對帳補位，R2 靠鏡像頻率管理。</div>
 </section>
 
-<section class="slide" id="s23" aria-labelledby="s23t">
-  <p class="meta"><span class="num">23</span><span class="part">保留可能性</span></p>
-  <h2 class="h2" id="s23t">若仍要走 CCR：<strong>自維護的三大卡點與五筆帳</strong></h2>
+<section class="slide" id="s25" aria-labelledby="s25t">
+  <p class="meta"><span class="num">25</span><span class="part">保留可能性</span></p>
+  <h2 class="h2" id="s25t">若仍要走 CCR：<strong>自維護的三大卡點與五筆帳</strong></h2>
 
   <div class="cols3">
     <div class="card bad"><h4 class="r">① 接手欠帳 repo</h4><p>issue 關閉率 33%、存量 31；商業版修的 bug 開源看不到——要<b>自己重踩一次</b></p></div>
@@ -692,10 +731,19 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
   <div class="pband"><span class="pbl">五筆帳</span>E0 移植 4.1（1–2 人月・風險最高）→ E1 接手 2–3 人月 → E2 穩態 0.3–0.5 FTE/年 → E3 每次升級 0.5–3 人月 → E4 常備雙叢集測試環境。<b>首年 3–5 人月＋年化 0.4–0.6 FTE</b>。實作範例（真實 PR 足跡：新增 DDL 14 檔／改邏輯 6 檔／加功能 11 檔）在報告第三部。</div>
 <div class="take">4.1 上<b>沒有「凍結版本」的中間態</b>——用 CCR 就是維護 CCR。</div>
 </section>
+<section class="slide" id="s26" aria-labelledby="s26t">
+  <p class="meta"><span class="num">26</span><span class="part">保留可能性</span></p>
+  <h2 class="h2" id="s26t">ccr-syncer 程式碼拆解：<strong>心臟在 job.go、破口在無契約 payload</strong></h2>
+  <div style="width:1420px;margin:18px auto 0"><svg class="dgm tld" role="img" aria-label="ccr-syncer 程式碼模組架構：API、狀態機、DDL 與資料兩條路徑、RPC 與儲存層" width="940" height="600" viewBox="0 0 940 600" style="width:100%;height:auto"><defs>
+    <marker id="ca-acc2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
+    <marker id="ca-mut2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".5"/></marker>
+    </defs><rect x="40" y="20" width="380" height="52" rx="7" class="bx2" stroke="currentColor" stroke-opacity=".45"/><text class="bt" x="230.0" y="40" text-anchor="middle">pkg/service/http_service.go（1,213 行）</text><text class="sub" x="230.0" y="56" text-anchor="middle">REST API：/create_ccr /desync /get_lag /failpoint…</text><rect x="470" y="20" width="200" height="52" rx="7" class="bx2" stroke="currentColor" stroke-opacity=".45"/><text class="bt" x="570.0" y="40" text-anchor="middle">cmd/（10 個 CLI）</text><text class="sub" x="570.0" y="56" text-anchor="middle">get_binlog / get_lag…排障工具</text><rect x="710" y="20" width="200" height="52" rx="7" class="bx2" stroke="currentColor" stroke-opacity=".45"/><text class="bt" x="810.0" y="40" text-anchor="middle">pkg/xmetrics・xerror</text><text class="sub" x="810.0" y="56" text-anchor="middle">Prometheus／錯誤分類</text><rect x="40" y="104" width="380" height="46" rx="7" class="bx2" stroke="currentColor" stroke-opacity=".45"/><text class="bt" x="230.0" y="124" text-anchor="middle">job_manager.go（323）＋ factory</text><text class="sub" x="230.0" y="140" text-anchor="middle">job 生命週期／調度</text><line class="acc2" x1="230" y1="72" x2="230" y2="104" marker-end="url(#ca-acc2)"/><rect x="120" y="184" width="460" height="74" rx="7" class="bx2" stroke="var(--red)" stroke-width="2"/><text class="bt" x="350.0" y="204" text-anchor="middle">pkg/ccr/job.go（4,932 行）——狀態機・系統心臟</text><text class="sub" x="350.0" y="220" text-anchor="middle">sync()／fullSync／incrementalSync／handleBinlog 26-case dispatch</text><rect x="620" y="184" width="280" height="74" rx="7" class="bx2" stroke="var(--amber)" stroke-width="2"/><text class="bt" x="760.0" y="204" text-anchor="middle">job_progress.go（486）</text><text class="sub" x="760.0" y="220" text-anchor="middle">SyncState × SubSyncState × commitSeq＝崩潰恢復語義</text><line class="acc2" x1="230" y1="150" x2="290" y2="184" marker-end="url(#ca-acc2)"/><line class="mut2" x1="580" y1="221" x2="620" y2="221" marker-end="url(#ca-mut2)"/><text class="lbl2" x="600.0" y="215.0" text-anchor="middle">每步持久化</text><rect x="40" y="306" width="250" height="58" rx="7" class="bx2" stroke="var(--amber)" stroke-width="2"/><text class="bt" x="165.0" y="326" text-anchor="middle">record/（28 檔）</text><text class="sub" x="165.0" y="342" text-anchor="middle">binlog JSON payload 反序列化（無契約！）</text><rect x="40" y="392" width="250" height="52" rx="7" class="bx2" stroke="var(--amber)" stroke-width="2"/><text class="bt" x="165.0" y="412" text-anchor="middle">handle/（17 檔・重構半成品）</text><text class="sub" x="165.0" y="428" text-anchor="middle">新式 handler——與 job.go switch 並存</text><rect x="40" y="472" width="250" height="52" rx="7" class="bx2" stroke="currentColor" stroke-opacity=".45"/><text class="bt" x="165.0" y="492" text-anchor="middle">base/spec.go（1,799）</text><text class="sub" x="165.0" y="508" text-anchor="middle">對叢集拼 SQL：建表/BACKUP/RESTORE/rename</text><line class="None" x1="230" y1="258" x2="180" y2="306" marker-end="url(#ca-None)"/><text class="lbl2" x="236" y="286" text-anchor="middle">DDL 類 binlog</text><line class="acc2" x1="165" y1="364" x2="165" y2="392" marker-end="url(#ca-acc2)"/><line class="acc2" x1="165" y1="444" x2="165" y2="472" marker-end="url(#ca-acc2)"/><rect x="360" y="306" width="260" height="58" rx="7" class="bx2" stroke="currentColor" stroke-opacity=".45"/><text class="bt" x="490.0" y="326" text-anchor="middle">job_pipeline.go（906）</text><text class="sub" x="490.0" y="342" text-anchor="middle">txn 並行與 commit 順序（TxnLink）</text><rect x="360" y="392" width="260" height="52" rx="7" class="bx2" stroke="currentColor" stroke-opacity=".45"/><text class="bt" x="490.0" y="412" text-anchor="middle">ingest_binlog_job.go（919）</text><text class="sub" x="490.0" y="428" text-anchor="middle">UPSERT 資料 → 對下游 BE 並行 ingest</text><line class="None" x1="400" y1="258" x2="470" y2="306" marker-end="url(#ca-None)"/><text class="lbl2" x="470" y="286" text-anchor="middle">UPSERT 資料類</text><line class="acc2" x1="490" y1="364" x2="490" y2="392" marker-end="url(#ca-acc2)"/><rect x="660" y="306" width="240" height="58" rx="7" class="bx2" stroke="currentColor" stroke-opacity=".45"/><text class="bt" x="780.0" y="326" text-anchor="middle">meta.go（1,535）＋ metaer</text><text class="sub" x="780.0" y="342" text-anchor="middle">上游 meta 快取：id → 名字/位置</text><line class="mut2" x1="580" y1="240" x2="690" y2="306" marker-end="url(#ca-mut2)"/><text class="lbl2" x="660" y="280" text-anchor="middle">查映射</text><rect x="40" y="552" width="580" height="40" rx="7" class="bx2" stroke="currentColor" stroke-opacity=".45"/><text class="bt" x="330.0" y="576.0" text-anchor="middle">pkg/rpc：fe.go / be.go 手寫 1,314 行 ＋ 29 個 Thrift IDL ＋ 56 萬行生成碼</text><line class="mut2" x1="165" y1="524" x2="200" y2="552" marker-end="url(#ca-mut2)"/><line class="mut2" x1="490" y1="444" x2="490" y2="552" marker-end="url(#ca-mut2)"/><text class="lbl2" x="560" y="510" text-anchor="middle">BE RPC：ingestBinlog</text><rect x="660" y="472" width="240" height="52" rx="7" class="bx2" stroke="currentColor" stroke-opacity=".45"/><text class="bt" x="780.0" y="492" text-anchor="middle">pkg/storage（~1,500）</text><text class="sub" x="780.0" y="508" text-anchor="middle">SQLite/MySQL/PG——progress・多實例 HA</text><line class="mut2" x1="760" y1="258" x2="780" y2="472" stroke-dasharray="6 4" marker-end="url(#ca-mut2)"/><text class="lbl2" x="800" y="380" text-anchor="middle">progress 讀寫</text><text class="cap" x="470" y="596" text-anchor="middle">紅框＝複雜度集中處；黃框＝升級時最易破的面（payload 無契約、恢復語義、兩套 handler 並存）</text></svg></div>
+  <div class="take">開發的本質＝<b>持續逆向 Doris FE 行為並保持冪等</b>——實作範例（真實 PR 足跡）見報告第三部 14.4。</div>
+</section>
 
-<section class="slide" id="s24" aria-labelledby="s24t">
-  <p class="meta"><span class="num">24</span><span class="part">落地前提</span></p>
-  <h2 class="h2" id="s24t">三個硬前提：<strong>沒滿足前，方案不成立</strong></h2>
+<section class="slide" id="s27" aria-labelledby="s27t">
+  <p class="meta"><span class="num">27</span><span class="part">落地前提</span></p>
+  <h2 class="h2" id="s27t">三個硬前提：<strong>沒滿足前，方案不成立</strong></h2>
 
   <div class="cols3">
     <div class="card warn"><h4 class="w">① 存量表模型清查</h4><ul><li>4.x 新表預設 MoW ✓</li><li><b>存量 Duplicate / SUM 表</b>重放必髒——MoW 不可事後切換，改造＝重建表</li></ul></div>
@@ -705,9 +753,9 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 <div class="take warn">最大改造項＝<b>存量表模型盤點</b>——PoC 第一項、go/no-go。</div>
 </section>
 
-<section class="slide" id="s25" aria-labelledby="s25t">
-  <p class="meta"><span class="num">25</span><span class="part">落地設計</span></p>
-  <h2 class="h2" id="s25t">Curated 深看：<strong>單邊寫＋常駐鏡像＋可量化 loss window</strong></h2>
+<section class="slide" id="s28" aria-labelledby="s28t">
+  <p class="meta"><span class="num">28</span><span class="part">落地設計</span></p>
+  <h2 class="h2" id="s28t">Curated 深看：<strong>單邊寫＋常駐鏡像＋可量化 loss window</strong></h2>
 
   <div class="cols2">
     <div class="card accent"><h4 class="t">解法主體（CU-2）</h4><ul>
@@ -722,9 +770,9 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 <div class="take">目標不是消滅 loss window，是把它<b>變小、變可量測、變成業務同意過的數字</b>。</div>
 </section>
 
-<section class="slide" id="s26" aria-labelledby="s26t">
-  <p class="meta"><span class="num">26</span><span class="part">落地設計</span></p>
-  <h2 class="h2" id="s26t">監控與人工切換：<strong>人決策、機器執行</strong></h2>
+<section class="slide" id="s29" aria-labelledby="s29t">
+  <p class="meta"><span class="num">29</span><span class="part">落地設計</span></p>
+  <h2 class="h2" id="s29t">監控與人工切換：<strong>人決策、機器執行</strong></h2>
 
   <div class="ctbl" style="margin-top:16px">
     <div class="crow head"><div>監控面</div><div>內容</div><div>回答的問題</div></div>
@@ -738,9 +786,9 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 <div class="take">堪用 HA 的等價交換：<b>把自動化的預算花在監控與一鍵執行上</b>。</div>
 </section>
 
-<section class="slide" id="s27" aria-labelledby="s27t">
-  <p class="meta"><span class="num">27</span><span class="part">誠實面對</span></p>
-  <h2 class="h2" id="s27t">防什麼、不防什麼</h2>
+<section class="slide" id="s30" aria-labelledby="s30t">
+  <p class="meta"><span class="num">30</span><span class="part">誠實面對</span></p>
+  <h2 class="h2" id="s30t">防什麼、不防什麼</h2>
 
   <div class="cols2">
     <div class="card"><h4 class="d">殘餘風險（要管理）</h4><ul>
@@ -754,9 +802,9 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 <div class="take">「都在寫、但寫得不一樣」是唯一深水區——<b>對帳不是配件</b>。</div>
 </section>
 
-<section class="slide" id="s28" aria-labelledby="s28t">
-  <p class="meta"><span class="num">28</span><span class="part">下一步</span></p>
-  <h2 class="h2" id="s28t">PoC 清單：<strong>P01 與 P11 是 go / no-go</strong></h2>
+<section class="slide" id="s31" aria-labelledby="s31t">
+  <p class="meta"><span class="num">31</span><span class="part">下一步</span></p>
+  <h2 class="h2" id="s31t">PoC 清單：<strong>P01 與 P11 是 go / no-go</strong></h2>
 
   <div class="pocs">
     <div class="poc first"><span class="pn">P01</span><span><b>存量表模型盤點＋MoW 壓測</b>——決定方案成立與改造規模</span></div>
@@ -773,9 +821,9 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 <div class="take">P01＋P11 兩個盤點做完，才有資格談時程。</div>
 </section>
 
-<section class="slide" id="s29" aria-labelledby="s29t">
-  <p class="meta"><span class="num">29</span><span class="part">下一步</span></p>
-  <h2 class="h2" id="s29t">要業務方／管理層拍板的 <strong>7 個問題</strong></h2>
+<section class="slide" id="s32" aria-labelledby="s32t">
+  <p class="meta"><span class="num">32</span><span class="part">下一步</span></p>
+  <h2 class="h2" id="s32t">要業務方／管理層拍板的 <strong>7 個問題</strong></h2>
 
   <div class="cols3" style="margin-top:16px">
     <div class="card warn"><h4 class="w">Q1 RPO/RTO 正式數字</h4><p>現假設：30 分內、人工切換</p></div>
@@ -789,9 +837,9 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 
 </section>
 
-<section class="slide" id="s30" aria-labelledby="s30t">
-  <p class="meta"><span class="num">30</span><span class="part">結語</span></p>
-  <h2 class="h2 title-h2" id="s30t" style="font-size:72px">單活服務、雙路資料——<br><strong>人決策、機器執行、對帳把關</strong></h2>
+<section class="slide" id="s33" aria-labelledby="s33t">
+  <p class="meta"><span class="num">33</span><span class="part">結語</span></p>
+  <h2 class="h2 title-h2" id="s33t" style="font-size:72px">單活服務、雙路資料——<br><strong>人決策、機器執行、對帳把關</strong></h2>
   <p class="sub" style="margin-top:36px">研究完整版（三部結構：目錄／分析／CCR 自維護代價，含 23 張圖、50 項來源）已另附連結。<br>下一步：<b>P01 存量表盤點 ＋ P11 curated 盤點</b>——兩週內可完成，結果決定一切排程。</p>
   <div class="dg wrap" style="gap:10px;margin-top:40px">
     <span class="chip t">R1 翻 flag ≈ 分鐘級</span>
@@ -804,7 +852,7 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 
 <!-- ============ CHROME ============ -->
 <div class="progress"><div class="progress-bar" id="progressbar"></div></div>
-<div class="counter" id="counter">01 / 30</div>
+<div class="counter" id="counter">01 / 33</div>
 <div class="hint">⬅️➡️ 換頁 <span class="hsep">·</span> 🗺️ O 總覽 <span class="hsep">·</span> ⛶ F 全螢幕 <span class="hsep">·</span> ❓ 說明</div>
 <div class="nav">
   <button class="navbtn" id="prevBtn" aria-label="上一頁">‹</button>
