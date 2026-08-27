@@ -499,6 +499,15 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 /* ---- P4 solution-space SVG ---- */
 .space-svg{margin-top:24px}
 
+/* ---- case detail flows (s13/s14) ---- */
+.case-flow.detail .case-step{font-size:16.5px;padding:14px 8px}
+.case-flow.detail .case-step small{display:block;margin-top:5px;font:700 12px 'IBM Plex Mono',monospace;color:#8fd0b5;letter-spacing:.06em}
+.case-flow.detail .case-gate small{color:#ffb27a}
+
+/* ---- clickable source links on case cards ---- */
+.know-src a{color:#8fd0b5;text-decoration:underline;text-underline-offset:3px}
+.know-src a:hover{color:#eef4ff}
+
 /* ---- P5 spectrum hero ---- */
 .spec-hero{margin-top:34px}
 .spec-track{position:relative;height:118px;border:1px solid var(--line);border-radius:12px;background:linear-gradient(90deg,#3d6a9e 0%,#7f9ec9 40%,#c98a5f 60%,#ff7a3c 100%);box-shadow:inset 0 0 60px #0a1f3f88}
@@ -880,14 +889,14 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
       <h3>確定性工程 × Agent 混合</h3>
       <p>對照組就是 zero-shot：同一模型、不帶其他說明直接做 code review。加入工程知識（檔案選取、打包、規則匹配、定位修正）後，Precision／F1 更高、token 只要約 <b>1/9</b>。</p>
       <div class="know-quote">純語言驅動缺少硬約束——把「不能錯的步驟」從模型手裡拿走。</div>
-      <div class="know-src">github.com/alibaba/open-code-review</div>
+      <div class="know-src"><a href="https://github.com/alibaba/open-code-review" target="_blank" rel="noopener">github.com/alibaba/open-code-review ↗</a></div>
     </div>
     <div class="know-card kdd">
       <div class="know-ey">CASE · 美團 KDD CUP'26 冠軍</div>
       <h3>Data Agent 的壁壘是 Harness</h3>
       <p>把不穩定的 LLM 裝進「可約束、可執行、可反饋、可恢復」的執行環境：只給 4 個專用工具、固定腳手架，成功必須「沒報錯＋產物真實存在」。</p>
       <div class="know-quote">模型決定單次推理的上限；Harness 決定系統能力的下限。</div>
-      <div class="know-src">zhuanlan.zhihu.com/p/2071202556605359682</div>
+      <div class="know-src"><a href="https://zhuanlan.zhihu.com/p/2071202556605359682" target="_blank" rel="noopener">zhuanlan.zhihu.com/p/2071202556605359682 ↗</a></div>
     </div>
   </div>
   <div class="take"><b>人類知識不是限制模型，而是把解空間縮到「只需要判斷的地方」。</b></div>
@@ -1137,22 +1146,44 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 
 <section class="slide" id="s13" aria-labelledby="s13t">
   <p class="meta"><span class="num">13</span><span class="part">CASE 1 · ALERT 自動修復架構</span></p>
-  <h2 class="h2" id="s12t">Alert 自動修復：<strong>先並行診斷，再集中批准與修復</strong></h2>
+  <h2 class="h2" id="s13t">Alert 自動修復：<strong>診斷交給多 Agent，批准與寫入由人把關</strong></h2>
   <div class="arch-zone"><div class="arch-zone-label">1 · 事件來源</div><div class="fan-grid"><div class="fan-node">Airflow alert</div><div class="fan-node">Spark failure</div><div class="fan-node">Trino slow query</div><div class="fan-node">HMS／MinIO／OPA</div></div></div>
-  <div class="wide-flow" style="margin-top:10px"><div class="wf hot">Harness<br><small>建立 incident state、派工、限制工具</small></div><div class="wa">→</div><div class="wf">Supervisor<br><small>派出多個診斷 Agent</small></div><div class="wa">→</div><div class="wf">Root Cause<br><small>合併證據與衝突結論</small></div></div>
-  <div class="arch-zone"><div class="arch-zone-label">2 · 並行診斷（只讀）</div><div class="fan-grid"><div class="fan-node">Log / Metrics</div><div class="fan-node">Query plan</div><div class="fan-node">Schema / Lineage</div><div class="fan-node">Recent changes</div></div></div>
-  <div class="wide-flow" style="margin-top:10px"><div class="wf hot">人工確認<br><small>顯示 root cause、修復動作與風險</small></div><div class="wa">→</div><div class="wf">Remediation Executor<br><small>用最小權限執行修復</small></div><div class="wa">→</div><div class="wf">Independent Verify<br><small>重新查 API／狀態／測試</small></div><div class="wa">→</div><div class="wf">Issue<br><small>記錄原因、動作與驗證結果</small></div></div>
-  <div class="take"><b>診斷可以多 Agent 並行；寫入只走一個受控執行器，並在前後各做一次檢查。</b></div>
+  <div class="wide-flow" style="margin-top:10px"><div class="wf hot">Harness<br><small>建立 incident state、派工、限制工具</small></div><div class="wa">→</div><div class="wf">Supervisor<br><small>拆診斷任務、派給多個 Agent</small></div><div class="wa">→</div><div class="wf">Root Cause<br><small>合併證據與衝突結論，產出修復建議</small></div></div>
+  <div class="arch-zone" style="margin-top:10px"><div class="arch-zone-label">2 · 診斷 Agent 的迴圈（只讀、工具白名單）</div>
+    <div class="looprow" style="margin-top:4px">
+      <div class="loopnode llm"><div class="lt">選工具</div><div class="ls">依線索選：Log/Metrics · Query plan · Schema/Lineage · Recent changes</div></div>
+      <div class="arrow" style="font-size:26px">→</div>
+      <div class="loopnode tool"><div class="lt">執行查詢</div><div class="ls">只讀 API；寫入權限被 Harness 封鎖</div></div>
+      <div class="arrow" style="font-size:26px">→</div>
+      <div class="loopnode llm"><div class="lt">觀察＋假設</div><div class="ls">看結果形成假設：繼續查？還是收斂？</div></div>
+    </div>
+    <div class="loopback">↺ 直到能收斂出 root cause；超時或證據不足 → 升級給人</div>
+  </div>
+  <div class="wide-flow" style="margin-top:10px"><div class="wf hot">人工確認<br><small>顯示 root cause、修復動作、風險與影響範圍</small></div><div class="wa">→</div><div class="wf">Remediation Executor<br><small>唯一寫入入口：最小權限、帶操作編號執行</small></div><div class="wa">→</div><div class="wf">Independent Verify<br><small>不信任 agent 自述，重新查 API／狀態／測試</small></div><div class="wa">→</div><div class="wf">Issue<br><small>原因、動作、驗證結果寫回，Alert 關閉</small></div></div>
+  <div class="pband cur" style="margin-top:14px"><span class="pbl">誰決定下一步</span>診斷路徑＝<b>模型選</b>（受限工具）｜批准＝<b>人</b>｜修復、驗證與關閉＝<b>Harness 強制</b></div>
+  <div class="take"><b>Agent 負責「找答案」，人負責「下指令」，Harness 負責「保證只做該做的事」。</b></div>
 </section>
 
 <section class="slide" id="s14" aria-labelledby="s14t">
   <p class="meta"><span class="num">14</span><span class="part">CASE 2 · LAKEHOUSE 自助助理架構</span></p>
-  <h2 class="h2" id="s13t">Lakehouse Agent 只碰 Console API；<strong>讀與寫在入口後分流</strong></h2>
-  <div class="wide-flow" style="margin-top:22px"><div class="wf">使用者<br><small>JWT 登入憑證＋Workspace</small></div><div class="wa">→</div><div class="wf hot">Lakehouse Agent<br><small>理解需求，只知道 Console API 工具</small></div><div class="wa">→</div><div class="wf hot">Console API<br><small>登入驗證／OPA 權限規則／參數驗證</small></div></div>
-  <div class="arch-zone"><div class="arch-zone-label">Console API 之後的兩條路</div>
-    <div class="branch-flow"><div class="branch-side"><div class="branch-card"><h4>READ · 直接執行</h4><p>Catalog、Schema、Lineage、Query、Explain、Run Status</p></div><div class="branch-card write"><h4>WRITE · 先確認</h4><p>產 YAML → Spark JAR 驗證 → 顯示 diff → 人工批准 → Submit</p></div></div><div class="branch-arrow">→</div><div class="branch-side"><div class="branch-card"><h4>讀取服務</h4><p>Trino／Catalog／Lineage／Monitoring</p></div><div class="branch-card"><h4>寫入流程</h4><p>Airflow Dynamic DAG → Spark → HMS／MinIO<br>OPA 持續限制 Workspace 存取</p></div></div></div>
+  <h2 class="h2" id="s14t">Lakehouse Agent 只碰 Console API；<strong>讀直放、寫要人批准</strong></h2>
+  <div class="wide-flow" style="margin-top:18px"><div class="wf">使用者<br><small>JWT 登入憑證＋Workspace</small></div><div class="wa">→</div><div class="wf hot">Lakehouse Agent<br><small>理解需求；只知道 Console API 工具，沒有各系統鑰匙</small></div><div class="wa">→</div><div class="wf hot">Console API<br><small>登入驗證／OPA 權限規則／參數驗證／稽核</small></div></div>
+  <div class="arch-zone"><div class="arch-zone-label">Console API 之後分兩條路</div>
+    <div class="branch-flow"><div class="branch-side"><div class="branch-card"><h4>READ · Agent 直接做</h4><p>選工具：Catalog／Schema／Lineage／Query／Explain／Run Status → 結果回傳使用者</p></div><div class="branch-card write"><h4>WRITE · 每步有人把關</h4><p>產 YAML → 驗證 → diff → 人批准 → Submit → 回讀 run status</p></div></div><div class="branch-arrow">→</div><div class="branch-side"><div class="branch-card"><h4>讀取服務</h4><p>Trino／Catalog／Lineage／Monitoring（唯讀 API）</p></div><div class="branch-card"><h4>寫入流程</h4><p>Airflow Dynamic DAG → Spark → HMS／MinIO<br>OPA 持續限制 Workspace 存取</p></div></div></div>
   </div>
-  <div class="wide-flow" style="margin-top:12px"><div class="wf">State<br><small>workspace／intent／yaml／approval／run_id</small></div><div class="wa">→</div><div class="wf">Trace<br><small>工具、權限判斷、diff、批准者、結果</small></div><div class="wa">→</div><div class="wf">Verify<br><small>讀回 run status 與 Catalog 狀態</small></div></div>
+  <div class="case-flow detail" style="margin-top:10px">
+    <div class="case-step">產 YAML<small>AGENT</small></div>
+    <div class="case-arrow">→</div>
+    <div class="case-step">JAR 驗證<small>VERIFIER</small></div>
+    <div class="case-arrow">→</div>
+    <div class="case-step case-gate">diff ＋ 人批准<small>INTERRUPT</small></div>
+    <div class="case-arrow">→</div>
+    <div class="case-step">Submit<small>AIRFLOW</small></div>
+    <div class="case-arrow">→</div>
+    <div class="case-step">回讀 run status<small>VERIFY</small></div>
+  </div>
+  <div class="wide-flow" style="margin-top:10px"><div class="wf">State<br><small>workspace／intent／yaml／approval／run_id</small></div><div class="wa">→</div><div class="wf">Trace<br><small>工具、權限判斷、diff、批准者、結果</small></div><div class="wa">→</div><div class="wf">Verify<br><small>讀回 run status 與 Catalog 狀態</small></div></div>
+  <div class="pband cur" style="margin-top:14px"><span class="pbl">誰決定下一步</span>工具選擇＝<b>Agent</b>（白名單內）｜語法與權限＝<b>Console 驗證器</b>｜寫入＝<b>人批准</b></div>
   <div class="take"><b>Agent 沒有各系統鑰匙；Console 統一做授權、驗證、轉送與稽核。</b></div>
 </section>
 
