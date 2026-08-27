@@ -409,7 +409,7 @@ html.js .slide.is-active > :nth-child(6){animation-delay:.41s}
 <section class="slide" id="s2" aria-labelledby="s2t">
   <p class="meta"><span class="num">02</span><span class="part">使用情境</span></p>
   <h2 class="h2" id="s2t">三條路：<strong>誰寫、誰查</strong></h2>
-<div style="width:1360px;margin:16px auto 0"><svg class="dgm" role="img" aria-label="三條使用路徑" width="760" height="250" viewBox="0 0 760 250" style="width:100%;height:auto">
+<div style="display:flex;justify-content:center;margin:10px auto 0"><svg class="dgm" role="img" aria-label="三條使用路徑" width="760" height="250" viewBox="0 0 760 250" style="height:520px;width:auto;max-width:1750px">
 <defs>
 <marker id="uA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
 <marker id="uM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".5"/></marker>
@@ -460,7 +460,7 @@ html.js .slide.is-active > :nth-child(6){animation-delay:.41s}
 <section class="slide" id="s5" aria-labelledby="s5t">
   <p class="meta"><span class="num">05</span><span class="part">第一部 · 同叢集</span></p>
   <h2 class="h2" id="s5t">兩層、<strong>一台搞定</strong>——不需要第二台 proxy</h2>
-<div style="width:1400px;margin:16px auto 0"><svg class="dgm" role="img" aria-label="一台 proxy 兩組名單" width="820" height="300" viewBox="0 0 820 300" style="width:100%;height:auto">
+<div style="display:flex;justify-content:center;margin:10px auto 0"><svg class="dgm" role="img" aria-label="一台 proxy 兩組名單" width="820" height="300" viewBox="0 0 820 300" style="height:560px;width:auto;max-width:1750px">
 <defs><marker id="cA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker></defs>
 <g><rect class="frame" x="250" y="20" width="320" height="120" rx="10"/><text x="410" y="46" text-anchor="middle" style="font-weight:900">HAProxy（一台）</text>
 <rect x="270" y="60" width="128" height="64" rx="7" fill="#35d0ba22" stroke="var(--teal)" stroke-width="2"/><text x="334" y="86" text-anchor="middle" style="font-size:13px">名單 A</text><text class="sub" x="334" y="106" text-anchor="middle">feA1 feA2 feA3</text>
@@ -524,7 +524,7 @@ html.js .slide.is-active > :nth-child(6){animation-delay:.41s}
 <section class="slide" id="s8" aria-labelledby="s8t">
   <p class="meta"><span class="num">08</span><span class="part">第二部 · 跨叢集</span></p>
   <h2 class="h2" id="s8t">方案地圖：<strong>含 CCR ／ 不含 CCR</strong></h2>
-<div style="width:1500px;margin:16px auto 0"><svg class="dgm" role="img" aria-label="含/不含 CCR 兩家族" width="900" height="330" viewBox="0 0 900 330" style="width:100%;height:auto">
+<div style="display:flex;justify-content:center;margin:10px auto 0"><svg class="dgm" role="img" aria-label="含/不含 CCR 兩家族" width="900" height="330" viewBox="0 0 900 330" style="height:780px;width:auto;max-width:1750px">
 <g><rect x="20" y="30" width="380" height="270" rx="12" fill="none" stroke="var(--red)" stroke-width="2" stroke-dasharray="8 5"/><text x="40" y="62" style="font-weight:900;font-size:20px" fill="var(--red)">含 CCR</text><text class="sub" x="40" y="82">4.1 無 syncer——要走＝自己移植＋維護</text>
 <g><rect class="bx" x="44" y="104" width="330" height="72" rx="8"/><text x="209" y="134" text-anchor="middle" style="font-weight:700">A1 全庫 CCR</text><text class="sub" x="209" y="156" text-anchor="middle">唯一能秒級複製 curated・跨 zone skew 最小</text></g>
 <g><rect class="bx" x="44" y="196" width="330" height="72" rx="8"/><text x="209" y="226" text-anchor="middle" style="font-weight:700">A2 curated 限定 CCR</text><text class="sub" x="209" y="248" text-anchor="middle">使用者行為最易踩不支援清單</text></g></g>
