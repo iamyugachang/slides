@@ -20,12 +20,14 @@ errors = []
 
 # 1. slide count
 slides = re.findall(r'<section class="slide', text)
-if len(slides) != 20:
-    errors.append(f"slide count = {len(slides)}, expected 20")
+if len(slides) != 21:
+    errors.append(f"slide count = {len(slides)}, expected 21")
 
-# 2. every slide has a take band
+# 2. every slide has a take band (cover s1 exempt)
 sections = re.split(r'<section class="slide"', text)[1:]
 for i, sec in enumerate(sections, 1):
+    if i == 1:
+        continue
     if 'class="take' not in sec:
         errors.append(f"slide {i} missing .take takeaway band")
 
@@ -38,7 +40,7 @@ if re.search(r'\.slide\s*\{[^}]*display\s*:\s*none', text):
     errors.append(".slide uses display:none (must use visibility/opacity)")
 
 # 5. per-slide diagram presence (at least one visual primitive per slide)
-visual = re.compile(r'class="(dg|quad|stack|loopbox|ladder|specbar|pairflow|apptable|code|tln|map|cmpbar|circuit)')
+visual = re.compile(r'class="(dg|quad|stack|loopbox|ladder|specbar|pairflow|apptable|code|tln|map|cmpbar|circuit|duo|space-grid|space-svg|know-grid|rt-wrap|duty-grid|af-shell|spectrum-mini|spec-hero|why-grid|control-grid|agent-tech|pano-grid|risk-grid|topo4|case-pair|arch-zone|converge|fw-grid)')
 for i, sec in enumerate(sections, 1):
     if not visual.search(sec):
         errors.append(f"slide {i} has no diagram block")
@@ -53,9 +55,9 @@ bad_lt = re.findall(r'<pre>([^<]*)<[a-z/]', text)
 # (relaxed: only flag obvious stray raw < in pre bodies is hard; skip)
 
 # 8. key content spot-checks
-for term in ["誰決定下一步", "LangGraph", "Pydantic AI", "CrewAI", "n8n", "冪等性",
-             "self-report", "StateGraph", "tool_plain", "Process.sequential", "webhook",
-             "模型負責想"]:
+for term in ["誰決定下一步", "讓 LLM 決定下一步", "LangGraph", "Pydantic AI", "CrewAI", "n8n",
+             "Pattern Reduction", "解空間", "可約束", "少走彎路", "StateGraph", "tool_plain",
+             "Process.sequential", "webhook", "產物校驗"]:
     if term not in text:
         errors.append(f"missing required term: {term}")
 

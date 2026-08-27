@@ -1,0 +1,780 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Doris HA 決策簡報</title>
+<meta name="description" content="Doris HA 決策簡報（視覺版）：使用情境、R1-R3、同叢集/跨叢集兩部、含/不含 CCR 兩家族、curated 使用者自理。14 slides。">
+<style>
+/* ============================================================
+   BLUEPRINT × TEAL STEEL — fixed 1920×1080 stage
+   沿用 slides repo 的 blueprint 骨架；配色轉深青鋼藍，
+   語意色：teal（推薦/正向）、amber（前提/警示）、red（排除/風險）
+   v2：兩部結構（目錄→分析）＋ raw/curated 雙 zone 情境
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&family=IBM+Plex+Mono:wght@400;600&display=swap');
+:root{
+  color-scheme:dark;
+  --green:#4ade80;
+  --bg-deep:#06181f; --bg:#0a2530; --panel:#0c2b36cc;
+  --ink:#ecf6f7; --dim:#9cc3c9; --faint:#6d97a0;
+  --teal:#35d0ba; --teal-strong:#19b6a0; --teal-soft:#35d0ba1f;
+  --amber:#f4b23d; --amber-soft:#f4b23d1f;
+  --red:#ff6b5e; --red-soft:#ff6b5e1c;
+  --line:#ffffff2e; --line-strong:#ffffff77; --line-faint:#ffffff14;
+  --code-bg:#07202a;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  display:grid;place-items:center;overflow:hidden;
+  background:radial-gradient(circle at 16% 12%,#11414d 0,#0a2530 45%,#06181f 100%);
+  font-family:"Noto Sans TC",ui-sans-serif,system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+  color:var(--ink);
+}
+a{color:var(--teal);text-decoration:underline;text-underline-offset:3px}
+a:hover{color:var(--ink)}
+.mono,.num,.part,.ct,.figlbl{font-family:"IBM Plex Mono",monospace}
+
+/* ---- fixed stage ---- */
+.viewport{position:relative;width:100vw;height:100vh;overflow:hidden}
+.stage{
+  position:absolute;left:50%;top:50%;width:1920px;height:1080px;
+  transform:translate(-50%,-50%) scale(calc(100vw / 1920px));
+  transform-origin:center;
+  background:
+    repeating-linear-gradient(0deg,transparent 0 59px,#ffffff06 59px 60px),
+    repeating-linear-gradient(90deg,transparent 0 59px,#ffffff06 59px 60px),
+    radial-gradient(circle at 82% 14%,#35d0ba10,transparent 38%),
+    linear-gradient(155deg,#0f3d4a 0%,#0a2530 58%,#07202a 100%);
+  box-shadow:0 0 0 1px #ffffff14,0 36px 120px #00000088;
+  overflow:hidden;
+}
+@media (min-aspect-ratio:16/9){
+  .stage{transform:translate(-50%,-50%) scale(calc(100vh / 1080px))}
+}
+.slide{position:relative;inset:auto;opacity:1;pointer-events:auto}
+html.js .slide{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  padding:60px 84px 54px;opacity:0;pointer-events:none;
+}
+html.js .slide.is-active{opacity:1;pointer-events:auto}
+html.js .slide > :not(.gnum){position:relative;z-index:1}
+
+.rmark{position:absolute;width:30px;height:30px;border:0 solid var(--line-strong);z-index:4;pointer-events:none}
+.rmark.tl{top:18px;left:18px;border-top:3px solid;border-left:3px solid}
+.rmark.tr{top:18px;right:18px;border-top:3px solid;border-right:3px solid}
+.rmark.bl{bottom:18px;left:18px;border-bottom:3px solid;border-left:3px solid}
+
+.gnum{
+  position:absolute;top:30px;right:44px;font-weight:900;font-size:400px;line-height:1;
+  color:transparent;-webkit-text-stroke:2px #ffffff0c;letter-spacing:-.05em;
+  user-select:none;pointer-events:none;z-index:0;
+}
+
+/* ---- shared type ---- */
+.meta{display:flex;align-items:center;gap:16px;font-size:17px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
+.num{color:var(--teal);font-weight:600}
+.part{color:var(--dim);font-weight:600}
+.h2{font-size:54px;line-height:1.22;margin:16px 0 0;font-weight:900;letter-spacing:-.015em;max-width:1760px;color:var(--ink)}
+.h2 strong{color:var(--teal)}
+.title-h2{font-size:92px;line-height:1.14;margin-top:48px}
+.title-sub{font-size:28px;margin-top:24px}
+.sub{max-width:1680px;font-size:25px;line-height:1.6;color:var(--dim);margin:18px 0 0}
+.sub b{color:var(--ink)}
+.note{margin-top:14px;color:var(--dim);font-size:20px;line-height:1.6;max-width:1760px}
+.note b{color:var(--ink)}
+.take{
+  margin-top:auto;padding:14px 26px;border-top:3px solid var(--ink);border-bottom:3px solid var(--ink);
+  font-size:25px;line-height:1.5;color:var(--ink);font-weight:900;max-width:1800px;letter-spacing:.01em;
+}
+.take b{color:var(--teal)}
+.take.warn b{color:var(--amber)}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line-strong);
+  padding:5px 16px;font-size:17px;font-weight:700;color:var(--ink);white-space:nowrap;
+  background:#0c2b3666;letter-spacing:.03em;border-radius:3px;
+}
+.chip.t{border-color:var(--teal);color:var(--teal);background:var(--teal-soft)}
+.chip.w{border-color:var(--amber);color:var(--amber);background:var(--amber-soft)}
+.chip.r{border-color:var(--red);color:var(--red);background:var(--red-soft)}
+.chip.g{border-color:var(--line);color:var(--dim)}
+
+/* ---- cards / grids ---- */
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:24px}
+.cols3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-top:24px}
+.cols4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:24px}
+.card{
+  background:var(--panel);border:1px solid var(--line);border-radius:6px;
+  padding:20px 24px;position:relative;
+}
+.card h4{margin:0 0 8px;font-size:23px;font-weight:900;letter-spacing:.01em}
+.card h4.t{color:var(--teal)}
+.card h4.w{color:var(--amber)}
+.card h4.r{color:var(--red)}
+.card h4.d{color:var(--ink)}
+.card .ct{font-size:13.5px;letter-spacing:.12em;color:var(--faint);margin-bottom:10px;text-transform:uppercase}
+.card ul{margin:0;padding-left:1.25em;font-size:19.5px;line-height:1.62;color:var(--dim)}
+.card ul b{color:var(--ink)}
+.card ul li{margin:.32em 0}
+.card p{font-size:19.5px;line-height:1.6;color:var(--dim);margin:.3em 0}
+.card p b{color:var(--ink)}
+.card.accent{border-left:4px solid var(--teal)}
+.card.warn{border-left:4px solid var(--amber)}
+.card.bad{border-left:4px solid var(--red)}
+.card.plain{border-left:4px solid var(--line-strong)}
+
+/* fact rows */
+.facts{display:grid;gap:12px;margin-top:24px}
+.fact{
+  display:flex;gap:18px;align-items:baseline;background:var(--panel);
+  border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:6px;
+  padding:14px 22px;font-size:21.5px;line-height:1.6;color:var(--dim);
+}
+.fact b{color:var(--ink)}
+.fact .fk{font-family:"IBM Plex Mono",monospace;font-size:16px;font-weight:600;color:var(--teal);flex:0 0 auto;letter-spacing:.06em}
+.fact.warn{border-left-color:var(--amber)}
+.fact.warn .fk{color:var(--amber)}
+.fact.bad{border-left-color:var(--red)}
+.fact.bad .fk{color:var(--red)}
+
+/* diagram: node flow */
+.dg{display:flex;align-items:stretch;gap:14px;margin-top:26px}
+.dg.center{justify-content:center}
+.dg.wrap{flex-wrap:wrap}
+.node{
+  background:var(--panel);border:1.5px solid var(--line-strong);border-radius:6px;
+  padding:16px 22px;min-width:200px;text-align:center;
+}
+.node .t{font-size:21px;font-weight:900;color:var(--ink)}
+.node .s{font-size:16.5px;color:var(--dim);margin-top:6px;line-height:1.5}
+.node.hl{border-color:var(--teal);background:#0f3d42}
+.node.hl .t{color:var(--teal)}
+.node.warn{border-color:var(--amber)}
+.node.warn .t{color:var(--amber)}
+.node.bad{border-color:var(--red)}
+.node.bad .t{color:var(--red)}
+.node.dead{opacity:.38;border-style:dashed}
+.arrow{
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  color:var(--teal);font-size:30px;font-weight:900;min-width:56px;position:relative;
+}
+.arrow label.lbl{font-size:13.5px;color:var(--faint);font-weight:600;font-family:"IBM Plex Mono",monospace;letter-spacing:.05em;margin-top:2px;white-space:nowrap}
+.arrow.bad{color:var(--red)}
+.arrow.dim{color:var(--faint)}
+
+/* fig frame */
+.fig{
+  margin-top:26px;border:1px solid var(--line);border-radius:6px;padding:30px 36px 24px;
+  background:#0a253066;position:relative;
+}
+.fig::before{
+  content:attr(data-fig);
+  position:absolute;top:-12px;left:26px;background:#0d3038;
+  padding:0 12px;font-family:"IBM Plex Mono",monospace;font-size:14.5px;
+  letter-spacing:.14em;color:var(--teal);
+}
+.fig.warn::before{color:var(--amber)}
+
+/* comparison table */
+.tbl{margin-top:24px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel)}
+.trow{display:grid;grid-template-columns:230px 1fr 1fr 1fr 1fr;border-top:1px solid var(--line-faint)}
+.trow:first-child{border-top:none}
+.trow.head{background:#0d3038}
+.trow > div{padding:12px 18px;font-size:18.5px;line-height:1.45;color:var(--dim);border-left:1px solid var(--line-faint)}
+.trow > div:first-child{border-left:none;font-weight:900;color:var(--ink);font-size:17.5px}
+.trow.head > div{font-family:"IBM Plex Mono",monospace;font-size:14.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);font-weight:600}
+.trow .win{color:var(--teal);font-weight:700}
+.trow .lose{color:var(--red)}
+.trow .cond{color:var(--amber)}
+
+/* catalog table: 方案/優點/缺點 3col */
+.ctbl{margin-top:22px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel)}
+.crow{display:grid;grid-template-columns:330px 1fr 1fr;border-top:1px solid var(--line-faint)}
+.crow:first-child{border-top:none}
+.crow.head{background:#0d3038}
+.crow > div{padding:10px 18px;font-size:17.5px;line-height:1.5;color:var(--dim);border-left:1px solid var(--line-faint)}
+.crow > div:first-child{border-left:none;font-weight:900;color:var(--ink)}
+.crow > div:first-child .cid{font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--teal);margin-right:8px}
+.crow.head > div{font-family:"IBM Plex Mono",monospace;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);font-weight:600}
+.crow .p{color:#9fe0d0}
+.crow .c{color:#e8b0a8}
+
+/* filter table: 方案/衝突/結果 */
+.frow{display:grid;grid-template-columns:290px 1fr 330px;border-top:1px solid var(--line-faint)}
+.frow:first-child{border-top:none}
+.frow.head{background:#0d3038}
+.frow > div{padding:10px 18px;font-size:18px;line-height:1.5;color:var(--dim);border-left:1px solid var(--line-faint)}
+.frow > div:first-child{border-left:none;font-weight:900;color:var(--ink)}
+.frow.head > div{font-family:"IBM Plex Mono",monospace;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);font-weight:600}
+
+/* PoC rows */
+.pocs{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin-top:22px}
+.poc{
+  display:flex;gap:14px;align-items:baseline;background:var(--panel);
+  border:1px solid var(--line);border-radius:6px;padding:11px 18px;
+  font-size:18.5px;line-height:1.5;color:var(--dim);
+}
+.poc b{color:var(--ink)}
+.poc .pn{font-family:"IBM Plex Mono",monospace;font-size:14.5px;color:var(--teal);font-weight:600;flex:0 0 40px}
+.poc.first{border-color:var(--teal);background:#0f3d42}
+.poc.first .pn{color:var(--teal)}
+
+/* band */
+.pband{
+  display:flex;align-items:center;gap:16px;margin-top:20px;
+  border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:6px;
+  background:var(--amber-soft);padding:13px 22px;font-size:21px;line-height:1.55;color:var(--dim);
+}
+.pband b{color:var(--ink)}
+.pband .pbl{font-family:"IBM Plex Mono",monospace;font-size:14px;letter-spacing:.1em;color:var(--amber);font-weight:600;flex:0 0 auto;text-transform:uppercase}
+
+/* part divider slide */
+.divider-kicker{font-family:"IBM Plex Mono",monospace;font-size:22px;letter-spacing:.22em;color:var(--teal);font-weight:600;margin-top:180px;text-transform:uppercase}
+.divider-title{font-size:110px;font-weight:900;line-height:1.1;margin:18px 0 0;letter-spacing:-.02em}
+.divider-sub{font-size:28px;color:var(--dim);margin-top:26px;max-width:1400px;line-height:1.7}
+.divider-sub b{color:var(--ink)}
+
+/* chrome */
+.nav{position:absolute;right:44px;bottom:32px;display:flex;gap:10px;z-index:5}
+.navbtn{
+  width:46px;height:46px;border-radius:6px;border:1px solid var(--line-strong);
+  background:#0c2b36cc;color:var(--ink);font-size:22px;font-weight:900;cursor:pointer;
+  box-shadow:0 6px 18px #00000055;transition:transform 120ms ease,background 120ms ease;
+}
+.navbtn:hover{background:#11414d;transform:translateY(-2px)}
+.progress{position:absolute;left:0;bottom:0;height:4px;background:#ffffff0d;z-index:6;width:100%}
+.progress-bar{height:100%;width:7.14%;background:linear-gradient(90deg,var(--teal),#8be8db);transition:width 300ms ease}
+.counter{
+  position:absolute;right:106px;bottom:44px;font-size:16px;color:var(--faint);
+  font-weight:600;letter-spacing:.14em;z-index:5;font-family:"IBM Plex Mono",monospace;
+}
+.hint{
+  position:absolute;left:42px;bottom:38px;z-index:5;
+  display:inline-flex;align-items:center;gap:10px;
+  background:#0c2b36cc;border:1px solid var(--line);border-radius:6px;
+  padding:8px 18px;font-size:15px;color:var(--dim);font-weight:600;
+  box-shadow:0 6px 18px #00000044;
+}
+.hint .hsep{color:var(--line-strong);font-weight:400}
+#overview{
+  position:absolute;inset:0;background:#041016f2;z-index:50;display:none;
+  overflow:auto;padding:54px 64px;
+}
+#overview.open{display:block}
+#overview h2{color:var(--ink);font-size:34px;margin:0 0 26px;font-weight:900}
+.ovgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.ovbtn{
+  background:#0c2b3666;border:1px solid #ffffff22;border-radius:6px;color:var(--ink);
+  padding:16px 14px;text-align:left;cursor:pointer;font-family:inherit;
+}
+.ovbtn:hover{background:#11414d88;border-color:#35d0ba88}
+.ovbtn .on{font-size:14px;color:var(--teal);font-weight:600;letter-spacing:.1em;font-family:"IBM Plex Mono",monospace}
+.ovbtn .ot{font-size:17px;font-weight:800;line-height:1.4;margin-top:6px;color:#d5e8ea}
+#help{
+  position:absolute;right:34px;bottom:100px;width:560px;
+  background:#0d3038;color:var(--ink);border:1px solid var(--line);
+  border-radius:8px;padding:22px 26px;z-index:60;display:none;
+  box-shadow:0 24px 70px #00000099;
+}
+#help.open{display:block}
+.help-title{font-size:22px;font-weight:900;color:var(--teal);margin-bottom:14px;letter-spacing:.04em}
+.help-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hcard{
+  display:flex;align-items:center;gap:12px;background:#ffffff0d;
+  border:1px solid #ffffff1c;border-radius:6px;padding:10px 14px;
+}
+.hcard .hicon{font-size:24px;line-height:1}
+.hcard .hkey{font-weight:900;font-size:16px;color:var(--ink);white-space:nowrap}
+.hcard .hkey kbd{
+  background:#ffffff1a;border-radius:4px;padding:2px 10px;font-family:"IBM Plex Mono",monospace;
+  border:1px solid #ffffff2a;font-size:14px;
+}
+.hcard .hdesc{font-size:14px;color:var(--dim);margin-left:auto;white-space:nowrap}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none !important;scroll-behavior:auto !important}
+}
+
+
+/* ---- diagrams ---- */
+.figwrap{margin:26px auto 0}
+.figwrap svg{display:block}
+.dgm{color:var(--ink)}
+.dgm text{fill:currentColor;font-family:"Noto Sans TC",sans-serif;font-size:13px}
+.dgm .sub{font-size:11px;opacity:.62}
+.dgm .lbl{font-size:11px;fill:var(--teal)}
+.dgm .lblb{font-size:11px;fill:var(--red)}
+.dgm .bx{fill:#0c2b36;stroke:currentColor;stroke-opacity:.5}
+.dgm .frame{fill:none;stroke:currentColor;stroke-opacity:.6}
+.dgm .acc{stroke:var(--teal);stroke-width:2;fill:none}
+.dgm .mut{stroke:currentColor;stroke-opacity:.5;stroke-width:1.5;fill:none}
+.dgm .bad{stroke:var(--red);stroke-width:2;fill:none}
+.dgm .ok{stroke:var(--green);stroke-width:2;fill:none}
+.dgm .dsh{stroke-dasharray:6 4}
+.dgm .dead{opacity:.32}
+.dgm .tl{font-family:"IBM Plex Mono",monospace;font-size:12px;fill:var(--teal);font-weight:600}
+.dgm .lane{font-size:12.5px;font-weight:700}
+.dgm .barlbl{font-size:11.5px;fill:#06181f;font-weight:700}
+.dgm .cap{font-size:12px;opacity:.7}
+.dgm .bx2{fill:#0c2b36}
+.dgm .bt{font-size:13px;font-weight:700}
+.dgm .lbl2{font-size:11px;fill:var(--teal)}
+.dgm .acc2{stroke:var(--teal);stroke-width:2}
+.dgm .mut2{stroke:currentColor;stroke-opacity:.5;stroke-width:1.5}
+
+
+/* ---- entrance animations ---- */
+@keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+html.js .slide.is-active > :not(.gnum){animation:fadeUp .55s cubic-bezier(.2,.7,.3,1) both}
+html.js .slide.is-active > :nth-child(2){animation-delay:.05s}
+html.js .slide.is-active > :nth-child(3){animation-delay:.14s}
+html.js .slide.is-active > :nth-child(4){animation-delay:.23s}
+html.js .slide.is-active > :nth-child(5){animation-delay:.32s}
+html.js .slide.is-active > :nth-child(6){animation-delay:.41s}
+@media (prefers-reduced-motion:reduce){html.js .slide.is-active > *{animation:none !important}}
+/* keyword bar */
+.kw{display:flex;flex-wrap:wrap;gap:14px;margin-top:26px;justify-content:center}
+.kwb{border:2px solid var(--teal);color:var(--teal);font-weight:900;font-size:26px;padding:12px 28px;border-radius:8px;background:#35d0ba14}
+.kwb.r{border-color:var(--red);color:var(--red);background:#ff6b5e14}
+.kwb.w{border-color:var(--amber);color:var(--amber);background:#f4b23d14}
+.kwb.g{border-color:var(--line-strong);color:var(--dim);background:transparent}
+.bigword{font-size:40px;font-weight:900;text-align:center;margin-top:20px}
+.bigword b{color:var(--teal)}
+
+/* ---- mobile portrait: readable scroll mode ---- */
+@media (max-width:900px) and (orientation:portrait){
+  body{display:block;overflow:auto;background:var(--bg)}
+  .viewport{height:auto;overflow:visible}
+  .stage{position:relative;left:auto;top:auto;width:100%;height:auto;transform:none;box-shadow:none;
+    background:repeating-linear-gradient(0deg,transparent 0 59px,#ffffff05 59px 60px),
+    repeating-linear-gradient(90deg,transparent 0 59px,#ffffff05 59px 60px),
+    linear-gradient(155deg,#0f3d4a 0%,#0a2530 58%,#07202a 100%)}
+  html.js .slide{position:relative;inset:auto;opacity:1;pointer-events:auto;display:flex;flex-direction:column;
+    height:auto;padding:28px 20px;margin-bottom:18px;border-bottom:1px solid var(--line)}
+  .gnum{display:none}
+  .rmark{display:none}
+  .nav,.counter,.hint,.progress{display:none}
+  .meta{font-size:14px;gap:10px;letter-spacing:.12em}
+  .h2{font-size:28px}
+  .title-h2{font-size:38px;margin-top:30px}
+  .title-sub{font-size:19px;margin-top:16px}
+  .sub{font-size:19px}
+  .note{font-size:17px}
+  .take{font-size:17px;padding:11px 14px;border-width:2px;margin-top:22px}
+  .cols2,.cols3,.cols4{grid-template-columns:1fr;gap:12px}
+  .dg{flex-direction:column;align-items:stretch}
+  .node .t{font-size:19px}
+  .node .s{font-size:15.5px}
+  .fact{font-size:17px;padding:11px 14px;flex-direction:column;gap:4px}
+  .fig{padding:22px 16px 16px}
+  .fig::before{left:14px;font-size:12px}
+  .trow{grid-template-columns:1fr 1fr;gap:0}
+  .trow > div{font-size:15px;padding:8px 10px}
+  .trow > div:first-child{grid-column:1/3;background:#0d3038}
+  .crow{grid-template-columns:1fr}
+  .crow > div{font-size:15px;padding:8px 10px}
+  .frow{grid-template-columns:1fr}
+  .frow > div{font-size:15px;padding:8px 10px}
+  .pocs{grid-template-columns:1fr}
+  .poc{font-size:16px}
+  .pband{flex-direction:column;gap:4px;padding:11px 14px;align-items:flex-start;font-size:17px}
+  .divider-kicker{margin-top:40px;font-size:15px}
+  .divider-title{font-size:44px}
+  .divider-sub{font-size:18px}
+  .card ul,.node .s,.fact,.poc{overflow-wrap:anywhere}
+  #overview{position:fixed;padding:28px 18px}
+  .ovgrid{grid-template-columns:1fr 1fr}
+  #help{position:fixed;left:16px;right:16px;bottom:16px;width:auto;padding:18px}
+}
+</style>
+</head>
+<body>
+<script>document.documentElement.classList.add('js')</script>
+
+<div class="viewport">
+<div class="stage" id="stage">
+<div class="rmark tl"></div><div class="rmark tr"></div><div class="rmark bl"></div>
+
+<section class="slide" id="s1" aria-labelledby="s1t">
+  <p class="meta"><span class="num">01</span><span class="part">DECISION BRIEF · VISUAL</span></p>
+  <h2 class="h2 title-h2" id="s1t">Doris HA<br><strong>決策簡報</strong></h2>
+  <div class="kw" style="justify-content:flex-start;margin-top:48px">
+    <span class="kwb g">Doris 4.1</span><span class="kwb g">raw｜curated</span><span class="kwb g">使用者不可控</span>
+    <span class="kwb">raw 雙寫</span><span class="kwb">curated 自理</span><span class="kwb">人工切換</span><span class="kwb r">CCR 排除</span>
+  </div>
+  <div class="take"><b>單活服務・雙路資料</b>——人決策、機器執行。</div>
+</section>
+
+<section class="slide" id="s2" aria-labelledby="s2t">
+  <p class="meta"><span class="num">02</span><span class="part">使用情境</span></p>
+  <h2 class="h2" id="s2t">三條路：<strong>誰寫、誰查</strong></h2>
+<div style="width:1360px;margin:16px auto 0"><svg class="dgm" role="img" aria-label="三條使用路徑" width="760" height="250" viewBox="0 0 760 250" style="width:100%;height:auto">
+<defs>
+<marker id="uA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
+<marker id="uM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".5"/></marker>
+</defs>
+<g><rect class="bx" x="16" y="40" width="120" height="48" rx="7"/><text x="76" y="60" text-anchor="middle">Kafka</text><text class="sub" x="76" y="77" text-anchor="middle">事實來源</text></g>
+<g><rect class="bx" x="196" y="40" width="130" height="48" rx="7"/><text x="261" y="69" text-anchor="middle">Spark SS</text></g>
+<g><rect class="frame" x="400" y="20" width="330" height="210" rx="10"/><text x="412" y="44" style="font-weight:700">Doris</text>
+<g><rect class="bx" x="420" y="60" width="130" height="60" rx="7"/><text x="485" y="95" text-anchor="middle">raw</text></g>
+<g><rect class="bx" x="580" y="60" width="130" height="60" rx="7"/><text x="645" y="95" text-anchor="middle">curated</text></g></g>
+<line class="acc" x1="136" y1="64" x2="196" y2="64" marker-end="url(#uA)"/>
+<line class="acc" x1="326" y1="64" x2="420" y2="80" marker-end="url(#uA)"/><text class="lbl" x="368" y="58" text-anchor="middle">① 唯一寫 raw</text>
+<g><rect class="bx" x="180" y="160" width="180" height="56" rx="7"/><text x="270" y="182" text-anchor="middle" style="font-weight:700">User Apps</text><text class="sub" x="270" y="200" text-anchor="middle">JDBC / dbt</text></g>
+<line class="mut" x1="360" y1="176" x2="580" y2="110" marker-end="url(#uM)"/><text class="lbl" x="452" y="132" text-anchor="middle">② 寫 curated（ETL 可 join 兩 zone）</text>
+<line class="mut dsh" x1="360" y1="196" x2="430" y2="126" marker-end="url(#uM)"/><text class="lbl" x="368" y="166" text-anchor="middle">③ 查兩 zone</text>
+</svg></div>
+  <div class="kw"><span class="kwb">① Spark → raw</span><span class="kwb w">② Apps(JDBC/dbt) → curated</span><span class="kwb g">③ 查兩 zone・可 join</span></div>
+<div class="take">②③ <b>不可控</b>——平台只握有「連線端點」與「選配 library」。</div>
+</section>
+
+<section class="slide" id="s3" aria-labelledby="s3t">
+  <p class="meta"><span class="num">03</span><span class="part">HA 需求</span></p>
+  <h2 class="h2" id="s3t">要保住的三件事：<strong>R1・R2・R3</strong></h2>
+
+  <div class="cols3" style="margin-top:40px">
+    <div class="card accent"><h4 class="t">R1 快速 failover</h4><p style="font-size:26px;font-weight:900">N 分鐘內<br>人工切換 OK</p></div>
+    <div class="card accent"><h4 class="t">R2 查詢一致</h4><p style="font-size:26px;font-weight:900">錯＝零容忍<br>舊＝要有數字</p><p class="ct">跨 zone join 時點差</p></div>
+    <div class="card accent"><h4 class="t">R3 failback 一致</h4><p style="font-size:26px;font-weight:900">追平＋驗證<br>才切回</p></div>
+  </div>
+<div class="take">邊界：不防程式 bug（重放救）、不管 Kafka 自身（前提依賴）。</div>
+</section>
+
+<section class="slide" id="s4" aria-labelledby="s4t">
+  <p class="meta"><span class="num">04</span><span class="part">第一部 · 同叢集</span></p>
+  <h2 class="h2" id="s4t">同叢集 HA：<strong>誰來挑活著的 FE？</strong></h2>
+
+  <div class="kw" style="margin-top:36px">
+    <span class="kwb g">節點級：FE quorum（3 FE 容 1）＋ BE 3 副本——Doris 自理</span>
+  </div>
+  <div class="cols4" style="margin-top:30px">
+    <div class="card"><h4 class="d">① JDBC URL</h4><p><b>client 自己挑</b></p><p class="ct">零基礎設施</p><p style="color:var(--red)">改所有 client・只認連線錯</p></div>
+    <div class="card accent"><h4 class="t">② HAProxy</h4><p><b>中間人挑</b></p><p class="ct">主動健檢・真 SQL</p><p style="color:var(--teal)">可延伸跨叢集 ★</p></div>
+    <div class="card"><h4 class="d">③ ProxySQL</h4><p><b>聰明中間人</b></p><p class="ct">懂 MySQL 協議</p><p style="color:var(--amber)">Doris 相容坑</p></div>
+    <div class="card"><h4 class="d">④ Nginx</h4><p><b>被動中間人</b></p><p class="ct">熟悉・簡單</p><p style="color:var(--red)">要先失敗才剔除</p></div>
+  </div>
+<div class="take">FE 掛的那一刻：②③幾秒剔除無感；①④要有請求先倒楣。</div>
+</section>
+
+<section class="slide" id="s5" aria-labelledby="s5t">
+  <p class="meta"><span class="num">05</span><span class="part">第一部 · 同叢集</span></p>
+  <h2 class="h2" id="s5t">兩層、<strong>一台搞定</strong>——不需要第二台 proxy</h2>
+<div style="width:1400px;margin:16px auto 0"><svg class="dgm" role="img" aria-label="一台 proxy 兩組名單" width="820" height="300" viewBox="0 0 820 300" style="width:100%;height:auto">
+<defs><marker id="cA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker></defs>
+<g><rect class="frame" x="250" y="20" width="320" height="120" rx="10"/><text x="410" y="46" text-anchor="middle" style="font-weight:900">HAProxy（一台）</text>
+<rect x="270" y="60" width="128" height="64" rx="7" fill="#35d0ba22" stroke="var(--teal)" stroke-width="2"/><text x="334" y="86" text-anchor="middle" style="font-size:13px">名單 A</text><text class="sub" x="334" y="106" text-anchor="middle">feA1 feA2 feA3</text>
+<rect x="422" y="60" width="128" height="64" rx="7" fill="none" stroke="currentColor" stroke-opacity=".5" stroke-dasharray="5 4"/><text x="486" y="86" text-anchor="middle" style="font-size:13px">名單 B</text><text class="sub" x="486" y="106" text-anchor="middle">feB1 feB2 feB3</text></g>
+<g><rect class="bx" x="620" y="52" width="170" height="56" rx="8"/><text x="705" y="76" text-anchor="middle" style="font-weight:700">主座 flag</text><text class="sub" x="705" y="94" text-anchor="middle">用哪組名單</text></g>
+<line class="acc dsh" x1="620" y1="80" x2="572" y2="84" marker-end="url(#cA)"/>
+<text x="410" y="196" text-anchor="middle" style="font-size:24px;font-weight:900">第①層＝<tspan fill="var(--teal)">名單內</tspan>輪詢・剔除死 FE</text>
+<text x="410" y="240" text-anchor="middle" style="font-size:24px;font-weight:900">第②層＝<tspan fill="var(--teal)">換名單</tspan>（翻 flag・一個動作）</text>
+<text class="sub" x="410" y="280" text-anchor="middle" style="font-size:15px">反例：JDBC URL 把名單寫進每個 client → 換名單＝改所有 client</text>
+</svg></div>
+<div class="take">有中間人：換後端改中間人。沒中間人：換後端<b>改每一個 client</b>。</div>
+</section>
+
+<section class="slide" id="s6" aria-labelledby="s6t">
+  <p class="meta"><span class="num">06</span><span class="part">第一部 · 同叢集</span></p>
+  <h2 class="h2" id="s6t">彈性：<strong>單台起步</strong>（先不管 proxy 自己會掛）</h2>
+
+  <div class="cols2" style="margin-top:40px">
+    <div class="card accent"><h4 class="t">保留</h4><div class="kw" style="justify-content:flex-start"><span class="kwb">FE 剔除照常</span><span class="kwb">翻 flag 照常</span></div></div>
+    <div class="card warn"><h4 class="w">放棄</h4><div class="kw" style="justify-content:flex-start"><span class="kwb w">入口斷線風險</span><span class="kwb g">資料無損</span><span class="kwb g">分鐘級重啟</span></div></div>
+  </div>
+  <div class="bigword">之後加第二台＋keepalived＝<b>設定原樣搬</b>・漸進升級</div>
+<div class="take">HAProxy 無狀態、單檔設定——「入口斷」與「叢集故障」不同級。</div>
+</section>
+
+<section class="slide" id="s7" aria-labelledby="s7t">
+  <p class="meta"><span class="num">07</span><span class="part">第二部 · 跨叢集</span></p>
+  <h2 class="h2" id="s7t">推薦架構：<strong>兩層路由・雙路資料</strong></h2>
+<div style="width:1440px;margin:16px auto 0"><svg class="dgm" role="img" aria-label="兩層路由架構：user application 經 proxy 或 client library 連 A、B 兩座；每座 3 個 node 各含 FE 與 BE；Spark 雙路各自消費 Kafka" width="860" height="590" viewBox="0 0 860 590" style="width:100%;max-width:860px;height:auto">
+<defs>
+<marker id="mAy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
+<marker id="mMy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".45"/></marker>
+</defs>
+<g><rect class="bx" x="300" y="14" width="260" height="52" rx="7"/><text x="430" y="36" text-anchor="middle" style="font-weight:700">User Applications</text><text class="sub" x="430" y="54" text-anchor="middle">JDBC / dbt・查 raw＋curated、寫 curated</text></g>
+
+<g><rect class="bx" x="120" y="128" width="270" height="66" rx="7"/><text x="255" y="152" text-anchor="middle" style="font-weight:700">路由層（擇一）</text><text class="sub" x="255" y="170" text-anchor="middle">HAProxy ／ ProxySQL ／ Nginx</text><text class="sub" x="255" y="184" text-anchor="middle">依「主座 flag」決定轉發到哪座</text></g>
+<g><rect x="480" y="128" width="270" height="66" rx="7" fill="none" stroke="currentColor" stroke-opacity=".45" stroke-dasharray="6 4"/><text x="615" y="152" text-anchor="middle" style="font-weight:700">或：Client Library（選配）</text><text class="sub" x="615" y="170" text-anchor="middle">裝在 user client 內，自行決定</text><text class="sub" x="615" y="184" text-anchor="middle">要打哪一座 cluster／哪一個 node 的 FE</text></g>
+
+<line class="mut" x1="380" y1="66" x2="290" y2="128" marker-end="url(#mMy)"/><text class="lbl" x="292" y="96" text-anchor="middle">多數 client：只記一個位址</text>
+<line class="mut dsh" x1="480" y1="66" x2="580" y2="128" marker-end="url(#mMy)"/><text class="lbl" x="576" y="96" text-anchor="middle">可控 client：裝 library</text>
+
+<line class="acc" x1="200" y1="194" x2="123" y2="302" marker-end="url(#mAy)"/>
+<line class="acc" x1="230" y1="194" x2="225" y2="302" marker-end="url(#mAy)"/>
+<line class="acc" x1="260" y1="194" x2="322" y2="300" marker-end="url(#mAy)"/>
+<text class="lbl" x="128" y="240">正常態 → A：第①層</text><text class="lbl" x="128" y="254">同座內輪詢 3 個 FE、死的剔除</text>
+<line class="mut dsh" x1="300" y1="194" x2="580" y2="272" marker-end="url(#mMy)"/><text class="lbl" x="460" y="224" text-anchor="middle">failover：翻 flag → B（切換後同樣輪詢 B 座 3 個 FE）</text>
+<line class="mut dsh" x1="580" y1="194" x2="330" y2="272" marker-end="url(#mMy)"/>
+<line class="mut dsh" x1="650" y1="194" x2="650" y2="272" marker-end="url(#mMy)"/><text class="lbl" x="712" y="236" text-anchor="middle">library 自行選座/選 node</text>
+
+<g><rect class="frame" x="60" y="272" width="330" height="200" rx="10"/><text x="72" y="292" style="font-weight:700">A 座</text><g><rect class="bx" x="76" y="302" width="94" height="96" rx="7"/><text x="123" y="324" text-anchor="middle" style="font-weight:700">Node 1</text><rect x="90" y="336" width="66" height="24" rx="5" fill="#35d0ba22" stroke="var(--teal)" stroke-width="1.2"/><text x="123" y="352" text-anchor="middle" style="font-size:11.5px">FE</text><rect x="90" y="366" width="66" height="24" rx="5" fill="none" stroke="currentColor" stroke-opacity=".5"/><text x="123" y="382" text-anchor="middle" style="font-size:11.5px">BE</text></g><g><rect class="bx" x="178" y="302" width="94" height="96" rx="7"/><text x="225" y="324" text-anchor="middle" style="font-weight:700">Node 2</text><rect x="192" y="336" width="66" height="24" rx="5" fill="#35d0ba22" stroke="var(--teal)" stroke-width="1.2"/><text x="225" y="352" text-anchor="middle" style="font-size:11.5px">FE</text><rect x="192" y="366" width="66" height="24" rx="5" fill="none" stroke="currentColor" stroke-opacity=".5"/><text x="225" y="382" text-anchor="middle" style="font-size:11.5px">BE</text></g><g><rect class="bx" x="280" y="302" width="94" height="96" rx="7"/><text x="327" y="324" text-anchor="middle" style="font-weight:700">Node 3</text><rect x="294" y="336" width="66" height="24" rx="5" fill="#35d0ba22" stroke="var(--teal)" stroke-width="1.2"/><text x="327" y="352" text-anchor="middle" style="font-size:11.5px">FE</text><rect x="294" y="366" width="66" height="24" rx="5" fill="none" stroke="currentColor" stroke-opacity=".5"/><text x="327" y="382" text-anchor="middle" style="font-size:11.5px">BE</text></g><text class="sub" x="225" y="418" text-anchor="middle"></text><text class="sub" x="225" y="440" text-anchor="middle">每節點混部 1 FE＋1 BE（共 3FE＋3BE）・表 3 副本</text><text class="sub" x="225" y="458" text-anchor="middle">catalogs：raw ｜ curated</text></g>
+<g><rect class="frame" x="470" y="272" width="330" height="200" rx="10"/><text x="482" y="292" style="font-weight:700">B 座</text><g><rect class="bx" x="486" y="302" width="94" height="96" rx="7"/><text x="533" y="324" text-anchor="middle" style="font-weight:700">Node 1</text><rect x="500" y="336" width="66" height="24" rx="5" fill="#35d0ba22" stroke="var(--teal)" stroke-width="1.2"/><text x="533" y="352" text-anchor="middle" style="font-size:11.5px">FE</text><rect x="500" y="366" width="66" height="24" rx="5" fill="none" stroke="currentColor" stroke-opacity=".5"/><text x="533" y="382" text-anchor="middle" style="font-size:11.5px">BE</text></g><g><rect class="bx" x="588" y="302" width="94" height="96" rx="7"/><text x="635" y="324" text-anchor="middle" style="font-weight:700">Node 2</text><rect x="602" y="336" width="66" height="24" rx="5" fill="#35d0ba22" stroke="var(--teal)" stroke-width="1.2"/><text x="635" y="352" text-anchor="middle" style="font-size:11.5px">FE</text><rect x="602" y="366" width="66" height="24" rx="5" fill="none" stroke="currentColor" stroke-opacity=".5"/><text x="635" y="382" text-anchor="middle" style="font-size:11.5px">BE</text></g><g><rect class="bx" x="690" y="302" width="94" height="96" rx="7"/><text x="737" y="324" text-anchor="middle" style="font-weight:700">Node 3</text><rect x="704" y="336" width="66" height="24" rx="5" fill="#35d0ba22" stroke="var(--teal)" stroke-width="1.2"/><text x="737" y="352" text-anchor="middle" style="font-size:11.5px">FE</text><rect x="704" y="366" width="66" height="24" rx="5" fill="none" stroke="currentColor" stroke-opacity=".5"/><text x="737" y="382" text-anchor="middle" style="font-size:11.5px">BE</text></g><text class="sub" x="635" y="418" text-anchor="middle"></text><text class="sub" x="635" y="440" text-anchor="middle">每節點混部 1 FE＋1 BE（共 3FE＋3BE）・表 3 副本</text><text class="sub" x="635" y="458" text-anchor="middle">catalogs：raw ｜ curated</text></g>
+
+<g><rect class="bx" x="355" y="516" width="150" height="48" rx="7"/><text x="430" y="536" text-anchor="middle" style="font-weight:700">Kafka</text><text class="sub" x="430" y="553" text-anchor="middle">raw 唯一事實來源</text></g>
+<line class="acc" x1="365" y1="522" x2="240" y2="472" marker-end="url(#mAy)"/><text class="lbl" x="252" y="506" text-anchor="middle">Spark Job A（獨立消費）</text>
+<line class="acc" x1="495" y1="522" x2="620" y2="472" marker-end="url(#mAy)"/><text class="lbl" x="612" y="506" text-anchor="middle">Spark Job B（獨立消費）</text>
+<text class="lblb" x="430" y="584" text-anchor="middle">curated 跨座一致＝使用者自理（§2）；raw 兩座一致＝平台雙路＋對帳</text>
+</svg></div>
+
+</section>
+
+<section class="slide" id="s8" aria-labelledby="s8t">
+  <p class="meta"><span class="num">08</span><span class="part">第二部 · 跨叢集</span></p>
+  <h2 class="h2" id="s8t">方案地圖：<strong>含 CCR ／ 不含 CCR</strong></h2>
+<div style="width:1500px;margin:16px auto 0"><svg class="dgm" role="img" aria-label="含/不含 CCR 兩家族" width="900" height="330" viewBox="0 0 900 330" style="width:100%;height:auto">
+<g><rect x="20" y="30" width="380" height="270" rx="12" fill="none" stroke="var(--red)" stroke-width="2" stroke-dasharray="8 5"/><text x="40" y="62" style="font-weight:900;font-size:20px" fill="var(--red)">含 CCR</text><text class="sub" x="40" y="82">4.1 無 syncer——要走＝自己移植＋維護</text>
+<g><rect class="bx" x="44" y="104" width="330" height="72" rx="8"/><text x="209" y="134" text-anchor="middle" style="font-weight:700">A1 全庫 CCR</text><text class="sub" x="209" y="156" text-anchor="middle">唯一能秒級複製 curated・跨 zone skew 最小</text></g>
+<g><rect class="bx" x="44" y="196" width="330" height="72" rx="8"/><text x="209" y="226" text-anchor="middle" style="font-weight:700">A2 curated 限定 CCR</text><text class="sub" x="209" y="248" text-anchor="middle">使用者行為最易踩不支援清單</text></g></g>
+<g><rect x="440" y="30" width="440" height="270" rx="12" fill="none" stroke="var(--teal)" stroke-width="2"/><text x="460" y="62" style="font-weight:900;font-size:20px" fill="var(--teal)">不含 CCR</text>
+<g><rect x="464" y="80" width="392" height="64" rx="8" fill="#35d0ba22" stroke="var(--teal)" stroke-width="2.5"/><text x="660" y="106" text-anchor="middle" style="font-weight:900">★ B1 raw 雙寫 ＋ curated 使用者自理</text><text class="sub" x="660" y="128" text-anchor="middle">平台成本最低・責任邊界乾淨・failback 最簡</text></g>
+<g><rect class="bx" x="464" y="156" width="188" height="60" rx="8"/><text x="558" y="182" text-anchor="middle">B2 平台鏡像</text><text class="sub" x="558" y="202" text-anchor="middle">困難全攬回平台</text></g>
+<g><rect class="bx" x="668" y="156" width="188" height="60" rx="8"/><text x="762" y="182" text-anchor="middle">B3 冷備</text><text class="sub" x="762" y="202" text-anchor="middle">RPO 小時級・需 HDFS</text></g>
+<g><rect class="bx" x="464" y="228" width="392" height="56" rx="8"/><text x="660" y="252" text-anchor="middle">B4 無 HA＋client library</text><text class="sub" x="660" y="272" text-anchor="middle">最簡・切換不可控</text></g></g>
+</svg></div>
+<div class="take"><b>B1</b>：平台只保 raw；curated 一致性是使用者的<b>選擇題</b>。</div>
+</section>
+
+<section class="slide" id="s9" aria-labelledby="s9t">
+  <p class="meta"><span class="num">09</span><span class="part">第二部 · 跨叢集</span></p>
+  <h2 class="h2" id="s9t">Curated 自理：<strong>責任分界</strong></h2>
+
+  <div class="cols2" style="margin-top:36px">
+    <div class="card accent"><h4 class="t">平台負責</h4><div class="kw" style="justify-content:flex-start">
+      <span class="kwb">raw 兩座一致＋對帳</span><span class="kwb">可切換的入口</span><span class="kwb">切換通知</span><span class="kwb g">（選配）鏡像工具模板</span></div></div>
+    <div class="card warn"><h4 class="w">使用者負責</h4><div class="kw" style="justify-content:flex-start">
+      <span class="kwb w">curated 跨座一致</span><span class="kwb w">自行雙寫 or 重跑 ETL</span><span class="kwb g">dbt：dbt run 即重建</span></div></div>
+  </div>
+  <div class="kw"><span class="kwb g">組織先例：Cassandra team</span><span class="kwb g">MFG（Oracle）</span><span class="kwb">client 自行對帳＝公司慣例</span></div>
+<div class="take">對齊慣例，<b>不是丟責任</b>。</div>
+</section>
+
+<section class="slide" id="s10" aria-labelledby="s10t">
+  <p class="meta"><span class="num">10</span><span class="part">第二部 · 跨叢集</span></p>
+  <h2 class="h2" id="s10t">如果平台要代管 curated——<strong>六個難</strong></h2>
+
+  <div class="cols3" style="margin-top:34px">
+    <div class="card bad"><h4 class="r">① 寫入者不可控</h4><p>只能事後搬運</p></div>
+    <div class="card bad"><h4 class="r">② loss window 壓不到零</h4><p>頻率 ↑＝主座壓力 ↑</p></div>
+    <div class="card bad"><h4 class="r">③ failback 語義複雜</h4><p>反向覆蓋・禁寫・凍結</p></div>
+    <div class="card bad"><h4 class="r">④ 認賠責任談判</h4><p>丟的是使用者的資料</p></div>
+    <div class="card bad"><h4 class="r">⑤ ETL join 兩 zone</h4><p>鏡像也對不齊時點</p></div>
+    <div class="card bad"><h4 class="r">⑥ 好走的路被堵死</h4><p>CCR：4.1 無 syncer</p></div>
+  </div>
+<div class="take warn">高成本，買到的仍是<b>非零</b>的遺失窗口。</div>
+</section>
+
+<section class="slide" id="s11" aria-labelledby="s11t">
+  <p class="meta"><span class="num">11</span><span class="part">第二部 · 跨叢集</span></p>
+  <h2 class="h2" id="s11t">Library 路（B4）：<strong>腦袋放進每個 client</strong></h2>
+<div style="width:1360px;margin:16px auto 0"><svg class="dgm" role="img" aria-label="library 路由架構：client 內嵌 library 持有兩座 FE 名單，讀平台設定決定打哪座哪個 FE，無 proxy" width="860" height="560" viewBox="0 0 860 560" style="width:100%;max-width:860px;height:auto">
+  <defs>
+  <marker id="mAw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
+  <marker id="mMw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".45"/></marker>
+  </defs>
+  <g><rect class="bx" x="270" y="14" width="320" height="80" rx="8"/><text x="430" y="38" text-anchor="middle" style="font-weight:700">User Application</text>
+  <rect x="292" y="50" width="276" height="34" rx="6" fill="#35d0ba22" stroke="var(--teal)" stroke-width="1.4"/>
+  <text x="430" y="72" text-anchor="middle" style="font-size:12px">內嵌 Client Library：持有 A、B 兩座的 FE 名單</text></g>
+  <g><rect x="650" y="24" width="192" height="56" rx="7" fill="none" stroke="currentColor" stroke-opacity=".45" stroke-dasharray="6 4"/><text x="746" y="46" text-anchor="middle" style="font-weight:700">平台發布設定（flag）</text><text class="sub" x="746" y="64" text-anchor="middle">目前主座＝A／B</text></g>
+  <line class="mut dsh" x1="650" y1="56" x2="592" y2="60" marker-end="url(#mMw)"/><text class="lbl" x="622" y="44" text-anchor="middle">定期讀取</text>
+  <line class="acc" x1="340" y1="94" x2="123" y2="292" marker-end="url(#mAw)"/>
+  <line class="acc" x1="400" y1="94" x2="225" y2="292" marker-end="url(#mAw)"/>
+  <line class="acc" x1="440" y1="94" x2="322" y2="290" marker-end="url(#mAw)"/>
+  <text class="lbl" x="196" y="200">flag=A：library 在 A 座 3 個 FE 中自選</text>
+  <line class="mut dsh" x1="500" y1="94" x2="620" y2="262" marker-end="url(#mMw)"/>
+  <text class="lbl" x="618" y="200" text-anchor="middle">flag=B（或 A 連不上）：改打 B 座 FE</text>
+  <g><rect class="frame" x="60" y="262" width="330" height="200" rx="10"/><text x="72" y="282" style="font-weight:700">A 座</text>
+    <g><rect class="bx" x="76" y="292" width="94" height="96" rx="7"/><text x="123" y="314" text-anchor="middle" style="font-weight:700">Node 1</text><rect x="90" y="326" width="66" height="24" rx="5" fill="#35d0ba22" stroke="var(--teal)" stroke-width="1.2"/><text x="123" y="342" text-anchor="middle" style="font-size:11.5px">FE</text><rect x="90" y="356" width="66" height="24" rx="5" fill="none" stroke="currentColor" stroke-opacity=".5"/><text x="123" y="372" text-anchor="middle" style="font-size:11.5px">BE</text></g>
+    <g><rect class="bx" x="178" y="292" width="94" height="96" rx="7"/><text x="225" y="314" text-anchor="middle" style="font-weight:700">Node 2</text><rect x="192" y="326" width="66" height="24" rx="5" fill="#35d0ba22" stroke="var(--teal)" stroke-width="1.2"/><text x="225" y="342" text-anchor="middle" style="font-size:11.5px">FE</text><rect x="192" y="356" width="66" height="24" rx="5" fill="none" stroke="currentColor" stroke-opacity=".5"/><text x="225" y="372" text-anchor="middle" style="font-size:11.5px">BE</text></g>
+    <g><rect class="bx" x="280" y="292" width="94" height="96" rx="7"/><text x="327" y="314" text-anchor="middle" style="font-weight:700">Node 3</text><rect x="294" y="326" width="66" height="24" rx="5" fill="#35d0ba22" stroke="var(--teal)" stroke-width="1.2"/><text x="327" y="342" text-anchor="middle" style="font-size:11.5px">FE</text><rect x="294" y="356" width="66" height="24" rx="5" fill="none" stroke="currentColor" stroke-opacity=".5"/><text x="327" y="372" text-anchor="middle" style="font-size:11.5px">BE</text></g>
+    <text class="sub" x="225" y="430" text-anchor="middle">每節點混部 1 FE＋1 BE・catalogs：raw｜curated</text></g>
+  <g><rect class="frame" x="470" y="262" width="330" height="200" rx="10"/><text x="482" y="282" style="font-weight:700">B 座</text>
+    <g><rect class="bx" x="486" y="292" width="94" height="96" rx="7"/><text x="533" y="314" text-anchor="middle" style="font-weight:700">Node 1</text><rect x="500" y="326" width="66" height="24" rx="5" fill="#35d0ba22" stroke="var(--teal)" stroke-width="1.2"/><text x="533" y="342" text-anchor="middle" style="font-size:11.5px">FE</text><rect x="500" y="356" width="66" height="24" rx="5" fill="none" stroke="currentColor" stroke-opacity=".5"/><text x="533" y="372" text-anchor="middle" style="font-size:11.5px">BE</text></g>
+    <g><rect class="bx" x="588" y="292" width="94" height="96" rx="7"/><text x="635" y="314" text-anchor="middle" style="font-weight:700">Node 2</text><rect x="602" y="326" width="66" height="24" rx="5" fill="#35d0ba22" stroke="var(--teal)" stroke-width="1.2"/><text x="635" y="342" text-anchor="middle" style="font-size:11.5px">FE</text><rect x="602" y="356" width="66" height="24" rx="5" fill="none" stroke="currentColor" stroke-opacity=".5"/><text x="635" y="372" text-anchor="middle" style="font-size:11.5px">BE</text></g>
+    <g><rect class="bx" x="690" y="292" width="94" height="96" rx="7"/><text x="737" y="314" text-anchor="middle" style="font-weight:700">Node 3</text><rect x="704" y="326" width="66" height="24" rx="5" fill="#35d0ba22" stroke="var(--teal)" stroke-width="1.2"/><text x="737" y="342" text-anchor="middle" style="font-size:11.5px">FE</text><rect x="704" y="356" width="66" height="24" rx="5" fill="none" stroke="currentColor" stroke-opacity=".5"/><text x="737" y="372" text-anchor="middle" style="font-size:11.5px">BE</text></g>
+    <text class="sub" x="635" y="430" text-anchor="middle">每節點混部 1 FE＋1 BE・catalogs：raw｜curated</text></g>
+  <g><rect class="bx" x="355" y="486" width="150" height="46" rx="7"/><text x="430" y="506" text-anchor="middle" style="font-weight:700">Kafka</text><text class="sub" x="430" y="522" text-anchor="middle">raw 唯一事實來源</text></g>
+  <line class="acc" x1="365" y1="492" x2="240" y2="462" marker-end="url(#mAw)"/><text class="lbl" x="258" y="480" text-anchor="middle">Spark Job A</text>
+  <line class="acc" x1="495" y1="492" x2="620" y2="462" marker-end="url(#mAw)"/><text class="lbl" x="606" y="480" text-anchor="middle">Spark Job B</text>
+  <text class="lblb" x="430" y="554" text-anchor="middle">⚠ 過渡窗口：各 client 讀到新 flag 的時間不一——可能有人打 A、有人打 B（curated 寫入分歧風險）</text>
+  </svg></div>
+
+</section>
+
+<section class="slide" id="s12" aria-labelledby="s12t">
+  <p class="meta"><span class="num">12</span><span class="part">第二部 · 跨叢集</span></p>
+  <h2 class="h2" id="s12t">Library 優缺點：<strong>關鍵字</strong></h2>
+
+  <div class="cols2" style="margin-top:36px">
+    <div class="card accent"><h4 class="t">優點</h4><div class="kw" style="justify-content:flex-start">
+      <span class="kwb">零基礎設施</span><span class="kwb">路由更聰明</span><span class="kwb">可灰度</span></div></div>
+    <div class="card bad"><h4 class="r">缺點</h4><div class="kw" style="justify-content:flex-start">
+      <span class="kwb r">採用不可控</span><span class="kwb r">BI/dbt 裝不了</span><span class="kwb r">過渡期 A、B 同時被寫</span><span class="kwb r">決策分裂</span></div></div>
+  </div>
+  <div class="bigword">定位：<b>VIP 為主</b>・library 選配（判斷讀平台 flag）</div>
+<div class="take">適用：HA 需求低＋client 少且可控＋切換極少。</div>
+</section>
+
+<section class="slide" id="s13" aria-labelledby="s13t">
+  <p class="meta"><span class="num">13</span><span class="part">保留可能性</span></p>
+  <h2 class="h2" id="s13t">若要自己維護 CCR：<strong>關鍵字版</strong></h2>
+
+  <div class="kw" style="margin-top:36px">
+    <span class="kwb r">4.1 無 syncer → 先自己移植</span>
+    <span class="kwb r">欠帳 repo（issue 關閉率 33%）</span>
+    <span class="kwb r">升版強耦合・不可跳過</span>
+    <span class="kwb r">Go＋Java 逆向無契約 payload</span>
+  </div>
+  <div class="cols4" style="margin-top:34px">
+    <div class="card"><h4 class="w">E0 移植 4.1</h4><p style="font-size:24px;font-weight:900">1–2 人月</p></div>
+    <div class="card"><h4 class="w">E1 接手</h4><p style="font-size:24px;font-weight:900">2–3 人月</p></div>
+    <div class="card"><h4 class="w">E2+E3 年化</h4><p style="font-size:24px;font-weight:900">0.4–0.6 FTE</p></div>
+    <div class="card"><h4 class="w">E4 常備</h4><p style="font-size:24px;font-weight:900">雙叢集測試環境</p></div>
+  </div>
+<div class="take">4.1 上<b>沒有凍結版本的中間態</b>——用 CCR＝維護 CCR。</div>
+</section>
+
+<section class="slide" id="s14" aria-labelledby="s14t">
+  <p class="meta"><span class="num">14</span><span class="part">結語</span></p>
+  <h2 class="h2 title-h2" id="s14t" style="font-size:80px">單活服務・雙路資料<br><strong>curated 交給使用者</strong></h2>
+  <div class="kw" style="justify-content:flex-start;margin-top:44px">
+    <span class="kwb">R1 翻 flag</span><span class="kwb">R2 錯已消・舊有數字</span><span class="kwb">R3 續讀追平</span><span class="kwb g">完整版：主報告＋精簡決策版</span>
+  </div>
+  <div class="take"><b>模型負責算，架構負責活。</b></div>
+</section>
+
+<!-- ============ CHROME ============ -->
+<div class="progress"><div class="progress-bar" id="progressbar"></div></div>
+<div class="counter" id="counter">01 / 14</div>
+<div class="hint">⬅️➡️ 換頁 <span class="hsep">·</span> 🗺️ O 總覽 <span class="hsep">·</span> ⛶ F 全螢幕 <span class="hsep">·</span> ❓ 說明</div>
+<div class="nav">
+  <button class="navbtn" id="prevBtn" aria-label="上一頁">‹</button>
+  <button class="navbtn" id="nextBtn" aria-label="下一頁">›</button>
+</div>
+
+<div id="overview" aria-hidden="true">
+  <h2>總覽</h2>
+  <div class="ovgrid" id="ovgrid"></div>
+</div>
+<div id="help" aria-hidden="true">
+  <div class="help-title">操作說明 ✨</div>
+  <div class="help-grid">
+    <div class="hcard"><span class="hicon">⬅️➡️</span><span class="hkey"><kbd>←</kbd> <kbd>→</kbd></span><span class="hdesc">換頁</span></div>
+    <div class="hcard"><span class="hicon">🖱️</span><span class="hkey">點左右兩側</span><span class="hdesc">換頁</span></div>
+    <div class="hcard"><span class="hicon">📱</span><span class="hkey">左右滑動</span><span class="hdesc">換頁</span></div>
+    <div class="hcard"><span class="hicon">🗺️</span><span class="hkey"><kbd>O</kbd></span><span class="hdesc">總覽</span></div>
+    <div class="hcard"><span class="hicon">⛶</span><span class="hkey"><kbd>F</kbd></span><span class="hdesc">全螢幕</span></div>
+    <div class="hcard"><span class="hicon">🏠</span><span class="hkey"><kbd>Home</kbd></span><span class="hdesc">第一頁</span></div>
+    <div class="hcard"><span class="hicon">🏁</span><span class="hkey"><kbd>End</kbd></span><span class="hdesc">最後一頁</span></div>
+    <div class="hcard"><span class="hicon">❌</span><span class="hkey"><kbd>Esc</kbd></span><span class="hdesc">關閉</span></div>
+  </div>
+</div>
+
+</div><!-- /stage -->
+</div><!-- /viewport -->
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  var current = 0;
+  var progress = document.getElementById('progressbar');
+  var counter = document.getElementById('counter');
+  var overview = document.getElementById('overview');
+  var help = document.getElementById('help');
+  var ovgrid = document.getElementById('ovgrid');
+
+  function show(n, updateHash){
+    if(n < 0) n = 0;
+    if(n > total - 1) n = total - 1;
+    current = n;
+    slides.forEach(function(s, i){ s.classList.toggle('is-active', i === n); });
+    if(progress) progress.style.width = ((n + 1) / total * 100) + '%';
+    if(counter) counter.textContent = String(n + 1).padStart(2,'0') + ' / ' + String(total).padStart(2,'0');
+    if(updateHash !== false){
+      try{ history.replaceState(null, '', '#s' + (n + 1)); }catch(e){}
+    }
+    if(overview) overview.classList.remove('open');
+    if(help) help.classList.remove('open');
+  }
+
+  function next(){ show(current + 1); }
+  function prev(){ show(current - 1); }
+
+  slides.forEach(function(s, i){
+    var t = s.querySelector('.h2');
+    var title = t ? t.textContent.trim() : ('第 ' + (i+1) + ' 頁');
+    var btn = document.createElement('button');
+    btn.className = 'ovbtn';
+    btn.innerHTML = '<div class="on">' + String(i+1).padStart(2,'0') + '</div><div class="ot">' + title + '</div>';
+    btn.addEventListener('click', function(){ show(i); });
+    ovgrid.appendChild(btn);
+  });
+
+  slides.forEach(function(s, i){
+    var numEl = s.querySelector('.num');
+    var num = numEl ? numEl.textContent.trim() : String(i + 1).padStart(2, '0');
+    var g = document.createElement('span');
+    g.className = 'gnum';
+    g.textContent = num;
+    s.insertBefore(g, s.firstChild);
+  });
+
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && ((overview && overview.classList.contains('open')) || (help && help.classList.contains('open')))){
+      show(current, false); return;
+    }
+    switch(e.key){
+      case 'ArrowRight': case 'ArrowDown': case 'PageDown': case ' ': next(); e.preventDefault(); break;
+      case 'ArrowLeft': case 'ArrowUp': case 'PageUp': prev(); e.preventDefault(); break;
+      case 'Home': show(0); e.preventDefault(); break;
+      case 'End': show(total - 1); e.preventDefault(); break;
+      case 'o': case 'O': overview.classList.toggle('open'); e.preventDefault(); break;
+      case 'f': case 'F': {
+        var de = document.documentElement;
+        var req = de.requestFullscreen || de.webkitRequestFullscreen;
+        var exit = document.exitFullscreen || document.webkitExitFullscreen;
+        var isFs = document.fullscreenElement || document.webkitFullscreenElement;
+        if(req){
+          if(isFs){ if(exit){ exit.call(document); } }
+          else { var pr = req.call(de); if(pr && pr.catch){ pr.catch(function(){}); } }
+        }
+        e.preventDefault(); break;
+      }
+      case '?': help.classList.toggle('open'); e.preventDefault(); break;
+    }
+  });
+
+  document.querySelector('.stage').addEventListener('click', function(e){
+    if(overview && overview.classList.contains('open')) return;
+    var x = e.clientX / window.innerWidth;
+    if(x < 0.28){ prev(); }
+    else if(x > 0.72){ next(); }
+  });
+
+  var tx = null;
+  document.addEventListener('touchstart', function(e){ tx = e.changedTouches[0].clientX; }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    if(tx === null) return;
+    var dx = e.changedTouches[0].clientX - tx;
+    if(Math.abs(dx) > 60){ dx < 0 ? next() : prev(); }
+    tx = null;
+  }, {passive:true});
+
+  var nb = document.getElementById('nextBtn');
+  var pb = document.getElementById('prevBtn');
+  if(nb) nb.addEventListener('click', function(e){ e.stopPropagation(); next(); });
+  if(pb) pb.addEventListener('click', function(e){ e.stopPropagation(); prev(); });
+
+  window.addEventListener('hashchange', function(){
+    var m = location.hash.match(/^#s(\d+)$/);
+    if(m){ show(parseInt(m[1],10) - 1, false); }
+  });
+  var m0 = location.hash.match(/^#s(\d+)$/);
+  show(m0 ? parseInt(m0[1],10) - 1 : 0, false);
+})();
+</script>
+</body>
+</html>
