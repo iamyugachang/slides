@@ -446,12 +446,12 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
   <p class="meta"><span class="num">06</span><span class="part">第一部 · 方案目錄</span></p>
   <p class="divider-kicker">Part Ⅰ · Solution Catalog</p>
   <h2 class="h2 divider-title" id="s6t">第一部：<strong>方案目錄</strong></h2>
-  <p class="divider-sub">窮舉：同步層 9 方案＋Curated 6 策略＋Query 層 7 選項——<b>中性列優缺點、不做取捨</b>。取捨在第二部，且每個去留都寫理由。</p>
+  <p class="divider-sub"><b>一個完整方案＝三層組合</b>：①同步層（raw 怎麼到兩座）＋②Curated 層（app 直寫怎麼到兩座）＋③Query 路由層（client 怎麼切）。三層各自選、最後組裝——目錄分三節但<b>都是方案的一部分</b>。本部中性列優缺點、不做取捨。</p>
 </section>
 
 <section class="slide" id="s7" aria-labelledby="s7t">
   <p class="meta"><span class="num">07</span><span class="part">第一部 · 方案目錄</span></p>
-  <h2 class="h2" id="s7t">同步層目錄（1/2）：<strong>S-1 ～ S-5</strong></h2>
+  <h2 class="h2" id="s7t">目錄・第①層 同步（1/2）：<strong>S-1 ～ S-5</strong></h2>
 
   <div class="ctbl">
     <div class="crow head"><div>方案 · 機制</div><div>優點</div><div>缺點與限制</div></div>
@@ -466,7 +466,7 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 
 <section class="slide" id="s8" aria-labelledby="s8t">
   <p class="meta"><span class="num">08</span><span class="part">第一部 · 方案目錄</span></p>
-  <h2 class="h2" id="s8t">同步層目錄（2/2）：<strong>S-6 ～ S-9</strong></h2>
+  <h2 class="h2" id="s8t">目錄・第①層 同步（2/2）＋<strong>第②層 Curated</strong></h2>
 
   <div class="ctbl">
     <div class="crow head"><div>方案 · 機制</div><div>優點</div><div>缺點與限制</div></div>
@@ -476,7 +476,7 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
     <div class="crow"><div><span class="cid">S-9</span>自研 CDC 橋（Flink 讀 A 寫 B）</div><div class="p">不依賴 syncer、可挑表</div><div class="c">＝自寫小 CCR：成本同 fork、無現成碼無先例</div></div>
   </div>
   <div class="ctbl" style="margin-top:14px">
-    <div class="crow head"><div>Curated 策略（app 直寫的一手資料）</div><div>優點</div><div>缺點與限制</div></div>
+    <div class="crow head"><div>第②層 Curated 策略（與同步層組合；S-1 原生涵蓋、雙路類必須搭配）</div><div>優點</div><div>缺點與限制</div></div>
     <div class="crow"><div><span class="cid">CU-2</span>常駐排程鏡像（主→備）</div><div class="p">使用者零侵入；loss window 可設計＋可監控</div><div class="c">RPO＝鏡像週期；要處理使用者 DDL</div></div>
     <div class="crow"><div><span class="cid">CU-6</span>App 寫入改道 Kafka</div><div class="p">curated 與 raw 同構、RPO≈0</div><div class="c">使用者不可控→採用時程無法保證</div></div>
     <div class="crow"><div><span class="cid">其他</span>CU-1 雙跑重算／CU-3 限定 CCR／CU-4 災後重算／CU-5 app 雙寫</div><div class="p">—</div><div class="c">分別受限：只保 ETL／4.1 不可行／app 資料無從重算／問題轉嫁每個 app</div></div>
@@ -486,7 +486,7 @@ html.js .slide > :not(.gnum){position:relative;z-index:1}
 
 <section class="slide" id="s9" aria-labelledby="s9t">
   <p class="meta"><span class="num">09</span><span class="part">第一部 · 方案目錄</span></p>
-  <h2 class="h2" id="s9t">Query 層 7 選項＋<strong>控制面：URL vs Library</strong></h2>
+  <h2 class="h2" id="s9t">目錄・第③層 Query 路由：<strong>7 選項＋控制面（URL vs Library）</strong></h2>
 
   <div class="ctbl">
     <div class="crow head"><div>選項</div><div>優點</div><div>缺點</div></div>
