@@ -445,8 +445,26 @@ html.js .slide.is-active > :nth-child(6){animation-delay:.41s}
 <div class="take">②③ <b>不可控</b>——平台只握有「連線端點」與「選配 library」。</div>
 </section>
 <section class="slide" id="s3" aria-labelledby="s3t">
-  <p class="meta"><span class="num">03</span><span class="part">HA 需求</span></p>
-  <h2 class="h2" id="s3t">要保住的三件事：<strong>R1・R2・R3</strong></h2>
+  <p class="meta"><span class="num">03</span><span class="part">前提</span></p>
+  <h2 class="h2" id="s3t">先講清楚：<strong>限制與現況</strong></h2>
+  <div class="cols2" style="margin-top:32px">
+    <div class="card bad"><h4 class="r">限制</h4><ul>
+      <li><b>CCR 在 Doris 4.1 沒有可用的 syncer</b>（官方文件也已下架）——沒有現成的官方跨叢集複製</li>
+      <li>內部物件儲存不可靠——<b>存算分離／冷備（需 S3/HDFS）受限</b></li>
+      <li>Spark connector <b>不保證 exactly-once</b>——冪等要靠 Unique Key MoW 表模型</li>
+      <li><b>使用者程式不可控</b>——平台只握有連線端點與選配 library</li>
+    </ul></div>
+    <div class="card"><h4 class="d">現況</h4><ul>
+      <li>公司內其他 team 的慣例：<b>Cassandra team、MFG（Oracle）都是 client 自己管 data consistency</b>——平台不代管跨系統一致性</li>
+      <li>raw 寫入 100% 經 Kafka——具備「源頭重放」的先天條件</li>
+      <li>4.x 新表預設 Merge-on-Write——冪等門檻已降低（存量表待盤點）</li>
+    </ul></div>
+  </div>
+  <div class="take">HA 設計要在這些<b>邊界內</b>做——後面每個方案的取捨都源自這一頁。</div>
+</section>
+<section class="slide" id="s4" aria-labelledby="s4t">
+  <p class="meta"><span class="num">04</span><span class="part">HA 需求</span></p>
+  <h2 class="h2" id="s4t">要保住的三件事：<strong>R1・R2・R3</strong></h2>
 
   <div class="cols3" style="margin-top:40px">
     <div class="card accent"><h4 class="t">R1 快速 failover</h4><p style="font-size:26px;font-weight:900">N 分鐘內<br>人工切換 OK</p></div>
@@ -455,9 +473,9 @@ html.js .slide.is-active > :nth-child(6){animation-delay:.41s}
   </div>
 <div class="take">邊界：不防程式 bug（重放救）、不管 Kafka 自身（前提依賴）。</div>
 </section>
-<section class="slide" id="s4" aria-labelledby="s4t">
-  <p class="meta"><span class="num">04</span><span class="part">第一部 · 同叢集</span></p>
-  <h2 class="h2" id="s4t">同叢集 HA：<strong>誰來挑活著的 FE？</strong></h2>
+<section class="slide" id="s5" aria-labelledby="s5t">
+  <p class="meta"><span class="num">05</span><span class="part">第一部 · 同叢集</span></p>
+  <h2 class="h2" id="s5t">同叢集 HA：<strong>誰來挑活著的 FE？</strong></h2>
 
   <div class="kw" style="margin-top:36px">
     <span class="kwb g">節點級：FE quorum（3 FE 容 1）＋ BE 3 副本——Doris 自理</span>
@@ -470,9 +488,9 @@ html.js .slide.is-active > :nth-child(6){animation-delay:.41s}
   </div>
 <div class="take">FE 掛的那一刻：②③幾秒剔除無感；①④要有請求先倒楣。</div>
 </section>
-<section class="slide" id="s5" aria-labelledby="s5t">
-  <p class="meta"><span class="num">05</span><span class="part">第一部 · 同叢集</span></p>
-  <h2 class="h2" id="s5t">HAProxy 內部：<strong>怎麼主動切換</strong></h2>
+<section class="slide" id="s6" aria-labelledby="s6t">
+  <p class="meta"><span class="num">06</span><span class="part">第一部 · 同叢集</span></p>
+  <h2 class="h2" id="s6t">HAProxy 內部：<strong>怎麼主動切換</strong></h2>
 <div style="display:flex;justify-content:center;margin:10px auto 0"><svg class="dgm" role="img" aria-label="一台 proxy 兩組名單" width="820" height="300" viewBox="0 0 820 300" style="height:560px;width:auto;max-width:1750px">
 <defs><marker id="cA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker></defs>
 <g><rect class="frame" x="250" y="20" width="320" height="120" rx="10"/><text x="410" y="46" text-anchor="middle" style="font-weight:900">HAProxy（一台）</text>
@@ -490,77 +508,6 @@ html.js .slide.is-active > :nth-child(6){animation-delay:.41s}
     <span class="kwb w">整座切換＝翻 flag 換名單（一個動作）</span>
   </div>
   <div class="take">可<b>單台起步</b>：proxy 掛＝入口斷、資料無損；之後加第二台＋keepalived，設定原樣搬。</div>
-</section>
-<section class="slide no-gnum" id="s6" aria-labelledby="s6t">
-  <p class="meta"><span class="num">06</span><span class="part">第二部 · 跨叢集</span></p>
-  <h2 class="h2" id="s6t">方案總覽：<strong>同一張圖，六條路線</strong>（點選切換）</h2>
-  <div class="xtabs" style="align-items:center">
-    <span style="font-family:'IBM Plex Mono',monospace;font-size:15px;color:var(--red);font-weight:600;letter-spacing:.08em">含 CCR ▸</span>
-    <button class="xtab act xtab-ccr" data-opt="a1">A1 全庫 CCR</button>
-    <button class="xtab xtab-ccr" data-opt="a2">A2 curated CCR</button>
-    <span style="font-family:'IBM Plex Mono',monospace;font-size:15px;color:var(--teal);font-weight:600;letter-spacing:.08em;margin-left:18px">不含 CCR ▸</span>
-    <button class="xtab" data-opt="b1">B1 雙寫＋自理</button>
-    <button class="xtab" data-opt="b2">B2 雙寫＋平台鏡像</button>
-    <button class="xtab" data-opt="b3">B3 冷備</button>
-    <button class="xtab" data-opt="b4">B4 Library</button>
-  </div>
-  <div class="xwrap">
-    <svg id="xplor" class="dgm xsvg" role="img" aria-label="六方案共用底圖，依選擇亮起路線" width="980" height="620" viewBox="0 0 980 620" style="height:720px;width:auto;max-width:1180px">
-<defs>
-<marker id="xA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
-<marker id="xR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--red)"/></marker>
-<marker id="xM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" fill-opacity=".55"/></marker>
-</defs>
-<g class="el st"><rect x="20" y="275" width="112" height="52" rx="8" fill="var(--panel)" stroke="currentColor" stroke-opacity=".55"/><text x="76.0" y="299.0" text-anchor="middle" style="font-weight:700">Kafka</text><text class="sub" x="76.0" y="317.0" text-anchor="middle">事實來源</text></g>
-<g class="el st"><rect x="300" y="60" width="300" height="160" rx="10" fill="none" stroke="currentColor" stroke-opacity=".6"/><text x="312" y="84" style="font-weight:900">A 座</text><rect x="316" y="100" width="120" height="96" rx="8" fill="var(--panel)" stroke="currentColor" stroke-opacity=".5"/><text x="376" y="152" text-anchor="middle">raw</text><rect x="452" y="100" width="132" height="96" rx="8" fill="var(--panel)" stroke="currentColor" stroke-opacity=".5"/><text x="518" y="152" text-anchor="middle">curated</text></g>
-<g class="el st"><rect x="300" y="390" width="300" height="160" rx="10" fill="none" stroke="currentColor" stroke-opacity=".6"/><text x="312" y="414" style="font-weight:900">B 座</text><rect x="316" y="430" width="120" height="96" rx="8" fill="var(--panel)" stroke="currentColor" stroke-opacity=".5"/><text x="376" y="482" text-anchor="middle">raw</text><rect x="452" y="430" width="132" height="96" rx="8" fill="var(--panel)" stroke="currentColor" stroke-opacity=".5"/><text x="518" y="482" text-anchor="middle">curated</text></g>
-<g class="el st"><rect x="760" y="30" width="200" height="56" rx="8" fill="var(--panel)" stroke="currentColor" stroke-opacity=".55"/><text x="860.0" y="56.0" text-anchor="middle" style="font-weight:700">User Apps</text><text class="sub" x="860.0" y="74.0" text-anchor="middle">JDBC / dbt</text></g>
-<g class="el o-a1 o-a2 o-b1 o-b2 o-b3"><rect x="160" y="140" width="96" height="40" rx="8" fill="var(--panel)" stroke="currentColor" stroke-opacity=".55"/><text x="208.0" y="165.0" text-anchor="middle" style="font-weight:700">Spark Job A</text></g>
-<g class="el o-a1 o-a2 o-b1 o-b2 o-b3"><line x1="132" y1="290" x2="166" y2="180" stroke="var(--teal)" stroke-width="2.5" marker-end="url(#xA)"/><line x1="256" y1="160" x2="316" y2="132" stroke="var(--teal)" stroke-width="2.5" marker-end="url(#xA)"/></g>
-<g class="el o-a2 o-b1 o-b2 o-b4"><rect x="160" y="430" width="96" height="40" rx="8" fill="var(--panel)" stroke="currentColor" stroke-opacity=".55"/><text x="208.0" y="455.0" text-anchor="middle" style="font-weight:700">Spark Job B</text></g>
-<g class="el o-a2 o-b1 o-b2 o-b4"><line x1="132" y1="312" x2="166" y2="450" stroke="var(--teal)" stroke-width="2.5" marker-end="url(#xA)"/><line x1="256" y1="450" x2="316" y2="462" stroke="var(--teal)" stroke-width="2.5" marker-end="url(#xA)"/></g>
-<g class="el o-b4"><line x1="132" y1="290" x2="166" y2="180" stroke="var(--teal)" stroke-width="2.5" marker-end="url(#xA)"/><rect x="160" y="140" width="96" height="40" rx="8" fill="var(--panel)" stroke="currentColor" stroke-opacity=".55"/><text x="208.0" y="165.0" text-anchor="middle" style="font-weight:700">Spark Job A</text></g>
-<g class="el o-a1 o-a2 o-b1 o-b2 o-b3"><rect x="760" y="140" width="200" height="62" rx="8" fill="var(--panel)" stroke="currentColor" stroke-opacity=".55"/><text x="860.0" y="169.0" text-anchor="middle" style="font-weight:700">路由層 Proxy</text><text class="sub" x="860.0" y="187.0" text-anchor="middle">HAProxy・依 flag 轉發</text></g>
-<g class="el o-a1 o-a2 o-b1 o-b2 o-b3"><line x1="860" y1="86" x2="860" y2="140" stroke="currentColor" stroke-width="2.5" marker-end="url(#xM)"/></g>
-<g class="el o-a1 o-a2 o-b1 o-b2 o-b3"><line x1="760" y1="168" x2="600" y2="120" stroke="var(--teal)" stroke-width="2.5" marker-end="url(#xA)"/><text x="132" y="136.0" text-anchor="middle" style="font-size:13px" fill="var(--teal)">668</text><line x1="760" y1="192" x2="600" y2="440" stroke="currentColor" stroke-width="2.5" stroke-dasharray="7 5" marker-end="url(#xM)"/><text x="330" y="308.0" text-anchor="middle" style="font-size:13px" fill="currentColor">700</text></g>
-<g class="el o-b4"><rect x="760" y="140" width="200" height="62" rx="8" fill="var(--panel)" stroke="currentColor" stroke-opacity=".55" stroke-dasharray="6 4"/><text x="860.0" y="169.0" text-anchor="middle" style="font-weight:700">Client Library</text><text class="sub" x="860.0" y="187.0" text-anchor="middle">內嵌於 Apps・讀 flag</text></g>
-<g class="el o-b4"><line x1="860" y1="86" x2="860" y2="140" stroke="currentColor" stroke-width="2.5" marker-end="url(#xM)"/><line x1="760" y1="168" x2="600" y2="120" stroke="var(--teal)" stroke-width="2.5" marker-end="url(#xA)"/><text x="132" y="136.0" text-anchor="middle" style="font-size:13px" fill="var(--teal)">676</text><line x1="760" y1="192" x2="600" y2="440" stroke="currentColor" stroke-width="2.5" stroke-dasharray="7 5" marker-end="url(#xM)"/></g>
-<g class="el o-a1"><line x1="450" y1="220" x2="450" y2="390" stroke="var(--red)" stroke-width="2.5" marker-end="url(#xR)"/><text x="318" y="297.0" text-anchor="middle" style="font-size:13px" fill="var(--red)">450</text></g>
-<g class="el o-a1"><text x="640" y="470" style="font-weight:700" fill="var(--red)">B 唯讀（is_being_synced）</text></g>
-<g class="el o-a2"><line x1="518" y1="220" x2="518" y2="390" stroke="var(--red)" stroke-width="2.5" marker-end="url(#xR)"/><text x="318" y="297.0" text-anchor="middle" style="font-size:13px" fill="var(--red)">518</text></g>
-<g class="el o-b2"><line x1="518" y1="220" x2="518" y2="390" stroke="var(--teal)" stroke-width="2.5" stroke-dasharray="7 5" marker-end="url(#xA)"/><text x="318" y="297.0" text-anchor="middle" style="font-size:13px" fill="var(--teal)">518</text></g>
-<g class="el o-b1"><line x1="518" y1="220" x2="518" y2="390" stroke="var(--amber)" stroke-width="2.5" stroke-dasharray="4 6" marker-end="url(#xM)"/><text x="518" y="312" text-anchor="middle" style="font-size:13px;font-weight:700" fill="var(--amber)">使用者自理（自行雙寫／重跑 ETL）</text></g>
-<g class="el o-b4"><line x1="518" y1="220" x2="518" y2="390" stroke="var(--amber)" stroke-width="2.5" stroke-dasharray="4 6" marker-end="url(#xM)"/><text x="518" y="312" text-anchor="middle" style="font-size:13px;font-weight:700" fill="var(--amber)">使用者自理</text></g>
-<g class="el o-b3"><rect x="700" y="300" width="240" height="60" rx="8" fill="var(--panel)" stroke="currentColor" stroke-opacity=".55"/><text x="820.0" y="328.0" text-anchor="middle" style="font-weight:700">Repository</text><text class="sub" x="820.0" y="346.0" text-anchor="middle">S3 相容 / HDFS（C-2 需先建）</text></g>
-<g class="el o-b3"><line x1="600" y1="180" x2="704" y2="314" stroke="var(--teal)" stroke-width="2.5" stroke-dasharray="7 5" marker-end="url(#xA)"/><text x="236" y="239.0" text-anchor="middle" style="font-size:13px" fill="var(--teal)">668</text><line x1="704" y1="344" x2="600" y2="450" stroke="currentColor" stroke-width="2.5" stroke-dasharray="7 5" marker-end="url(#xM)"/><text x="412" y="389.0" text-anchor="middle" style="font-size:13px" fill="currentColor">676</text></g>
-<g class="el o-b3"><text x="640" y="470" style="font-weight:700" fill="var(--amber)">B 平時空轉</text></g>
-</svg>
-    <div style="width:480px"><div class="opanel" data-opt="a1">
-  <div class="card" style="margin:0 0 14px"><h4 class="t" style="display:flex;align-items:center;gap:12px">A1 全庫 CCR<span class="chip r">排除</span></h4></div>
-  <div class="card accent" style="margin:0 0 14px"><h4 class="t">優點</h4><ul><li>寫入方無感・DDL 自動同步</li><li><b>唯一能秒級複製 curated</b>・跨 zone skew 最小</li></ul></div>
-  <div class="card bad" style="margin:0"><h4 class="r">缺點</h4><ul><li><b>4.1 無 syncer</b>——要走＝自己移植＋維護</li><li>RPO 非零・FE 切主觸發 full sync</li><li>無反向同步——failback 全量重建</li><li>B 座唯讀</li></ul></div>
-</div><div class="opanel" data-opt="a2">
-  <div class="card" style="margin:0 0 14px"><h4 class="t" style="display:flex;align-items:center;gap:12px">A2 curated 限定 CCR<span class="chip r">排除</span></h4></div>
-  <div class="card accent" style="margin:0 0 14px"><h4 class="t">優點</h4><ul><li>CCR 成本只花在 curated</li><li>使用者 DDL 自動跟隨</li></ul></div>
-  <div class="card bad" style="margin:0"><h4 class="r">缺點</h4><ul><li>維護前提同 A1（自己移植＋養）</li><li>使用者自由操作<b>最易踩不支援清單</b>而中斷同步</li></ul></div>
-</div><div class="opanel" data-opt="b1">
-  <div class="card" style="margin:0 0 14px"><h4 class="t" style="display:flex;align-items:center;gap:12px">B1 raw 雙寫＋curated 使用者自理<span class="chip t">入圍</span></h4></div>
-  <div class="card accent" style="margin:0 0 14px"><h4 class="t">優點</h4><ul><li>平台成本最低・責任邊界乾淨</li><li>raw RPO≈0・failover 零 ingestion 動作</li><li><b>failback 最簡</b>（無反向鏡像/禁寫）</li><li>組織先例：Cassandra／MFG(Oracle)・dbt 重跑即重建</li></ul></div>
-  <div class="card bad" style="margin:0"><h4 class="r">缺點</h4><ul><li>curated 跨座一致<b>無平台保證</b></li><li>需要政策公告與使用者溝通</li><li>非 dbt、不可重算的表風險自負</li></ul></div>
-</div><div class="opanel" data-opt="b2">
-  <div class="card" style="margin:0 0 14px"><h4 class="t" style="display:flex;align-items:center;gap:12px">B2 raw 雙寫＋curated 平台鏡像<span class="chip w">條件</span></h4></div>
-  <div class="card accent" style="margin:0 0 14px"><h4 class="t">優點</h4><ul><li>對使用者零侵入</li><li>curated 有平台承諾的 RPO（鏡像週期）</li></ul></div>
-  <div class="card bad" style="margin:0"><h4 class="r">缺點</h4><ul><li>六難全攬回平台：loss window 壓不到零</li><li>failback 反向覆蓋・禁寫・凍結全套 runbook</li><li>認賠責任談判・表發現與對帳日常維運</li></ul></div>
-</div><div class="opanel" data-opt="b3">
-  <div class="card" style="margin:0 0 14px"><h4 class="t" style="display:flex;align-items:center;gap:12px">B3 冷備（Backup/Restore）<span class="chip w">兜底</span></h4></div>
-  <div class="card accent" style="margin:0 0 14px"><h4 class="t">優點</h4><ul><li>機制最簡</li><li>時間點快照——<b>唯一防邏輯錯誤</b>的方案</li></ul></div>
-  <div class="card bad" style="margin:0"><h4 class="r">缺點</h4><ul><li>RPO 小時～天・RTO＝restore 小時級</li><li>C-2：要先建 HDFS</li></ul></div>
-</div><div class="opanel" data-opt="b4">
-  <div class="card" style="margin:0 0 14px"><h4 class="t" style="display:flex;align-items:center;gap:12px">B4 無 HA＋Client Library<span class="chip g">低需求</span></h4></div>
-  <div class="card accent" style="margin:0 0 14px"><h4 class="t">優點</h4><ul><li>零基礎設施・平常零維運</li><li>路由可更聰明・可灰度</li></ul></div>
-  <div class="card bad" style="margin:0"><h4 class="r">缺點</h4><ul><li>採用不可控・BI/dbt 裝不了</li><li><b>過渡期 A、B 同時被寫</b>——curated 分歧</li><li>決策分裂 or flag 服務又要 HA</li></ul></div>
-</div></div>
-  </div>
 </section>
 <section class="slide" id="s7" aria-labelledby="s7t">
   <p class="meta"><span class="num">07</span><span class="part">第二部 · 跨叢集</span></p>
@@ -663,7 +610,7 @@ html.js .slide.is-active > :nth-child(6){animation-delay:.41s}
 
   <div class="cols2" style="margin-top:36px">
     <div class="card accent"><h4 class="t">優點</h4><div class="kw" style="justify-content:flex-start">
-      <span class="kwb">零基礎設施</span><span class="kwb">路由更聰明</span><span class="kwb">可灰度</span></div></div>
+      <span class="kwb">零基礎設施</span><span class="kwb">路由更聰明</span><span class="kwb">可逐批切換（先讓少數 client 試切）</span></div></div>
     <div class="card bad"><h4 class="r">缺點</h4><div class="kw" style="justify-content:flex-start">
       <span class="kwb r">採用不可控</span><span class="kwb r">BI/dbt 裝不了</span><span class="kwb r">過渡期 A、B 同時被寫</span><span class="kwb r">決策分裂</span></div></div>
   </div>
@@ -685,6 +632,14 @@ html.js .slide.is-active > :nth-child(6){animation-delay:.41s}
     <div class="card"><h4 class="w">E1 接手</h4><p style="font-size:24px;font-weight:900">2–3 人月</p></div>
     <div class="card"><h4 class="w">E2+E3 年化</h4><p style="font-size:24px;font-weight:900">0.4–0.6 FTE</p></div>
     <div class="card"><h4 class="w">E4 常備</h4><p style="font-size:24px;font-weight:900">雙叢集測試環境</p></div>
+  </div>
+
+  <div class="note" style="margin-top:22px;font-size:22px"><b>「改一件事」實際要動多少？</b>（上游真實 merged PR 的檔案足跡）</div>
+  <div class="cols4" style="margin-top:14px">
+    <div class="card"><h4 class="d">支援一種新 DDL</h4><p style="font-size:22px;font-weight:900">14 檔・+213 行</p><p class="ct">PR #581・含 6 個雙叢集回歸測試</p></div>
+    <div class="card"><h4 class="d">改同步邏輯</h4><p style="font-size:22px;font-weight:900">6 檔・+274 行</p><p class="ct">PR #565・要推演斷點×重啟</p></div>
+    <div class="card"><h4 class="d">加一個功能</h4><p style="font-size:22px;font-weight:900">11 檔・+876 行</p><p class="ct">PR #649・測試碼≈功能碼</p></div>
+    <div class="card"><h4 class="d">跟一次 Doris 升級</h4><p style="font-size:22px;font-weight:900">regenerate 56 萬行</p><p class="ct">＋盤 28 個 JSON 結構＋全量回歸</p></div>
   </div>
 <div class="take">4.1 上<b>沒有凍結版本的中間態</b>——用 CCR＝維護 CCR。</div>
 </section>
