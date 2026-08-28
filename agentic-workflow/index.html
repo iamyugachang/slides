@@ -530,6 +530,32 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
  .spec-node{position:static;transform:none;width:100%}
 }
 
+/* ---- P22 doc-align three-layer decision ---- */
+.lay-stack{display:flex;flex-direction:column;gap:14px;margin-top:24px}
+.lay-row{display:grid;grid-template-columns:240px 1fr 200px;gap:20px;align-items:center;background:var(--panel);border:1px solid var(--line);border-left:6px solid;border-radius:10px;padding:18px 26px;min-height:118px;box-shadow:0 10px 28px #00000030}
+.lay-row.wf{border-left-color:#7f9ec9}
+.lay-row.ag{border-left-color:#ff7a3c}
+.lay-row.hi{border-left-color:#f4b23d}
+.lay-name{font-size:25px;font-weight:900;color:#eef4ff;line-height:1.3}
+.lay-sub{font:700 13px 'IBM Plex Mono',monospace;color:#8fb0dd;margin-top:7px;letter-spacing:.06em;line-height:1.5}
+.lay-row.ag .lay-sub{color:#ff9a66}
+.lay-row.hi .lay-sub{color:#f4b23d}
+.lay-desc{font-size:18px;line-height:1.58;color:#c2d2e6}
+.lay-desc b{color:#eef4ff}
+.lay-owner{text-align:center;background:#102f59;border:1px solid #ffffff2b;border-radius:9px;padding:12px 10px}
+.lay-row.ag .lay-owner{background:#3b2b25;border-color:#ff7a3c66}
+.lay-row.hi .lay-owner{background:#3b2b1f;border-color:#f4b23d66}
+.lay-owner .ok{font:800 11.5px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#8fb0dd}
+.lay-owner .ov{font-size:23px;font-weight:900;color:#eef4ff;margin:5px 0}
+.lay-row.ag .lay-owner .ov{color:#ffcab3}
+.lay-row.hi .lay-owner .ov{color:#ffe1a8}
+
+@media (max-width:900px) and (orientation:portrait){
+ .lay-row{grid-template-columns:1fr;gap:10px;min-height:0}
+ .lay-owner{max-width:220px}
+ .lay-desc{overflow-wrap:anywhere}
+}
+
 /* ---- chrome ---- */
 .nav{position:absolute;right:44px;bottom:32px;display:flex;gap:10px;z-index:5}
 .navbtn{
@@ -539,7 +565,7 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 }
 .navbtn:hover{background:#123b6e;transform:translateY(-2px)}
 .progress{position:absolute;left:0;bottom:0;height:4px;background:#ffffff0d;z-index:6;width:100%}
-.progress-bar{height:100%;width:4.76%;background:linear-gradient(90deg,var(--orange),#f4b23d);transition:width 300ms ease}
+.progress-bar{height:100%;width:4.55%;background:linear-gradient(90deg,var(--orange),#f4b23d);transition:width 300ms ease}
 .counter{
   position:absolute;right:106px;bottom:44px;font-size:16px;color:var(--faint);
   font-weight:600;letter-spacing:.14em;z-index:5;font-family:"IBM Plex Mono",monospace;
@@ -1147,43 +1173,216 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 <section class="slide" id="s13" aria-labelledby="s13t">
   <p class="meta"><span class="num">13</span><span class="part">CASE 1 · ALERT 自動修復架構</span></p>
   <h2 class="h2" id="s13t">Alert 自動修復：<strong>診斷交給多 Agent，批准與寫入由人把關</strong></h2>
-  <div class="arch-zone"><div class="arch-zone-label">1 · 事件來源</div><div class="fan-grid"><div class="fan-node">Airflow alert</div><div class="fan-node">Spark failure</div><div class="fan-node">Trino slow query</div><div class="fan-node">HMS／MinIO／OPA</div></div></div>
-  <div class="wide-flow" style="margin-top:10px"><div class="wf hot">Harness<br><small>建立 incident state、派工、限制工具</small></div><div class="wa">→</div><div class="wf">Supervisor<br><small>拆診斷任務、派給多個 Agent</small></div><div class="wa">→</div><div class="wf">Root Cause<br><small>合併證據與衝突結論，產出修復建議</small></div></div>
-  <div class="arch-zone" style="margin-top:10px"><div class="arch-zone-label">2 · 診斷 Agent 的迴圈（只讀、工具白名單）</div>
-    <div class="looprow" style="margin-top:4px">
-      <div class="loopnode llm"><div class="lt">選工具</div><div class="ls">依線索選：Log/Metrics · Query plan · Schema/Lineage · Recent changes</div></div>
-      <div class="arrow" style="font-size:26px">→</div>
-      <div class="loopnode tool"><div class="lt">執行查詢</div><div class="ls">只讀 API；寫入權限被 Harness 封鎖</div></div>
-      <div class="arrow" style="font-size:26px">→</div>
-      <div class="loopnode llm"><div class="lt">觀察＋假設</div><div class="ls">看結果形成假設：繼續查？還是收斂？</div></div>
-    </div>
-    <div class="loopback">↺ 直到能收斂出 root cause；超時或證據不足 → 升級給人</div>
+  <div class="case-svg">
+    <svg viewBox="0 0 1750 560" role="img" aria-label="Alert 自動修復架構：事件來源進入 Harness 診斷機，收斂後經人工批准進入修復鏈" style="width:100%;height:auto;display:block">
+      <defs>
+        <marker id="c13o" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#ff7a3c"/></marker>
+        <marker id="c13d" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#9db8dd"/></marker>
+        <marker id="c13t" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#8fd0b5"/></marker>
+      </defs>
+      <!-- 1 · 事件來源（左軌） -->
+      <text x="40" y="36" font-size="15" font-weight="700" fill="#9db8dd" font-family="'IBM Plex Mono',monospace" letter-spacing=".12em">1 · 事件來源</text>
+      <rect x="40" y="52" width="250" height="64" rx="8" fill="#0d2548cc" stroke="#ffffff55" stroke-width="1.5"/>
+      <text x="165" y="81" text-anchor="middle" font-size="18" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">Airflow alert</text>
+      <text x="165" y="103" text-anchor="middle" font-size="12.5" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">排程失敗</text>
+      <rect x="40" y="136" width="250" height="64" rx="8" fill="#0d2548cc" stroke="#ffffff55" stroke-width="1.5"/>
+      <text x="165" y="165" text-anchor="middle" font-size="18" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">Spark failure</text>
+      <text x="165" y="187" text-anchor="middle" font-size="12.5" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">運算失敗</text>
+      <rect x="40" y="220" width="250" height="64" rx="8" fill="#0d2548cc" stroke="#ffffff55" stroke-width="1.5"/>
+      <text x="165" y="249" text-anchor="middle" font-size="18" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">Trino slow query</text>
+      <text x="165" y="271" text-anchor="middle" font-size="12.5" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">查詢變慢</text>
+      <rect x="40" y="304" width="250" height="64" rx="8" fill="#0d2548cc" stroke="#ffffff55" stroke-width="1.5"/>
+      <text x="165" y="333" text-anchor="middle" font-size="18" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">HMS / MinIO / OPA</text>
+      <text x="165" y="355" text-anchor="middle" font-size="12.5" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">治理異常</text>
+      <line x1="290" y1="84" x2="690" y2="118" stroke="#9db8dd" stroke-width="3" marker-end="url(#c13d)"/>
+      <line x1="290" y1="168" x2="690" y2="186" stroke="#9db8dd" stroke-width="3" marker-end="url(#c13d)"/>
+      <line x1="290" y1="252" x2="690" y2="248" stroke="#9db8dd" stroke-width="3" marker-end="url(#c13d)"/>
+      <line x1="290" y1="336" x2="690" y2="308" stroke="#9db8dd" stroke-width="3" marker-end="url(#c13d)"/>
+      <!-- 診斷機（Harness 框） -->
+      <rect x="688" y="40" width="1022" height="360" rx="14" fill="none" stroke="#ff7a3c77" stroke-width="2" stroke-dasharray="10 7"/>
+      <rect x="688" y="22" width="352" height="32" rx="6" fill="#3b2b25" stroke="#ff7a3c" stroke-width="1.5"/>
+      <text x="864" y="43" text-anchor="middle" font-size="14" font-weight="800" fill="#ffb27a" font-family="'IBM Plex Mono',monospace" letter-spacing=".1em">HARNESS · 診斷區（只讀）</text>
+      <!-- supervisor -->
+      <rect x="890" y="86" width="250" height="62" rx="9" fill="#102f59" stroke="#ffffff55" stroke-width="1.5"/>
+      <text x="1015" y="113" text-anchor="middle" font-size="19" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">Supervisor 派工</text>
+      <text x="1015" y="137" text-anchor="middle" font-size="13" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">拆診斷任務</text>
+      <line x1="1015" y1="148" x2="890" y2="192" stroke="#ff7a3c" stroke-width="3" marker-end="url(#c13o)"/>
+      <line x1="1015" y1="148" x2="1015" y2="192" stroke="#ff7a3c" stroke-width="3" marker-end="url(#c13o)"/>
+      <line x1="1015" y1="148" x2="1140" y2="192" stroke="#ff7a3c" stroke-width="3" marker-end="url(#c13o)"/>
+      <circle r="6" fill="#ff7a3c"><animateMotion dur="2.2s" repeatCount="indefinite" path="M1015,148 L890,192"/></circle>
+      <circle r="6" fill="#ff7a3c"><animateMotion dur="2.2s" begin=".7s" repeatCount="indefinite" path="M1015,148 L1015,192"/></circle>
+      <circle r="6" fill="#ff7a3c"><animateMotion dur="2.2s" begin="1.4s" repeatCount="indefinite" path="M1015,148 L1140,192"/></circle>
+      <!-- 三個診斷 Agent（各自帶迴圈） -->
+      <rect x="770" y="196" width="240" height="94" rx="9" fill="#0d2548cc" stroke="#ffffff40" stroke-width="1.5"/>
+      <circle cx="805" cy="243" r="13" fill="none" stroke="#ff7a3c" stroke-width="2"/>
+      <circle r="3.5" fill="#ff7a3c"><animateMotion dur="2.4s" repeatCount="indefinite" path="M805,230 a13,13 0 1,1 -0.02,0"/></circle>
+      <text x="905" y="238" text-anchor="middle" font-size="18" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">診斷 Agent A</text>
+      <text x="905" y="262" text-anchor="middle" font-size="13" fill="#9db8dd" font-family="'IBM Plex Mono',monospace">Log · Metrics</text>
+      <rect x="1045" y="196" width="240" height="94" rx="9" fill="#0d2548cc" stroke="#ffffff40" stroke-width="1.5"/>
+      <circle cx="1080" cy="243" r="13" fill="none" stroke="#ff7a3c" stroke-width="2"/>
+      <circle r="3.5" fill="#ff7a3c"><animateMotion dur="2.4s" begin=".8s" repeatCount="indefinite" path="M1080,230 a13,13 0 1,1 -0.02,0"/></circle>
+      <text x="1180" y="238" text-anchor="middle" font-size="18" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">診斷 Agent B</text>
+      <text x="1180" y="262" text-anchor="middle" font-size="13" fill="#9db8dd" font-family="'IBM Plex Mono',monospace">Query plan</text>
+      <rect x="1320" y="196" width="240" height="94" rx="9" fill="#0d2548cc" stroke="#ffffff40" stroke-width="1.5"/>
+      <circle cx="1355" cy="243" r="13" fill="none" stroke="#ff7a3c" stroke-width="2"/>
+      <circle r="3.5" fill="#ff7a3c"><animateMotion dur="2.4s" begin="1.6s" repeatCount="indefinite" path="M1355,230 a13,13 0 1,1 -0.02,0"/></circle>
+      <text x="1455" y="238" text-anchor="middle" font-size="18" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">診斷 Agent C</text>
+      <text x="1455" y="262" text-anchor="middle" font-size="13" fill="#9db8dd" font-family="'IBM Plex Mono',monospace">Schema · Lineage</text>
+      <line x1="890" y1="290" x2="1020" y2="326" stroke="#ff7a3c" stroke-width="3" marker-end="url(#c13o)"/>
+      <line x1="1165" y1="290" x2="1080" y2="326" stroke="#ff7a3c" stroke-width="3" marker-end="url(#c13o)"/>
+      <line x1="1440" y1="290" x2="1150" y2="326" stroke="#ff7a3c" stroke-width="3" marker-end="url(#c13o)"/>
+      <circle r="5" fill="#ff7a3c"><animateMotion dur="2s" repeatCount="indefinite" path="M890,290 L1020,326"/></circle>
+      <circle r="5" fill="#ff7a3c"><animateMotion dur="2s" begin=".6s" repeatCount="indefinite" path="M1165,290 L1080,326"/></circle>
+      <circle r="5" fill="#ff7a3c"><animateMotion dur="2s" begin="1.2s" repeatCount="indefinite" path="M1440,290 L1150,326"/></circle>
+      <!-- root cause 收斂 -->
+      <rect x="915" y="322" width="330" height="58" rx="9" fill="#12315f" stroke="#ff7a3c88" stroke-width="2"/>
+      <text x="1080" y="348" text-anchor="middle" font-size="18" font-weight="900" fill="#ffcab3" font-family="'Noto Sans TC',sans-serif">Root Cause 收斂</text>
+      <text x="1080" y="370" text-anchor="middle" font-size="12.5" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">合併證據 · 產出修復建議</text>
+      <!-- 修復鏈 -->
+      <rect x="40" y="432" width="1670" height="118" rx="12" fill="#30262288" stroke="#ff7a3c55" stroke-width="1.5"/>
+      <text x="60" y="458" font-size="14" font-weight="700" fill="#ffb27a" font-family="'IBM Plex Mono',monospace" letter-spacing=".12em">2 · 修復區（寫入 · 唯一入口）</text>
+      <rect x="60" y="472" width="330" height="66" rx="9" fill="#3b2b25" stroke="#ff7a3c" stroke-width="2.5" class="st st1"/>
+      <rect x="74" y="492" width="9" height="26" rx="2" fill="#ff7a3c"/>
+      <rect x="90" y="492" width="9" height="26" rx="2" fill="#ff7a3c"/>
+      <text x="118" y="510" font-size="18" font-weight="900" fill="#ffcab3" font-family="'Noto Sans TC',sans-serif">人工確認</text>
+      <text x="118" y="530" font-size="12.5" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">root cause ＋ 風險 ＋ 動作</text>
+      <line x1="394" y1="505" x2="456" y2="505" stroke="#ff7a3c" stroke-width="3.5" marker-end="url(#c13o)"/>
+      <rect x="460" y="472" width="380" height="66" rx="9" fill="#0d2548cc" stroke="#ffffff45" stroke-width="1.5"/>
+      <text x="650" y="510" text-anchor="middle" font-size="18" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">Remediation Executor</text>
+      <text x="650" y="530" text-anchor="middle" font-size="12.5" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">最小權限 · 帶操作編號</text>
+      <line x1="844" y1="505" x2="906" y2="505" stroke="#ff7a3c" stroke-width="3.5" marker-end="url(#c13o)"/>
+      <rect x="910" y="472" width="380" height="66" rx="9" fill="#0d2548cc" stroke="#ffffff45" stroke-width="1.5"/>
+      <text x="1100" y="510" text-anchor="middle" font-size="18" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">Independent Verify</text>
+      <text x="1100" y="530" text-anchor="middle" font-size="12.5" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">不信任自述 · 重新查 API</text>
+      <line x1="1294" y1="505" x2="1356" y2="505" stroke="#ff7a3c" stroke-width="3.5" marker-end="url(#c13o)"/>
+      <rect x="1360" y="472" width="300" height="66" rx="9" fill="#0d2548cc" stroke="#8fd0b588" stroke-width="1.5"/>
+      <text x="1510" y="510" text-anchor="middle" font-size="18" font-weight="900" fill="#8fd0b5" font-family="'Noto Sans TC',sans-serif">Issue 關閉</text>
+      <text x="1510" y="530" text-anchor="middle" font-size="12.5" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">原因 · 動作 · 驗證寫回</text>
+      <circle r="6" fill="#ff7a3c"><animateMotion dur="2s" repeatCount="indefinite" path="M394,505 L456,505"/></circle>
+      <circle r="6" fill="#ff7a3c"><animateMotion dur="2s" begin=".5s" repeatCount="indefinite" path="M844,505 L906,505"/></circle>
+      <circle r="6" fill="#ff7a3c"><animateMotion dur="2s" begin="1s" repeatCount="indefinite" path="M1294,505 L1356,505"/></circle>
+    </svg>
   </div>
-  <div class="wide-flow" style="margin-top:10px"><div class="wf hot">人工確認<br><small>顯示 root cause、修復動作、風險與影響範圍</small></div><div class="wa">→</div><div class="wf">Remediation Executor<br><small>唯一寫入入口：最小權限、帶操作編號執行</small></div><div class="wa">→</div><div class="wf">Independent Verify<br><small>不信任 agent 自述，重新查 API／狀態／測試</small></div><div class="wa">→</div><div class="wf">Issue<br><small>原因、動作、驗證結果寫回，Alert 關閉</small></div></div>
-  <div class="pband cur" style="margin-top:14px"><span class="pbl">誰決定下一步</span>診斷路徑＝<b>模型選</b>（受限工具）｜批准＝<b>人</b>｜修復、驗證與關閉＝<b>Harness 強制</b></div>
+  <div class="pband cur" style="margin-top:12px"><span class="pbl">誰決定下一步</span>診斷路徑＝<b>模型選</b>（受限工具）｜批准＝<b>人</b>｜修復、驗證與關閉＝<b>Harness 強制</b></div>
   <div class="take"><b>Agent 負責「找答案」，人負責「下指令」，Harness 負責「保證只做該做的事」。</b></div>
 </section>
 
 <section class="slide" id="s14" aria-labelledby="s14t">
   <p class="meta"><span class="num">14</span><span class="part">CASE 2 · LAKEHOUSE 自助助理架構</span></p>
   <h2 class="h2" id="s14t">Lakehouse Agent 只碰 Console API；<strong>讀直放、寫要人批准</strong></h2>
-  <div class="wide-flow" style="margin-top:18px"><div class="wf">使用者<br><small>JWT 登入憑證＋Workspace</small></div><div class="wa">→</div><div class="wf hot">Lakehouse Agent<br><small>理解需求；只知道 Console API 工具，沒有各系統鑰匙</small></div><div class="wa">→</div><div class="wf hot">Console API<br><small>登入驗證／OPA 權限規則／參數驗證／稽核</small></div></div>
-  <div class="arch-zone"><div class="arch-zone-label">Console API 之後分兩條路</div>
-    <div class="branch-flow"><div class="branch-side"><div class="branch-card"><h4>READ · Agent 直接做</h4><p>選工具：Catalog／Schema／Lineage／Query／Explain／Run Status → 結果回傳使用者</p></div><div class="branch-card write"><h4>WRITE · 每步有人把關</h4><p>產 YAML → 驗證 → diff → 人批准 → Submit → 回讀 run status</p></div></div><div class="branch-arrow">→</div><div class="branch-side"><div class="branch-card"><h4>讀取服務</h4><p>Trino／Catalog／Lineage／Monitoring（唯讀 API）</p></div><div class="branch-card"><h4>寫入流程</h4><p>Airflow Dynamic DAG → Spark → HMS／MinIO<br>OPA 持續限制 Workspace 存取</p></div></div></div>
+  <div class="case-svg">
+    <svg viewBox="0 0 1750 560" role="img" aria-label="Lakehouse 自助助理架構：使用者經 Agent 到 Console API，讀取直放、寫入需人批准" style="width:100%;height:auto;display:block">
+      <defs>
+        <marker id="c14o" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#ff7a3c"/></marker>
+        <marker id="c14t" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#8fd0b5"/></marker>
+        <marker id="c14d" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#9db8dd"/></marker>
+      </defs>
+      <!-- 使用者 -->
+      <circle cx="140" cy="95" r="36" fill="#12315f" stroke="#9db8dd" stroke-width="2.5"/>
+      <text x="140" y="106" text-anchor="middle" font-size="28" font-family="'Noto Sans TC',sans-serif">👤</text>
+      <text x="140" y="158" text-anchor="middle" font-size="15" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">使用者</text>
+      <text x="140" y="180" text-anchor="middle" font-size="12" fill="#9db8dd" font-family="'IBM Plex Mono',monospace">JWT＋Workspace</text>
+      <!-- Lakehouse Agent -->
+      <rect x="330" y="55" width="310" height="80" rx="10" fill="#0d2548cc" stroke="#ffffff55" stroke-width="1.5"/>
+      <text x="352" y="102" font-size="24" font-family="'Noto Sans TC',sans-serif">🤖</text>
+      <text x="392" y="92" font-size="18" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">Lakehouse Agent</text>
+      <text x="392" y="118" font-size="12.5" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">只知道 Console API 工具</text>
+      <!-- Console API -->
+      <rect x="760" y="40" width="330" height="110" rx="10" fill="#3b2b25" stroke="#ff7a3c" stroke-width="2"/>
+      <path d="M 785 62 l 14 -7 l 14 7 v 24 c 0 13 -9 21 -14 25 c -5 -4 -14 -12 -14 -25 z" fill="none" stroke="#ff7a3c" stroke-width="2"/>
+      <text x="825" y="92" font-size="19" font-weight="900" fill="#ffcab3" font-family="'Noto Sans TC',sans-serif">Console API</text>
+      <text x="825" y="118" font-size="12.5" fill="#ffb27a" font-family="'Noto Sans TC',sans-serif">登入 · OPA · 參數驗證 · 稽核</text>
+      <line x1="180" y1="95" x2="322" y2="95" stroke="#ff7a3c" stroke-width="4" marker-end="url(#c14o)"/>
+      <line x1="644" y1="95" x2="752" y2="95" stroke="#ff7a3c" stroke-width="4" marker-end="url(#c14o)"/>
+      <circle r="6" fill="#ff7a3c"><animateMotion dur="1.8s" repeatCount="indefinite" path="M180,95 L322,95"/></circle>
+      <circle r="6" fill="#ff7a3c"><animateMotion dur="1.8s" begin=".9s" repeatCount="indefinite" path="M644,95 L752,95"/></circle>
+      <!-- Console 分流 -->
+      <line x1="830" y1="150" x2="400" y2="202" stroke="#8fd0b5" stroke-width="3.5" marker-end="url(#c14t)"/>
+      <line x1="1100" y1="150" x2="1290" y2="202" stroke="#ff7a3c" stroke-width="3.5" marker-end="url(#c14o)"/>
+      <circle r="5" fill="#8fd0b5"><animateMotion dur="1.8s" repeatCount="indefinite" path="M830,150 L400,202"/></circle>
+      <circle r="5" fill="#ff7a3c"><animateMotion dur="1.8s" begin=".9s" repeatCount="indefinite" path="M1100,150 L1290,202"/></circle>
+      <!-- READ lane -->
+      <rect x="40" y="206" width="810" height="270" rx="12" fill="#0d2548cc" stroke="#8fd0b566" stroke-width="1.5"/>
+      <text x="60" y="234" font-size="14" font-weight="700" fill="#8fd0b5" font-family="'IBM Plex Mono',monospace" letter-spacing=".12em">READ · 直接執行（唯讀）</text>
+      <text x="60" y="262" font-size="15" fill="#b8cbe5" font-family="'Noto Sans TC',sans-serif">Agent 選工具查詢，結果直接回傳使用者</text>
+      <rect x="60" y="290" width="118" height="56" rx="7" fill="#102f59" stroke="#ffffff25" stroke-width="1"/>
+      <text x="119" y="315" text-anchor="middle" font-size="13.5" font-weight="700" fill="#d6e1ef" font-family="'IBM Plex Mono',monospace">Catalog</text>
+      <text x="119" y="336" text-anchor="middle" font-size="11" fill="#6f8db5" font-family="'Noto Sans TC',sans-serif">資料目錄</text>
+      <rect x="192" y="290" width="118" height="56" rx="7" fill="#102f59" stroke="#ffffff25" stroke-width="1"/>
+      <text x="251" y="315" text-anchor="middle" font-size="13.5" font-weight="700" fill="#d6e1ef" font-family="'IBM Plex Mono',monospace">Schema</text>
+      <text x="251" y="336" text-anchor="middle" font-size="11" fill="#6f8db5" font-family="'Noto Sans TC',sans-serif">欄位結構</text>
+      <rect x="324" y="290" width="118" height="56" rx="7" fill="#102f59" stroke="#ffffff25" stroke-width="1"/>
+      <text x="383" y="315" text-anchor="middle" font-size="13.5" font-weight="700" fill="#d6e1ef" font-family="'IBM Plex Mono',monospace">Lineage</text>
+      <text x="383" y="336" text-anchor="middle" font-size="11" fill="#6f8db5" font-family="'Noto Sans TC',sans-serif">血緣</text>
+      <rect x="456" y="290" width="118" height="56" rx="7" fill="#102f59" stroke="#ffffff25" stroke-width="1"/>
+      <text x="515" y="315" text-anchor="middle" font-size="13.5" font-weight="700" fill="#d6e1ef" font-family="'IBM Plex Mono',monospace">Query</text>
+      <text x="515" y="336" text-anchor="middle" font-size="11" fill="#6f8db5" font-family="'Noto Sans TC',sans-serif">查詢</text>
+      <rect x="588" y="290" width="118" height="56" rx="7" fill="#102f59" stroke="#ffffff25" stroke-width="1"/>
+      <text x="647" y="315" text-anchor="middle" font-size="13.5" font-weight="700" fill="#d6e1ef" font-family="'IBM Plex Mono',monospace">Explain</text>
+      <text x="647" y="336" text-anchor="middle" font-size="11" fill="#6f8db5" font-family="'Noto Sans TC',sans-serif">執行計畫</text>
+      <rect x="720" y="290" width="118" height="56" rx="7" fill="#102f59" stroke="#ffffff25" stroke-width="1"/>
+      <text x="779" y="315" text-anchor="middle" font-size="13.5" font-weight="700" fill="#d6e1ef" font-family="'IBM Plex Mono',monospace">Run Status</text>
+      <text x="779" y="336" text-anchor="middle" font-size="11" fill="#6f8db5" font-family="'Noto Sans TC',sans-serif">執行狀態</text>
+      <line x1="430" y1="212" x2="168" y2="152" stroke="#8fd0b5" stroke-width="3" stroke-dasharray="7 6" marker-end="url(#c14t)"/>
+      <text x="262" y="170" font-size="12" font-weight="700" fill="#8fd0b5" font-family="'IBM Plex Mono',monospace">RESULT</text>
+      <text x="60" y="446" font-size="13.5" fill="#8fd0b5" font-family="'Noto Sans TC',sans-serif">✓ 唯讀放行 · 不需人介入</text>
+      <!-- WRITE lane -->
+      <rect x="900" y="206" width="810" height="270" rx="12" fill="#302622aa" stroke="#ff7a3c66" stroke-width="1.5"/>
+      <text x="920" y="234" font-size="14" font-weight="700" fill="#ffb27a" font-family="'IBM Plex Mono',monospace" letter-spacing=".12em">WRITE · 每步有人把關</text>
+      <rect x="920" y="262" width="138" height="104" rx="8" fill="#102f59" stroke="#ffffff25" stroke-width="1"/>
+      <text x="989" y="305" text-anchor="middle" font-size="17" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">產 YAML</text>
+      <text x="989" y="330" text-anchor="middle" font-size="11.5" font-weight="700" fill="#8fd0b5" font-family="'IBM Plex Mono',monospace">AGENT</text>
+      <rect x="1082" y="262" width="138" height="104" rx="8" fill="#102f59" stroke="#ffffff25" stroke-width="1"/>
+      <text x="1151" y="305" text-anchor="middle" font-size="17" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">JAR 驗證</text>
+      <text x="1151" y="330" text-anchor="middle" font-size="11.5" font-weight="700" fill="#8fd0b5" font-family="'IBM Plex Mono',monospace">VERIFIER</text>
+      <rect x="1244" y="262" width="138" height="104" rx="8" fill="#3b2b25" stroke="#ff7a3c" stroke-width="2.5" class="st st1"/>
+      <rect x="1258" y="290" width="8" height="24" rx="2" fill="#ff7a3c"/>
+      <rect x="1272" y="290" width="8" height="24" rx="2" fill="#ff7a3c"/>
+      <text x="1296" y="305" text-anchor="middle" font-size="17" font-weight="900" fill="#ffcab3" font-family="'Noto Sans TC',sans-serif">diff＋批准</text>
+      <text x="1296" y="330" text-anchor="middle" font-size="11.5" font-weight="700" fill="#ffb27a" font-family="'IBM Plex Mono',monospace">INTERRUPT</text>
+      <rect x="1406" y="262" width="138" height="104" rx="8" fill="#102f59" stroke="#ffffff25" stroke-width="1"/>
+      <text x="1475" y="305" text-anchor="middle" font-size="17" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">Submit</text>
+      <text x="1475" y="330" text-anchor="middle" font-size="11.5" font-weight="700" fill="#8fd0b5" font-family="'IBM Plex Mono',monospace">AIRFLOW</text>
+      <rect x="1568" y="262" width="138" height="104" rx="8" fill="#102f59" stroke="#ffffff25" stroke-width="1"/>
+      <text x="1637" y="305" text-anchor="middle" font-size="17" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">回讀狀態</text>
+      <text x="1637" y="330" text-anchor="middle" font-size="11.5" font-weight="700" fill="#8fd0b5" font-family="'IBM Plex Mono',monospace">VERIFY</text>
+      <line x1="1060" y1="314" x2="1078" y2="314" stroke="#ff7a3c" stroke-width="3" marker-end="url(#c14o)"/>
+      <line x1="1222" y1="314" x2="1240" y2="314" stroke="#ff7a3c" stroke-width="3" marker-end="url(#c14o)"/>
+      <line x1="1384" y1="314" x2="1402" y2="314" stroke="#ff7a3c" stroke-width="3" marker-end="url(#c14o)"/>
+      <line x1="1546" y1="314" x2="1564" y2="314" stroke="#ff7a3c" stroke-width="3" marker-end="url(#c14o)"/>
+      <circle r="5" fill="#ff7a3c"><animateMotion dur="1.6s" repeatCount="indefinite" path="M1060,314 L1078,314"/></circle>
+      <circle r="5" fill="#ff7a3c"><animateMotion dur="1.6s" begin=".4s" repeatCount="indefinite" path="M1222,314 L1240,314"/></circle>
+      <circle r="5" fill="#ff7a3c"><animateMotion dur="1.6s" begin=".8s" repeatCount="indefinite" path="M1384,314 L1402,314"/></circle>
+      <circle r="5" fill="#ff7a3c"><animateMotion dur="1.6s" begin="1.2s" repeatCount="indefinite" path="M1546,314 L1564,314"/></circle>
+      <!-- 寫入後端 -->
+      <rect x="920" y="404" width="210" height="48" rx="7" fill="#102f59" stroke="#ffffff25" stroke-width="1"/>
+      <text x="1025" y="433" text-anchor="middle" font-size="14.5" font-weight="800" fill="#d6e1ef" font-family="'Noto Sans TC',sans-serif">Airflow DAG</text>
+      <line x1="1132" y1="428" x2="1154" y2="428" stroke="#ff7a3c" stroke-width="3" marker-end="url(#c14o)"/>
+      <rect x="1158" y="404" width="210" height="48" rx="7" fill="#102f59" stroke="#ffffff25" stroke-width="1"/>
+      <text x="1263" y="433" text-anchor="middle" font-size="14.5" font-weight="800" fill="#d6e1ef" font-family="'Noto Sans TC',sans-serif">Spark</text>
+      <line x1="1370" y1="428" x2="1392" y2="428" stroke="#ff7a3c" stroke-width="3" marker-end="url(#c14o)"/>
+      <rect x="1396" y="404" width="290" height="48" rx="7" fill="#102f59" stroke="#ffffff25" stroke-width="1"/>
+      <text x="1541" y="433" text-anchor="middle" font-size="14.5" font-weight="800" fill="#d6e1ef" font-family="'Noto Sans TC',sans-serif">HMS / MinIO（OPA 限制）</text>
+      <circle r="5" fill="#ff7a3c"><animateMotion dur="1.6s" repeatCount="indefinite" path="M1132,428 L1154,428"/></circle>
+      <circle r="5" fill="#ff7a3c"><animateMotion dur="1.6s" begin=".8s" repeatCount="indefinite" path="M1370,428 L1392,428"/></circle>
+      <text x="920" y="470" font-size="13.5" fill="#ffb27a" font-family="'Noto Sans TC',sans-serif">✕ 每步有驗證 · 寫入前必經人批准</text>
+      <!-- 底部可觀測性 -->
+      <rect x="40" y="504" width="520" height="56" rx="8" fill="#0d2548cc" stroke="#ffffff30" stroke-width="1.5"/>
+      <text x="62" y="531" font-size="15" font-weight="900" fill="#eef4ff" font-family="'IBM Plex Mono',monospace">STATE</text>
+      <text x="62" y="550" font-size="12" fill="#9db8dd" font-family="'IBM Plex Mono',monospace">workspace · intent · yaml · approval · run_id</text>
+      <line x1="562" y1="532" x2="611" y2="532" stroke="#9db8dd" stroke-width="3" marker-end="url(#c14d)"/>
+      <rect x="615" y="504" width="520" height="56" rx="8" fill="#0d2548cc" stroke="#ffffff30" stroke-width="1.5"/>
+      <text x="637" y="531" font-size="15" font-weight="900" fill="#eef4ff" font-family="'IBM Plex Mono',monospace">TRACE</text>
+      <text x="637" y="550" font-size="12" fill="#9db8dd" font-family="'IBM Plex Mono',monospace">工具 · 權限 · diff · 批准者 · 結果</text>
+      <line x1="1137" y1="532" x2="1186" y2="532" stroke="#9db8dd" stroke-width="3" marker-end="url(#c14d)"/>
+      <rect x="1190" y="504" width="520" height="56" rx="8" fill="#0d2548cc" stroke="#8fd0b588" stroke-width="1.5"/>
+      <text x="1212" y="531" font-size="15" font-weight="900" fill="#8fd0b5" font-family="'IBM Plex Mono',monospace">VERIFY</text>
+      <text x="1212" y="550" font-size="12" fill="#9db8dd" font-family="'IBM Plex Mono',monospace">回讀 run status · Catalog 狀態</text>
+      <circle r="5" fill="#9db8dd"><animateMotion dur="1.8s" repeatCount="indefinite" path="M562,532 L611,532"/></circle>
+      <circle r="5" fill="#9db8dd"><animateMotion dur="1.8s" begin=".9s" repeatCount="indefinite" path="M1137,532 L1186,532"/></circle>
+    </svg>
   </div>
-  <div class="case-flow detail" style="margin-top:10px">
-    <div class="case-step">產 YAML<small>AGENT</small></div>
-    <div class="case-arrow">→</div>
-    <div class="case-step">JAR 驗證<small>VERIFIER</small></div>
-    <div class="case-arrow">→</div>
-    <div class="case-step case-gate">diff ＋ 人批准<small>INTERRUPT</small></div>
-    <div class="case-arrow">→</div>
-    <div class="case-step">Submit<small>AIRFLOW</small></div>
-    <div class="case-arrow">→</div>
-    <div class="case-step">回讀 run status<small>VERIFY</small></div>
-  </div>
-  <div class="wide-flow" style="margin-top:10px"><div class="wf">State<br><small>workspace／intent／yaml／approval／run_id</small></div><div class="wa">→</div><div class="wf">Trace<br><small>工具、權限判斷、diff、批准者、結果</small></div><div class="wa">→</div><div class="wf">Verify<br><small>讀回 run status 與 Catalog 狀態</small></div></div>
-  <div class="pband cur" style="margin-top:14px"><span class="pbl">誰決定下一步</span>工具選擇＝<b>Agent</b>（白名單內）｜語法與權限＝<b>Console 驗證器</b>｜寫入＝<b>人批准</b></div>
+  <div class="pband cur" style="margin-top:12px"><span class="pbl">誰決定下一步</span>工具選擇＝<b>Agent</b>（白名單內）｜語法與權限＝<b>Console 驗證器</b>｜寫入＝<b>人批准</b></div>
   <div class="take"><b>Agent 沒有各系統鑰匙；Console 統一做授權、驗證、轉送與稽核。</b></div>
 </section>
 
@@ -1203,7 +1402,7 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 </section>
 
 <section class="slide" id="s16" aria-labelledby="s16t">
-  <p class="meta"><span class="num">16</span><span class="part">附錄 01/06 · 框架怎麼選</span></p>
+  <p class="meta"><span class="num">16</span><span class="part">附錄 01/07 · 框架怎麼選</span></p>
   <h2 class="h2" id="s15t">四個框架不是能力排名；<strong>它們提供不同的流程寫法</strong></h2>
   <div class="fw-grid">
     <div class="fw-card"><div class="fw-icon">NODE → EDGE</div><h3>LangGraph</h3><div class="when">流程用圖表示；需要保存進度、暫停等人審、從原處繼續。</div><div class="gives">適合：多步驟、條件分支、人工確認</div></div>
@@ -1215,7 +1414,7 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 </section>
 
 <section class="slide" id="s17" aria-labelledby="s17t">
-  <p class="meta"><span class="num">17</span><span class="part">附錄 02/06 · LANGGRAPH 流程圖</span></p>
+  <p class="meta"><span class="num">17</span><span class="part">附錄 02/07 · LANGGRAPH 流程圖</span></p>
   <h2 class="h2" id="s16t">LangGraph：<strong>把流程與人審點畫成圖</strong></h2>
   <div class="dg" style="margin-top:28px;gap:18px">
     <div style="flex:1;display:flex;flex-direction:column;gap:14px">
@@ -1251,7 +1450,7 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 </section>
 
 <section class="slide" id="s18" aria-labelledby="s18t">
-  <p class="meta"><span class="num">18</span><span class="part">附錄 03/06 · LANGGRAPH 程式碼</span></p>
+  <p class="meta"><span class="num">18</span><span class="part">附錄 03/07 · LANGGRAPH 程式碼</span></p>
   <h2 class="h2" id="s17t">LangGraph：<strong>兩個案例都把人審寫成節點</strong></h2>
   <div class="dg" style="margin-top:14px;gap:18px;align-items:stretch">
     <div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0">
@@ -1308,7 +1507,7 @@ g.add_edge(<span class="st">"approve"</span>, <span class="st">"submit"</span>)<
 </section>
 
 <section class="slide" id="s19" aria-labelledby="s19t">
-  <p class="meta"><span class="num">19</span><span class="part">附錄 04/06 · PYDANTIC AI</span></p>
+  <p class="meta"><span class="num">19</span><span class="part">附錄 04/07 · PYDANTIC AI</span></p>
   <h2 class="h2" id="s18t">Pydantic AI：<strong>用型別檢查 Agent 輸出</strong></h2>
   <div class="dg" style="margin-top:14px;gap:22px">
     <div style="flex:1;display:flex;flex-direction:column;gap:8px">
@@ -1345,7 +1544,7 @@ result = agent.run_sync(<span class="st">"Trino 節點 alert"</span>)
 </section>
 
 <section class="slide" id="s20" aria-labelledby="s20t">
-  <p class="meta"><span class="num">20</span><span class="part">附錄 05/06 · CREWAI</span></p>
+  <p class="meta"><span class="num">20</span><span class="part">附錄 05/07 · CREWAI</span></p>
   <h2 class="h2" id="s19t">CrewAI：<strong>用角色分配任務</strong></h2>
   <div class="dg" style="margin-top:14px;gap:22px">
     <div style="flex:1;display:flex;flex-direction:column;gap:8px">
@@ -1385,7 +1584,7 @@ result = crew.kickoff()</pre>
 </section>
 
 <section class="slide" id="s21" aria-labelledby="s21t">
-  <p class="meta"><span class="num">21</span><span class="part">附錄 06/06 · N8N ＋ 對照總表</span></p>
+  <p class="meta"><span class="num">21</span><span class="part">附錄 06/07 · N8N ＋ 對照總表</span></p>
   <h2 class="h2" id="s20t">n8n：<strong>用畫布排固定流程</strong></h2>
   <div class="dg" style="margin-top:12px;gap:18px">
     <div style="flex:1;display:flex;flex-direction:column;gap:8px">
@@ -1427,9 +1626,104 @@ result = crew.kickoff()</pre>
   <div class="take" style="margin-top:16px"><b>固定流程優先看 n8n；需要模型選下一步，再使用 Agent 框架。</b></div>
 </section>
 
+<!-- ============ 22 APPENDIX DOC-ALIGN ============ -->
+<!-- ============ 22 APPENDIX DOC-ALIGN ============ -->
+<section class="slide" id="s22" aria-labelledby="s22t">
+  <p class="meta"><span class="num">22</span><span class="part">附錄 07/07 · DOC-ALIGN · 真實案例</span></p>
+  <h2 class="h2" id="s22t">Doc-Align：<strong>同一個流程，三層決策三個 owner</strong></h2>
+  <p class="sub">讓 repo 文件（Mermaid 圖＋結構化敘事）與程式碼保持對齊的工具：<b>只報告差異，由人裁決「文件過時還是程式碼有問題」</b>。</p>
+  <div class="case-svg">
+    <svg viewBox="0 0 1750 560" role="img" aria-label="Doc-Align 架構：總流程層由 playbook 決定，驗證路徑層由受限模型決定，終審由人裁決" style="width:100%;height:auto;display:block">
+      <defs>
+        <marker id="c22o" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#ff7a3c"/></marker>
+        <marker id="c22d" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#9db8dd"/></marker>
+        <marker id="c22t" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#8fd0b5"/></marker>
+      </defs>
+      <!-- 左軌：執行者可換 -->
+      <text x="40" y="158" font-size="14" font-weight="700" fill="#9db8dd" font-family="'IBM Plex Mono',monospace" letter-spacing=".1em">執行者可換</text>
+      <rect x="40" y="176" width="290" height="62" rx="8" fill="#0d2548cc" stroke="#ffffff45" stroke-width="1.5"/>
+      <text x="60" y="203" font-size="16" font-weight="900" fill="#eef4ff" font-family="'IBM Plex Mono',monospace">SKILL</text>
+      <text x="60" y="226" font-size="12" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">harness LLM 當執行者</text>
+      <rect x="40" y="252" width="290" height="62" rx="8" fill="#0d2548cc" stroke="#ffffff45" stroke-width="1.5"/>
+      <text x="60" y="279" font-size="16" font-weight="900" fill="#eef4ff" font-family="'IBM Plex Mono',monospace">CLI</text>
+      <text x="60" y="302" font-size="12" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">內建 agent loop</text>
+      <rect x="40" y="328" width="290" height="62" rx="8" fill="#0d2548cc" stroke="#ffffff45" stroke-width="1.5"/>
+      <text x="60" y="355" font-size="16" font-weight="900" fill="#eef4ff" font-family="'IBM Plex Mono',monospace">MR CHECK</text>
+      <text x="60" y="378" font-size="12" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">單次呼叫閘門</text>
+      <rect x="40" y="404" width="290" height="62" rx="8" fill="#0d2548cc" stroke="#ffffff45" stroke-width="1.5"/>
+      <text x="60" y="431" font-size="16" font-weight="900" fill="#eef4ff" font-family="'IBM Plex Mono',monospace">NIGHTLY</text>
+      <text x="60" y="454" font-size="12" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">headless 監測公示</text>
+      <text x="40" y="492" font-size="12.5" fill="#8fd0b5" font-family="'Noto Sans TC',sans-serif">同一套 playbook，誰跑都行</text>
+      <line x1="330" y1="360" x2="374" y2="372" stroke="#8fd0b5" stroke-width="3" marker-end="url(#c22t)"/>
+      <circle r="4.5" fill="#8fd0b5"><animateMotion dur="2s" repeatCount="indefinite" path="M330,360 L374,372"/></circle>
+      <!-- 來源 -->
+      <rect x="470" y="44" width="300" height="84" rx="10" fill="#0d2548cc" stroke="#ffffff55" stroke-width="1.5"/>
+      <text x="498" y="92" font-size="22" font-weight="900" fill="#8fd0ff" font-family="'IBM Plex Mono',monospace">&lt;/&gt;</text>
+      <text x="540" y="88" font-size="19" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">程式碼</text>
+      <text x="540" y="114" font-size="12.5" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">commit 是真相來源</text>
+      <rect x="810" y="44" width="300" height="84" rx="10" fill="#0d2548cc" stroke="#ffffff55" stroke-width="1.5"/>
+      <text x="838" y="92" font-size="20" font-weight="900" fill="#8fd0ff" font-family="'IBM Plex Mono',monospace">MD</text>
+      <text x="880" y="88" font-size="19" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">文件集</text>
+      <text x="880" y="114" font-size="12.5" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">Mermaid 圖＋結構化敘事</text>
+      <line x1="620" y1="128" x2="818" y2="164" stroke="#9db8dd" stroke-width="3" marker-end="url(#c22d)"/>
+      <line x1="960" y1="128" x2="922" y2="164" stroke="#9db8dd" stroke-width="3" marker-end="url(#c22d)"/>
+      <circle r="4.5" fill="#9db8dd"><animateMotion dur="2s" repeatCount="indefinite" path="M620,128 L818,164"/></circle>
+      <circle r="4.5" fill="#9db8dd"><animateMotion dur="2s" begin="1s" repeatCount="indefinite" path="M960,128 L922,164"/></circle>
+      <!-- ① 總流程層 -->
+      <rect x="620" y="160" width="500" height="96" rx="10" fill="#0d2548cc" stroke="#7f9ec9" stroke-width="2"/>
+      <text x="640" y="190" font-size="12.5" font-weight="700" fill="#b8d0f0" font-family="'IBM Plex Mono',monospace" letter-spacing=".08em">① 總流程層</text>
+      <text x="870" y="215" text-anchor="middle" font-size="20" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">changed-scope</text>
+      <text x="870" y="242" text-anchor="middle" font-size="13" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">找出受影響文件 → 打包 prompt</text>
+      <rect x="1012" y="170" width="96" height="26" rx="6" fill="#102f59" stroke="#7f9ec9" stroke-width="1"/>
+      <text x="1060" y="187" text-anchor="middle" font-size="11" font-weight="800" fill="#b8d0f0" font-family="'IBM Plex Mono',monospace" letter-spacing=".06em">OWNER CODE</text>
+      <line x1="870" y1="256" x2="870" y2="288" stroke="#ff7a3c" stroke-width="3.5" marker-end="url(#c22o)"/>
+      <circle r="5" fill="#ff7a3c"><animateMotion dur="1.8s" repeatCount="indefinite" path="M870,256 L870,288"/></circle>
+      <!-- ② 驗證路徑層（Agent 機） -->
+      <rect x="380" y="290" width="1000" height="160" rx="12" fill="none" stroke="#ff7a3c77" stroke-width="2" stroke-dasharray="10 7"/>
+      <rect x="380" y="272" width="400" height="30" rx="6" fill="#3b2b25" stroke="#ff7a3c" stroke-width="1.5"/>
+      <text x="580" y="292" text-anchor="middle" font-size="13" font-weight="800" fill="#ffb27a" font-family="'IBM Plex Mono',monospace" letter-spacing=".08em">② AGENT 驗證迴圈 · 白名單＋max-turns 60</text>
+      <rect x="1240" y="300" width="120" height="26" rx="6" fill="#3b2b25" stroke="#ff7a3c88" stroke-width="1"/>
+      <text x="1300" y="317" text-anchor="middle" font-size="11" font-weight="800" fill="#ff9a66" font-family="'IBM Plex Mono',monospace" letter-spacing=".06em">OWNER MODEL</text>
+      <rect x="420" y="336" width="280" height="80" rx="9" fill="#102f59" stroke="#ffffff35" stroke-width="1.5"/>
+      <text x="560" y="370" text-anchor="middle" font-size="17" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">讀取工具</text>
+      <text x="560" y="394" text-anchor="middle" font-size="12.5" fill="#9db8dd" font-family="'IBM Plex Mono',monospace">READ · GREP · GIT</text>
+      <rect x="740" y="336" width="280" height="80" rx="9" fill="#102f59" stroke="#ffffff35" stroke-width="1.5"/>
+      <text x="880" y="370" text-anchor="middle" font-size="17" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">觀察 drift 真偽</text>
+      <text x="880" y="394" text-anchor="middle" font-size="12.5" fill="#9db8dd" font-family="'IBM Plex Mono',monospace">追 CALL PATH</text>
+      <rect x="1060" y="336" width="280" height="80" rx="9" fill="#102f59" stroke="#ffffff35" stroke-width="1.5"/>
+      <text x="1200" y="370" text-anchor="middle" font-size="17" font-weight="900" fill="#eef4ff" font-family="'Noto Sans TC',sans-serif">結論＋證據</text>
+      <text x="1200" y="394" text-anchor="middle" font-size="12.5" fill="#9db8dd" font-family="'IBM Plex Mono',monospace">收斂 DRIFT 報告</text>
+      <line x1="704" y1="376" x2="734" y2="376" stroke="#ff7a3c" stroke-width="3" marker-end="url(#c22o)"/>
+      <line x1="1024" y1="376" x2="1054" y2="376" stroke="#ff7a3c" stroke-width="3" marker-end="url(#c22o)"/>
+      <circle r="4.5" fill="#ff7a3c"><animateMotion dur="1.5s" repeatCount="indefinite" path="M704,376 L734,376"/></circle>
+      <circle r="4.5" fill="#ff7a3c"><animateMotion dur="1.5s" begin=".7s" repeatCount="indefinite" path="M1024,376 L1054,376"/></circle>
+      <path d="M1200,416 Q 810,452 424,416" fill="none" stroke="#f4b23d" stroke-width="3" stroke-dasharray="9 6" marker-end="url(#c22o)"/>
+      <circle r="5" fill="#f4b23d"><animateMotion dur="2.6s" repeatCount="indefinite" path="M1200,416 Q 810,452 424,416"/></circle>
+      <text x="810" y="452" text-anchor="middle" font-size="12.5" fill="#f4b23d" font-family="'Noto Sans TC',sans-serif">↺ 未收斂繼續查</text>
+      <!-- ③ 終審裁決層 -->
+      <text x="560" y="462" font-size="12.5" font-weight="700" fill="#f4b23d" font-family="'IBM Plex Mono',monospace" letter-spacing=".08em">③ 終審裁決層</text>
+      <rect x="560" y="470" width="300" height="70" rx="10" fill="#3b2b1f" stroke="#f4b23d" stroke-width="2.5" class="st st1"/>
+      <rect x="578" y="492" width="8" height="26" rx="2" fill="#f4b23d"/>
+      <rect x="592" y="492" width="8" height="26" rx="2" fill="#f4b23d"/>
+      <text x="618" y="508" font-size="18" font-weight="900" fill="#ffe1a8" font-family="'Noto Sans TC',sans-serif">ask_user 裁決</text>
+      <text x="618" y="530" font-size="12.5" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">文件過時 vs 程式碼可疑</text>
+      <rect x="752" y="480" width="96" height="26" rx="6" fill="#0d2548cc" stroke="#f4b23d88" stroke-width="1"/>
+      <text x="800" y="497" text-anchor="middle" font-size="11" font-weight="800" fill="#f4b23d" font-family="'IBM Plex Mono',monospace" letter-spacing=".06em">OWNER HUMAN</text>
+      <line x1="870" y1="450" x2="712" y2="466" stroke="#ff7a3c" stroke-width="3.5" marker-end="url(#c22o)"/>
+      <circle r="5" fill="#ff7a3c"><animateMotion dur="1.8s" repeatCount="indefinite" path="M870,450 L712,466"/></circle>
+      <line x1="862" y1="505" x2="956" y2="505" stroke="#ff7a3c" stroke-width="3.5" marker-end="url(#c22o)"/>
+      <circle r="5" fill="#ff7a3c"><animateMotion dur="1.8s" begin=".9s" repeatCount="indefinite" path="M862,505 L956,505"/></circle>
+      <rect x="960" y="470" width="330" height="70" rx="10" fill="#0d2548cc" stroke="#8fd0b588" stroke-width="2"/>
+      <text x="1125" y="508" text-anchor="middle" font-size="18" font-weight="900" fill="#8fd0b5" font-family="'Noto Sans TC',sans-serif">更新文件＋報告</text>
+      <text x="1125" y="530" text-anchor="middle" font-size="12.5" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">drift 報告 · handbook 產出</text>
+    </svg>
+  </div>
+  <div class="take"><b>流程主幹由 code 決定，模型只留在需要語意判斷的地方，最終裁決權還給人——前 21 頁的濃縮實作。</b></div>
+</section>
+
 <!-- ============ CHROME ============ -->
 <div class="progress"><div class="progress-bar" id="progressbar"></div></div>
-<div class="counter" id="counter">01 / 21</div>
+<div class="counter" id="counter">01 / 22</div>
 <div class="hint">⬅️➡️ 換頁 <span class="hsep">·</span> 🗺️ O 總覽 <span class="hsep">·</span> ⛶ F 全螢幕 <span class="hsep">·</span> ❓ 說明</div>
 <div class="nav">
   <button class="navbtn" id="prevBtn" aria-label="上一頁">‹</button>
