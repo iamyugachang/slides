@@ -2,7 +2,7 @@
 """Verifier for the Agentic Workflow deck.
 
 Asserts the structural + editorial rules this user cares about:
-- 20 slides, all with .take takeaway band
+- 23 slides, all with .take takeaway band
 - No .src footnotes at slide bottoms
 - No TA/audience-identification slide (no such marker)
 - Every slide has a diagram-ish block (dg / quad / stack / loopbox / ladder / specbar / pairflow / apptable / code)
@@ -20,8 +20,8 @@ errors = []
 
 # 1. slide count
 slides = re.findall(r'<section class="slide', text)
-if len(slides) != 22:
-    errors.append(f"slide count = {len(slides)}, expected 22")
+if len(slides) != 23:
+    errors.append(f"slide count = {len(slides)}, expected 23")
 
 # 2. every slide has a take band (cover s1 exempt)
 sections = re.split(r'<section class="slide"', text)[1:]
@@ -57,7 +57,8 @@ bad_lt = re.findall(r'<pre>([^<]*)<[a-z/]', text)
 # 8. key content spot-checks
 for term in ["誰決定下一步", "讓 LLM 決定下一步", "LangGraph", "Pydantic AI", "CrewAI", "n8n",
              "Pattern Reduction", "解空間", "可約束", "少走彎路", "StateGraph", "tool_plain",
-             "Process.sequential", "webhook", "產物校驗", "Doc-Align", "ask_user"]:
+             "Process.sequential", "webhook", "產物校驗", "Doc-Align", "ask_user",
+             "Supervisor", "Handoff", "誰能交棒"]:
     if term not in text:
         errors.append(f"missing required term: {term}")
 

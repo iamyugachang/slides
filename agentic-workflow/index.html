@@ -565,7 +565,7 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 }
 .navbtn:hover{background:#123b6e;transform:translateY(-2px)}
 .progress{position:absolute;left:0;bottom:0;height:4px;background:#ffffff0d;z-index:6;width:100%}
-.progress-bar{height:100%;width:4.55%;background:linear-gradient(90deg,var(--orange),#f4b23d);transition:width 300ms ease}
+.progress-bar{height:100%;width:4.35%;background:linear-gradient(90deg,var(--orange),#f4b23d);transition:width 300ms ease}
 .counter{
   position:absolute;right:106px;bottom:44px;font-size:16px;color:var(--faint);
   font-weight:600;letter-spacing:.14em;z-index:5;font-family:"IBM Plex Mono",monospace;
@@ -930,7 +930,7 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 
 <!-- ============ 5 SPECTRUM OVERVIEW ============ -->
 <section class="slide" id="s5" aria-labelledby="s5t">
-  <p class="meta"><span class="num">05</span><span class="part">全景圖 01/02 · 光譜總覽</span></p>
+  <p class="meta"><span class="num">05</span><span class="part">全景圖 01/03 · 光譜總覽</span></p>
   <h2 class="h2" id="s5t">Workflow 到 Agent：<strong>一條光譜</strong></h2>
   <div class="spec-hero">
     <div class="spec-track">
@@ -951,8 +951,8 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 </section>
 
 <section class="slide" id="s6" aria-labelledby="s6t">
-  <p class="meta"><span class="num">06</span><span class="part">全景圖 02/02 · 所有名詞</span></p>
-  <h2 class="h2" id="s5t">同一個 Harness 裡：<strong>Workflow、Agent 與所有名詞</strong></h2>
+  <p class="meta"><span class="num">06</span><span class="part">全景圖 02/03 · 所有名詞</span></p>
+  <h2 class="h2" id="s6t">同一個 Harness 裡：<strong>Workflow、Agent 與所有名詞</strong></h2>
   <div class="af-shell">
     <div class="af-shell-head"><div class="af-shell-title">HARNESS = FOR / WHILE LOOP</div><div class="af-shell-sub">執行環境：每輪讀進度、決定下一步、執行工具、保存結果，直到完成或碰到限制</div></div>
     <div class="af-rail"><span>GOAL 完成條件</span><span>STATE 目前進度</span><span>TOOLS 可用動作</span><span>POLICY 權限限制</span><span>TRACE 過程記錄</span></div>
@@ -975,8 +975,20 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
 </section>
 
 <section class="slide" id="s7" aria-labelledby="s7t">
-  <p class="meta"><span class="num">07</span><span class="part">選型矩陣 · 可預測性 × 複雜度</span></p>
-  <h2 class="h2" id="s6t">路徑可預測就用 Workflow；<strong>不可預測才用 Agent</strong></h2>
+  <p class="meta"><span class="num">07</span><span class="part">全景圖 03/03 · 多 AGENT 拓樸</span></p>
+  <h2 class="h2" id="s7t">多 Agent 只改分工：<strong>誰派工、誰交棒、誰收結果</strong></h2>
+  <div class="topo4">
+    <div class="topo-card2"><svg viewBox="0 0 190 145" aria-hidden="true"><circle cx="95" cy="30" r="20" fill="#3b2b25" stroke="#ff7a3c" stroke-width="3"/><text x="95" y="35" text-anchor="middle" fill="#fff" font-size="12" font-family="'Noto Sans TC',sans-serif">主管</text><line x1="95" y1="50" x2="45" y2="98" stroke="#9db8dd" stroke-width="3"/><line x1="95" y1="50" x2="95" y2="98" stroke="#9db8dd" stroke-width="3"/><line x1="95" y1="50" x2="145" y2="98" stroke="#9db8dd" stroke-width="3"/><circle cx="45" cy="112" r="17" fill="#102f59" stroke="#8fd0b5"/><circle cx="95" cy="112" r="17" fill="#102f59" stroke="#8fd0b5"/><circle cx="145" cy="112" r="17" fill="#102f59" stroke="#8fd0b5"/></svg><div><h3>Supervisor</h3><p>中央 Agent 派工、收結果、決定下一個任務。</p><div class="choose">適合：需要集中控制與最後整合</div></div></div>
+    <div class="topo-card2"><svg viewBox="0 0 190 145" aria-hidden="true"><circle cx="38" cy="72" r="21" fill="#102f59" stroke="#8fd0b5"/><circle cx="95" cy="72" r="21" fill="#102f59" stroke="#8fd0b5"/><circle cx="152" cy="72" r="21" fill="#3b2b25" stroke="#ff7a3c" stroke-width="3"/><path d="M59 72 H72" stroke="#ff7a3c" stroke-width="4"/><polygon points="76,72 67,66 67,78" fill="#ff7a3c"/><path d="M116 72 H129" stroke="#ff7a3c" stroke-width="4"/><polygon points="133,72 124,66 124,78" fill="#ff7a3c"/><text x="38" y="77" text-anchor="middle" fill="#fff" font-size="11" font-family="'IBM Plex Mono',monospace">A</text><text x="95" y="77" text-anchor="middle" fill="#fff" font-size="11" font-family="'IBM Plex Mono',monospace">B</text><text x="152" y="77" text-anchor="middle" fill="#fff" font-size="11" font-family="'IBM Plex Mono',monospace">C</text></svg><div><h3>Handoff</h3><p>目前 Agent 直接把控制權與上下文交給下一位。</p><div class="choose">適合：明確階段交接</div></div></div>
+    <div class="topo-card2"><svg viewBox="0 0 190 145" aria-hidden="true"><circle cx="95" cy="35" r="19" fill="#3b2b25" stroke="#ff7a3c" stroke-width="3"/><circle cx="48" cy="105" r="19" fill="#102f59" stroke="#8fd0b5"/><circle cx="142" cy="105" r="19" fill="#102f59" stroke="#8fd0b5"/><line x1="83" y1="51" x2="59" y2="88" stroke="#9db8dd" stroke-width="3"/><line x1="107" y1="51" x2="131" y2="88" stroke="#9db8dd" stroke-width="3"/><line x1="67" y1="105" x2="123" y2="105" stroke="#9db8dd" stroke-width="3" stroke-dasharray="5 4"/><text x="95" y="40" text-anchor="middle" fill="#fff" font-size="10" font-family="'Noto Sans TC',sans-serif">規劃</text><text x="48" y="110" text-anchor="middle" fill="#fff" font-size="10" font-family="'Noto Sans TC',sans-serif">研究</text><text x="142" y="110" text-anchor="middle" fill="#fff" font-size="10" font-family="'Noto Sans TC',sans-serif">執行</text></svg><div><h3>Teams</h3><p>角色固定，共用任務與進度；不一定有唯一主管。</p><div class="choose">適合：長期穩定分工</div></div></div>
+    <div class="topo-card2"><svg viewBox="0 0 190 145" aria-hidden="true"><rect x="18" y="38" width="58" height="68" rx="8" fill="#102f59" stroke="#8fd0b5"/><rect x="114" y="38" width="58" height="68" rx="8" fill="#102f59" stroke="#8fd0b5"/><path d="M78 62 H109" stroke="#ff7a3c" stroke-width="4"/><polygon points="113,62 104,56 104,68" fill="#ff7a3c"/><path d="M112 84 H81" stroke="#9db8dd" stroke-width="3"/><polygon points="77,84 86,78 86,90" fill="#9db8dd"/><text x="47" y="76" text-anchor="middle" fill="#fff" font-size="11" font-family="'Noto Sans TC',sans-serif">系統 A</text><text x="143" y="76" text-anchor="middle" fill="#fff" font-size="11" font-family="'Noto Sans TC',sans-serif">系統 B</text></svg><div><h3>A2A</h3><p>兩個獨立 Agent 系統用協定交換任務與結果。</p><div class="choose">適合：跨產品或跨組織互通</div></div></div>
+  </div>
+  <div class="take"><b>先決定誰能交棒、誰負責收斂，再決定要不要多 Agent。</b></div>
+</section>
+
+<section class="slide" id="s8" aria-labelledby="s8t">
+  <p class="meta"><span class="num">08</span><span class="part">選型矩陣 · 可預測性 × 複雜度</span></p>
+  <h2 class="h2" id="s8t">路徑可預測就用 Workflow；<strong>不可預測才用 Agent</strong></h2>
   <div class="quad">
     <div class="qblank"></div>
     <div class="qcolhead">← 路徑不可預測</div>
@@ -992,9 +1004,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take"><b>已知路徑用 Workflow；未知路徑用 Agent；實務上常混合。</b></div>
 </section>
 
-<section class="slide" id="s8" aria-labelledby="s8t">
-  <p class="meta"><span class="num">08</span><span class="part">AGENT LOOP · 技術視角</span></p>
-  <h2 class="h2" id="s7t">Agent 每輪都做同一件事：<strong>看結果，再選下一個動作</strong></h2>
+<section class="slide" id="s9" aria-labelledby="s9t">
+  <p class="meta"><span class="num">09</span><span class="part">AGENT LOOP · 技術視角</span></p>
+  <h2 class="h2" id="s9t">Agent 每輪都做同一件事：<strong>看結果，再選下一個動作</strong></h2>
   <div class="agent-tech">
     <div class="agent-loop-tech">
       <div class="alt-node an1"><b>1 · Observe</b><small>讀取工具結果、錯誤與外部狀態</small></div><div class="alt-arrow aa1">→</div>
@@ -1013,9 +1025,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take"><b>有 loop 不代表是 Agent；模型能根據 Observation 改選下一步才算。</b></div>
 </section>
 
-<section class="slide" id="s9" aria-labelledby="s9t">
-  <p class="meta"><span class="num">09</span><span class="part">PART 2 · Harness 心智模型</span></p>
-  <h2 class="h2" id="s8t">模型是大腦；<strong>Harness 是身體，工具是手</strong></h2>
+<section class="slide" id="s10" aria-labelledby="s10t">
+  <p class="meta"><span class="num">10</span><span class="part">PART 2 · Harness 心智模型</span></p>
+  <h2 class="h2" id="s10t">模型是大腦；<strong>Harness 是身體，工具是手</strong></h2>
   <div class="circuit" style="margin-top:20px">
     <svg viewBox="0 0 1750 430" role="img" aria-label="機器人：指令進大腦、經身體到手的動畫迴路" style="width:100%;height:auto;display:block">
       <defs>
@@ -1119,9 +1131,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take"><b>模型只能提出動作；真正執行與驗證的是 Harness。</b></div>
 </section>
 
-<section class="slide" id="s10" aria-labelledby="s10t">
-  <p class="meta"><span class="num">10</span><span class="part">HARNESS · 執行環境（RUNTIME）</span></p>
-  <h2 class="h2" id="s9t">Harness 的必要條件：<strong>可約束、可執行、可反饋、可恢復</strong></h2>
+<section class="slide" id="s11" aria-labelledby="s11t">
+  <p class="meta"><span class="num">11</span><span class="part">HARNESS · 執行環境（RUNTIME）</span></p>
+  <h2 class="h2" id="s11t">Harness 的必要條件：<strong>可約束、可執行、可反饋、可恢復</strong></h2>
   <p class="sub">包在模型外部，負責<b>上下文組織、工具暴露、執行隔離、狀態管理、錯誤回饋、重試恢復、產物校驗與可觀測性</b>的整套執行環境。</p>
   <div class="rt-wrap">
     <div class="rt-tag">HARNESS · 包在模型外部的 RUNTIME</div>
@@ -1138,9 +1150,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take"><b>模型決定單次推理的上限；Harness 決定系統能力的下限。</b></div>
 </section>
 
-<section class="slide" id="s11" aria-labelledby="s11t">
-  <p class="meta"><span class="num">11</span><span class="part">PRODUCTION · 兩個失敗路徑</span></p>
-  <h2 class="h2" id="s10t">正式環境先防兩件事：<strong>重複執行、假完成</strong></h2>
+<section class="slide" id="s12" aria-labelledby="s12t">
+  <p class="meta"><span class="num">12</span><span class="part">PRODUCTION · 兩個失敗路徑</span></p>
+  <h2 class="h2" id="s12t">正式環境先防兩件事：<strong>重複執行、假完成</strong></h2>
   <div class="risk-grid">
     <div class="risk-panel bad"><div class="risk-title">風險 1 · Timeout 後直接重試</div>
       <div class="risk-flow"><div class="risk-step">送出寫入</div><div class="risk-arr">→</div><div class="risk-step bad">超時<br>成功與否未知</div><div class="risk-arr">→</div><div class="risk-step bad">直接重試<br>重複寫入</div></div>
@@ -1154,9 +1166,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take"><b>寫入前防重複；完成後重新查一次。</b></div>
 </section>
 
-<section class="slide" id="s12" aria-labelledby="s12t">
-  <p class="meta"><span class="num">12</span><span class="part">兩個案例 · 總覽</span></p>
-  <h2 class="h2" id="s11t">同一套 Harness，兩種觸發方式：<strong>系統 Alert 與使用者需求</strong></h2>
+<section class="slide" id="s13" aria-labelledby="s13t">
+  <p class="meta"><span class="num">13</span><span class="part">兩個案例 · 總覽</span></p>
+  <h2 class="h2" id="s13t">同一套 Harness，兩種觸發方式：<strong>系統 Alert 與使用者需求</strong></h2>
   <div class="case-pair">
     <div class="case-card alert"><div class="case-no">CASE 1 · 系統觸發</div><h3>Alert 自動修復</h3>
       <div class="case-flow"><div class="case-step">Alert</div><div class="case-arrow">→</div><div class="case-step">並行診斷</div><div class="case-arrow">→</div><div class="case-step case-gate">人工確認</div><div class="case-arrow">→</div><div class="case-step">修復＋驗證</div></div>
@@ -1170,9 +1182,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take"><b>Alert 是系統觸發、跨系統診斷；Lakehouse 是使用者觸發、只走單一 Console API。</b></div>
 </section>
 
-<section class="slide" id="s13" aria-labelledby="s13t">
-  <p class="meta"><span class="num">13</span><span class="part">CASE 1 · ALERT 自動修復架構</span></p>
-  <h2 class="h2" id="s13t">Alert 自動修復：<strong>診斷交給多 Agent，批准與寫入由人把關</strong></h2>
+<section class="slide" id="s14" aria-labelledby="s14t">
+  <p class="meta"><span class="num">14</span><span class="part">CASE 1 · ALERT 自動修復架構</span></p>
+  <h2 class="h2" id="s14t">Alert 自動修復：<strong>診斷交給多 Agent，批准與寫入由人把關</strong></h2>
   <div class="case-svg">
     <svg viewBox="0 0 1750 560" role="img" aria-label="Alert 自動修復架構：事件來源進入 Harness 診斷機，收斂後經人工批准進入修復鏈" style="width:100%;height:auto;display:block">
       <defs>
@@ -1267,9 +1279,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take"><b>Agent 負責「找答案」，人負責「下指令」，Harness 負責「保證只做該做的事」。</b></div>
 </section>
 
-<section class="slide" id="s14" aria-labelledby="s14t">
-  <p class="meta"><span class="num">14</span><span class="part">CASE 2 · LAKEHOUSE 自助助理架構</span></p>
-  <h2 class="h2" id="s14t">Lakehouse Agent 只碰 Console API；<strong>讀直放、寫要人批准</strong></h2>
+<section class="slide" id="s15" aria-labelledby="s15t">
+  <p class="meta"><span class="num">15</span><span class="part">CASE 2 · LAKEHOUSE 自助助理架構</span></p>
+  <h2 class="h2" id="s15t">Lakehouse Agent 只碰 Console API；<strong>讀直放、寫要人批准</strong></h2>
   <div class="case-svg">
     <svg viewBox="0 0 1750 560" role="img" aria-label="Lakehouse 自助助理架構：使用者經 Agent 到 Console API，讀取直放、寫入需人批准" style="width:100%;height:auto;display:block">
       <defs>
@@ -1386,9 +1398,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take"><b>Agent 沒有各系統鑰匙；Console 統一做授權、驗證、轉送與稽核。</b></div>
 </section>
 
-<section class="slide" id="s15" aria-labelledby="s15t">
-  <p class="meta"><span class="num">15</span><span class="part">結論 · 先發散，再收斂</span></p>
-  <h2 class="h2" id="s14t">開放任務先讓 Agent 找路；<strong>找到規律後收斂成混合架構</strong></h2>
+<section class="slide" id="s16" aria-labelledby="s16t">
+  <p class="meta"><span class="num">16</span><span class="part">結論 · 先發散，再收斂</span></p>
+  <h2 class="h2" id="s16t">開放任務先讓 Agent 找路；<strong>找到規律後收斂成混合架構</strong></h2>
   <div class="converge">
     <div class="conv-stage wide"><div class="n">1 · EXPLORE</div><h3>Agent 發散探索</h3><p>只給目標與工具，允許模型根據結果換路。</p><div class="route-cloud"><span>查 Logs</span><span>看 Lineage</span><span>比對設定</span><span>問專家 Agent</span><span>重試</span><span>換工具</span></div></div>
     <div class="conv-arrow">→</div>
@@ -1401,9 +1413,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take"><b>如果一開始就知道路徑，直接用 Workflow；不知道才先讓 Agent 發散。</b></div>
 </section>
 
-<section class="slide" id="s16" aria-labelledby="s16t">
-  <p class="meta"><span class="num">16</span><span class="part">附錄 01/07 · 框架怎麼選</span></p>
-  <h2 class="h2" id="s15t">四個框架不是能力排名；<strong>它們提供不同的流程寫法</strong></h2>
+<section class="slide" id="s17" aria-labelledby="s17t">
+  <p class="meta"><span class="num">17</span><span class="part">附錄 01/07 · 框架怎麼選</span></p>
+  <h2 class="h2" id="s17t">四個框架不是能力排名；<strong>它們提供不同的流程寫法</strong></h2>
   <div class="fw-grid">
     <div class="fw-card"><div class="fw-icon">NODE → EDGE</div><h3>LangGraph</h3><div class="when">流程用圖表示；需要保存進度、暫停等人審、從原處繼續。</div><div class="gives">適合：多步驟、條件分支、人工確認</div></div>
     <div class="fw-card"><div class="fw-icon">{ TYPE }</div><h3>Pydantic AI</h3><div class="when">一個 Agent 搭配少量工具；重點是輸出欄位與型別檢查。</div><div class="gives">適合：單 Agent、固定格式輸出</div></div>
@@ -1413,9 +1425,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take"><b>先決定流程要用圖、型別、角色還是畫布表達，再選框架。</b></div>
 </section>
 
-<section class="slide" id="s17" aria-labelledby="s17t">
-  <p class="meta"><span class="num">17</span><span class="part">附錄 02/07 · LANGGRAPH 流程圖</span></p>
-  <h2 class="h2" id="s16t">LangGraph：<strong>把流程與人審點畫成圖</strong></h2>
+<section class="slide" id="s18" aria-labelledby="s18t">
+  <p class="meta"><span class="num">18</span><span class="part">附錄 02/07 · LANGGRAPH 流程圖</span></p>
+  <h2 class="h2" id="s18t">LangGraph：<strong>把流程與人審點畫成圖</strong></h2>
   <div class="dg" style="margin-top:28px;gap:18px">
     <div style="flex:1;display:flex;flex-direction:column;gap:14px">
       <div class="node hl" style="padding:14px 16px"><div class="t" style="font-size:19px">案例 1：Alert 自動修復</div><div class="s" style="font-size:15px">保存 alert、原因、修復與報告</div></div>
@@ -1449,9 +1461,9 @@ html.js .slide.rv-pattern.is-active .take{animation:revealFade .4s ease both;ani
   <div class="take" style="margin-top:44px"><b>人審是流程中的一個節點，批准後從原處繼續。</b></div>
 </section>
 
-<section class="slide" id="s18" aria-labelledby="s18t">
-  <p class="meta"><span class="num">18</span><span class="part">附錄 03/07 · LANGGRAPH 程式碼</span></p>
-  <h2 class="h2" id="s17t">LangGraph：<strong>兩個案例都把人審寫成節點</strong></h2>
+<section class="slide" id="s19" aria-labelledby="s19t">
+  <p class="meta"><span class="num">19</span><span class="part">附錄 03/07 · LANGGRAPH 程式碼</span></p>
+  <h2 class="h2" id="s19t">LangGraph：<strong>兩個案例都把人審寫成節點</strong></h2>
   <div class="dg" style="margin-top:14px;gap:18px;align-items:stretch">
     <div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0">
       <div class="node hl" style="padding:10px 14px"><div class="t" style="font-size:18px">案例 1 · Alert 自動修復</div><div class="s" style="font-size:14px">detect → diagnose → approve → heal</div></div>
@@ -1506,9 +1518,9 @@ g.add_edge(<span class="st">"approve"</span>, <span class="st">"submit"</span>)<
   <div class="take"><b>interrupt() 保存目前進度並暫停；收到批准後，從同一個節點繼續。</b></div>
 </section>
 
-<section class="slide" id="s19" aria-labelledby="s19t">
-  <p class="meta"><span class="num">19</span><span class="part">附錄 04/07 · PYDANTIC AI</span></p>
-  <h2 class="h2" id="s18t">Pydantic AI：<strong>用型別檢查 Agent 輸出</strong></h2>
+<section class="slide" id="s20" aria-labelledby="s20t">
+  <p class="meta"><span class="num">20</span><span class="part">附錄 04/07 · PYDANTIC AI</span></p>
+  <h2 class="h2" id="s20t">Pydantic AI：<strong>用型別檢查 Agent 輸出</strong></h2>
   <div class="dg" style="margin-top:14px;gap:22px">
     <div style="flex:1;display:flex;flex-direction:column;gap:8px">
       <div class="node warn" style="padding:12px 16px"><div class="t" style="font-size:19px">Agent</div><div class="s" style="font-size:15px">模型＋指示＋輸出欄位</div></div>
@@ -1543,9 +1555,9 @@ result = agent.run_sync(<span class="st">"Trino 節點 alert"</span>)
   <div class="take"><b>輸出欄位或型別不符，就直接失敗，不往下執行。</b></div>
 </section>
 
-<section class="slide" id="s20" aria-labelledby="s20t">
-  <p class="meta"><span class="num">20</span><span class="part">附錄 05/07 · CREWAI</span></p>
-  <h2 class="h2" id="s19t">CrewAI：<strong>用角色分配任務</strong></h2>
+<section class="slide" id="s21" aria-labelledby="s21t">
+  <p class="meta"><span class="num">21</span><span class="part">附錄 05/07 · CREWAI</span></p>
+  <h2 class="h2" id="s21t">CrewAI：<strong>用角色分配任務</strong></h2>
   <div class="dg" style="margin-top:14px;gap:22px">
     <div style="flex:1;display:flex;flex-direction:column;gap:8px">
       <div class="node warn" style="padding:11px 14px"><div class="t" style="font-size:18px">診斷 Agent</div><div class="s" style="font-size:14px">role / goal / tools</div></div>
@@ -1583,9 +1595,9 @@ result = crew.kickoff()</pre>
   <div class="take"><b>每個角色只拿需要的工具，上一個任務的結果交給下一個。</b></div>
 </section>
 
-<section class="slide" id="s21" aria-labelledby="s21t">
-  <p class="meta"><span class="num">21</span><span class="part">附錄 06/07 · N8N ＋ 對照總表</span></p>
-  <h2 class="h2" id="s20t">n8n：<strong>用畫布排固定流程</strong></h2>
+<section class="slide" id="s22" aria-labelledby="s22t">
+  <p class="meta"><span class="num">22</span><span class="part">附錄 06/07 · N8N ＋ 對照總表</span></p>
+  <h2 class="h2" id="s22t">n8n：<strong>用畫布排固定流程</strong></h2>
   <div class="dg" style="margin-top:12px;gap:18px">
     <div style="flex:1;display:flex;flex-direction:column;gap:8px">
       <div class="dg" style="margin-top:0;gap:5px;flex-wrap:wrap">
@@ -1628,9 +1640,9 @@ result = crew.kickoff()</pre>
 
 <!-- ============ 22 APPENDIX DOC-ALIGN ============ -->
 <!-- ============ 22 APPENDIX DOC-ALIGN ============ -->
-<section class="slide" id="s22" aria-labelledby="s22t">
-  <p class="meta"><span class="num">22</span><span class="part">附錄 07/07 · DOC-ALIGN · 真實案例</span></p>
-  <h2 class="h2" id="s22t">Doc-Align：<strong>同一個流程，三層決策三個 owner</strong></h2>
+<section class="slide" id="s23" aria-labelledby="s23t">
+  <p class="meta"><span class="num">23</span><span class="part">附錄 07/07 · DOC-ALIGN · 真實案例</span></p>
+  <h2 class="h2" id="s23t">Doc-Align：<strong>同一個流程，三層決策三個 owner</strong></h2>
   <p class="sub">讓 repo 文件（Mermaid 圖＋結構化敘事）與程式碼保持對齊的工具：<b>只報告差異，由人裁決「文件過時還是程式碼有問題」</b>。</p>
   <div class="case-svg">
     <svg viewBox="0 0 1750 560" role="img" aria-label="Doc-Align 架構：總流程層由 playbook 決定，驗證路徑層由受限模型決定，終審由人裁決" style="width:100%;height:auto;display:block">
@@ -1718,12 +1730,12 @@ result = crew.kickoff()</pre>
       <text x="1125" y="530" text-anchor="middle" font-size="12.5" fill="#9db8dd" font-family="'Noto Sans TC',sans-serif">drift 報告 · handbook 產出</text>
     </svg>
   </div>
-  <div class="take"><b>流程主幹由 code 決定，模型只留在需要語意判斷的地方，最終裁決權還給人——前 21 頁的濃縮實作。</b></div>
+  <div class="take"><b>流程主幹由 code 決定，模型只留在需要語意判斷的地方，最終裁決權還給人——前 22 頁的濃縮實作。</b></div>
 </section>
 
 <!-- ============ CHROME ============ -->
 <div class="progress"><div class="progress-bar" id="progressbar"></div></div>
-<div class="counter" id="counter">01 / 22</div>
+<div class="counter" id="counter">01 / 23</div>
 <div class="hint">⬅️➡️ 換頁 <span class="hsep">·</span> 🗺️ O 總覽 <span class="hsep">·</span> ⛶ F 全螢幕 <span class="hsep">·</span> ❓ 說明</div>
 <div class="nav">
   <button class="navbtn" id="prevBtn" aria-label="上一頁">‹</button>
