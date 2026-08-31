@@ -517,7 +517,7 @@ html.js .slide.is-active > :nth-child(6){animation-delay:.41s}
     <span style="font-family:'IBM Plex Mono',monospace;font-size:15px;color:var(--teal);font-weight:600;letter-spacing:.08em;margin-left:18px">不含 CCR ▸</span>
     <button class="xtab" data-opt="b1">B1 雙寫＋自理</button>
     <button class="xtab" data-opt="b2">B2 雙寫＋平台鏡像</button>
-    <button class="xtab" data-opt="b4">B4 Library</button>
+    <button class="xtab" data-opt="b4">B3 Library</button>
   </div>
   <div class="xwrap">
     <svg id="xplor" class="dgm xsvg" role="img" aria-label="六方案共用底圖，依選擇亮起路線" width="980" height="620" viewBox="0 0 980 620" style="height:720px;width:auto;max-width:1180px">
@@ -563,7 +563,7 @@ html.js .slide.is-active > :nth-child(6){animation-delay:.41s}
   <div class="card accent" style="margin:0 0 14px"><h4 class="t">優點</h4><ul><li>對使用者零侵入</li><li>curated 有平台承諾的 RPO（鏡像週期）</li></ul></div>
   <div class="card bad" style="margin:0"><h4 class="r">缺點</h4><ul><li>六難全攬回平台：loss window 壓不到零</li><li>failback 反向覆蓋・禁寫・凍結全套 runbook</li><li>認賠責任談判・表發現與對帳日常維運</li></ul></div>
 </div></div><div class="opanel" data-opt="b4">
-  <div class="card" style="margin:0 0 14px"><h4 class="t" style="display:flex;align-items:center;gap:12px">B4 無 HA＋Client Library<span class="chip g">低需求</span></h4></div>
+  <div class="card" style="margin:0 0 14px"><h4 class="t" style="display:flex;align-items:center;gap:12px">B3 無 HA＋Client Library<span class="chip g">低需求</span></h4></div>
   <div class="card accent" style="margin:0 0 14px"><h4 class="t">優點</h4><ul><li>零基礎設施・平常零維運</li><li>路由可更聰明・可灰度</li></ul></div>
   <div class="card bad" style="margin:0"><h4 class="r">缺點</h4><ul><li>採用不可控・BI/dbt 裝不了</li><li><b>過渡期 A、B 同時被寫</b>——curated 分歧</li><li>決策分裂 or flag 服務又要 HA</li></ul></div>
 </div></div>
@@ -630,7 +630,7 @@ html.js .slide.is-active > :nth-child(6){animation-delay:.41s}
 </section>
 <section class="slide" id="s11" aria-labelledby="s11t">
   <p class="meta"><span class="num">11</span><span class="part">第二部 · 跨叢集</span></p>
-  <h2 class="h2" id="s11t">Library 路（B4）：<strong>腦袋放進每個 client</strong></h2>
+  <h2 class="h2" id="s11t">Library 路（B3）：<strong>腦袋放進每個 client</strong></h2>
 <div style="display:flex;justify-content:center;margin:10px auto 0"><svg class="dgm" role="img" aria-label="library 路由架構：client 內嵌 library 持有兩座 FE 名單，讀平台設定決定打哪座哪個 FE，無 proxy" width="860" height="560" viewBox="0 0 860 560" style="height:800px;width:auto;max-width:1750px">
   <defs>
   <marker id="mAw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--teal)"/></marker>
