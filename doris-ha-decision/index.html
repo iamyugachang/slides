@@ -451,7 +451,6 @@ html.js .slide.is-active > :nth-child(6){animation-delay:.41s}
     <div class="card bad"><h4 class="r">限制</h4><ul>
       <li><b>CCR 在 Doris 4.1 沒有可用的 syncer</b>（官方文件也已下架）——沒有現成的官方跨叢集複製</li>
       <li>內部物件儲存不可靠——<b>存算分離／冷備（需 S3/HDFS）受限</b></li>
-      <li>Spark 寫入 Doris 在<b>重試／重啟時可能重複寫入</b>（官方自承）——解法：用 Unique Key 表，重複寫入＝覆蓋同一筆，結果不變</li>
       <li><b>使用者程式不可控</b>——平台只握有連線端點與選配 library</li>
     </ul></div>
     <div class="card"><h4 class="d">現況</h4><ul>
