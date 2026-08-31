@@ -509,7 +509,7 @@ html.js .slide.is-active > :nth-child(6){animation-delay:.41s}
 </section>
 <section class="slide no-gnum" id="s7" aria-labelledby="s7t">
   <p class="meta"><span class="num">07</span><span class="part">第二部 · 跨叢集</span></p>
-  <h2 class="h2" id="s7t">方案總覽：<strong>同一張圖，六條路線</strong>（點選切換）</h2>
+  <h2 class="h2" id="s7t">方案總覽：<strong>同一張圖，五條路線</strong>（點選切換）</h2>
   <div class="xtabs" style="align-items:center">
     <span style="font-family:'IBM Plex Mono',monospace;font-size:15px;color:var(--red);font-weight:600;letter-spacing:.08em">含 CCR ▸</span>
     <button class="xtab act xtab-ccr" data-opt="a1">A1 全庫 CCR</button>
@@ -557,16 +557,16 @@ html.js .slide.is-active > :nth-child(6){animation-delay:.41s}
   <div class="card bad" style="margin:0"><h4 class="r">缺點</h4><ul><li>維護前提同 A1（自己移植＋養）</li><li>使用者自由操作<b>最易踩不支援清單</b>而中斷同步</li></ul></div>
 </div><div class="opanel" data-opt="b1">
   <div class="card" style="margin:0 0 14px"><h4 class="t" style="display:flex;align-items:center;gap:12px">B1 raw 雙寫＋curated 使用者自理<span class="chip t">入圍</span></h4></div>
-  <div class="card accent" style="margin:0 0 14px"><h4 class="t">優點</h4><ul><li>平台成本最低・責任邊界乾淨</li><li>raw RPO≈0・failover 零 ingestion 動作</li><li><b>failback 最簡</b>（無反向鏡像/禁寫）</li><li>組織先例：Cassandra／MFG(Oracle)・dbt 重跑即重建</li></ul></div>
+  <div class="card accent" style="margin:0 0 14px"><h4 class="t">優點</h4><ul><li>平台成本最低・責任邊界乾淨</li><li>raw RPO≈0・failover 零 ingestion 動作</li><li><b>failback 最簡</b>（無反向鏡像/禁寫）</li><li>dbt 使用者：重跑即重建</li></ul></div>
   <div class="card bad" style="margin:0"><h4 class="r">缺點</h4><ul><li>curated 跨座一致<b>無平台保證</b></li><li>需要政策公告與使用者溝通</li><li>非 dbt、不可重算的表風險自負</li></ul></div>
 </div><div class="opanel" data-opt="b2">
   <div class="card" style="margin:0 0 14px"><h4 class="t" style="display:flex;align-items:center;gap:12px">B2 raw 雙寫＋curated 平台鏡像<span class="chip w">條件</span></h4></div>
   <div class="card accent" style="margin:0 0 14px"><h4 class="t">優點</h4><ul><li>對使用者零侵入</li><li>curated 有平台承諾的 RPO（鏡像週期）</li></ul></div>
   <div class="card bad" style="margin:0"><h4 class="r">缺點</h4><ul><li>六難全攬回平台：loss window 壓不到零</li><li>failback 反向覆蓋・禁寫・凍結全套 runbook</li><li>認賠責任談判・表發現與對帳日常維運</li></ul></div>
-</div></div><div class="opanel" data-opt="b4">
+</div><div class="opanel" data-opt="b4">
   <div class="card" style="margin:0 0 14px"><h4 class="t" style="display:flex;align-items:center;gap:12px">B3 無 HA＋Client Library<span class="chip g">低需求</span></h4></div>
-  <div class="card accent" style="margin:0 0 14px"><h4 class="t">優點</h4><ul><li>零基礎設施・平常零維運</li><li>路由可更聰明・可灰度</li></ul></div>
-  <div class="card bad" style="margin:0"><h4 class="r">缺點</h4><ul><li>採用不可控・BI/dbt 裝不了</li><li><b>過渡期 A、B 同時被寫</b>——curated 分歧</li><li>決策分裂 or flag 服務又要 HA</li></ul></div>
+  <div class="card accent" style="margin:0 0 14px"><h4 class="t">優點</h4><ul><li>零基礎設施・平常零維運</li><li>路由可更聰明・可逐批切換（先讓少數 client 試切）</li></ul></div>
+  <div class="card bad" style="margin:0"><h4 class="r">缺點</h4><ul><li>採用不可控・BI/dbt 裝不了</li><li>切換時各 client 更新時間不一→<b>有人寫 A 有人寫 B</b>，curated 分岔</li><li>每個 client 自己判斷打哪座→判斷結果可能不一致</li></ul></div>
 </div></div>
   </div>
 </section>
