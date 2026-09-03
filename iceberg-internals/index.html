@@ -1,0 +1,1820 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Iceberg 運作原理 — 給資料工程師的底層拆解</title>
+<meta name="description" content="把 Iceberg 的運作原理一次講清楚：metadata 樹、commit 協定、scan planning、row-level delete、partition/schema 演進與 maintenance。25 頁，以 Spark 3.5.1 / Trino 467 / HMS 4.0.0 / Iceberg 1.5.2 / MinIO 的 stack 為例。">
+<style>
+/* ============================================================
+   ICEBERG FIELD MANUAL — 冰河藍 × 米白紙張，固定 1920×1080 stage
+   內部技術閱讀 deck。設計語言：印刷技術手冊＋冰山地圖。
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@700;900&family=IBM+Plex+Mono:wght@400;600;700&display=swap');
+:root{
+  color-scheme:light;
+  --paper:#f4efe3; --paper-deep:#eae0ca; --panel:#fdfaf1; --panel-2:#f3ecda;
+  --ink:#282419; --muted:#6d6351; --faint:#a3957a;
+  --ice-deep:#14597a; --ice:#1f7ea8; --ice-mid:#3f9cc4; --ice-soft:#ddebf1; --ice-faint:#edf4f6;
+  --glacier:#57b4d8;
+  --ember:#b8431f; --ember-deep:#8f3317; --ember-soft:#f6dfd2;
+  --gold:#9a7222; --gold-soft:#f2e6c8;
+  --green:#46733f; --green-soft:#dfead6;
+  --slate:#55606b; --slate-soft:#e3e2da;
+  --line:#ddd1b4; --line-2:#c8ba98; --line-soft:#e8dfc9;
+  --shadow:#3a2f1d1f;
+  --serif:"Noto Serif TC",Georgia,"Songti TC",serif;
+  --sans:"Noto Sans TC",ui-sans-serif,system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  display:grid;place-items:center;overflow:hidden;
+  background:radial-gradient(circle at 84% 8%,#cfe0e93f 0,transparent 30%),radial-gradient(circle at 6% 92%,#ecd9b83f 0,transparent 32%),linear-gradient(150deg,#f6f1e5,#eee5d1 60%,#f3ecdb);
+  font-family:var(--sans);
+  color:var(--ink);
+}
+h1,h2,h3,.h2,.kicker,.serif{font-family:var(--serif)}
+a{color:var(--ice-deep)}
+/* ---- fixed stage (validated repo pattern) ---- */
+.viewport{position:relative;width:100vw;height:100vh;overflow:hidden}
+.stage{
+  position:absolute;left:50%;top:50%;width:1920px;height:1080px;
+  transform:translate(-50%,-50%) scale(calc(100vw / 1920px));
+  transform-origin:center;
+  background:
+    radial-gradient(circle at 84% 10%,#d8e8ef70 0,transparent 30%),
+    radial-gradient(circle at 10% 88%,#f3e3c460 0,transparent 32%),
+    linear-gradient(140deg,#fbf7ec,#f3ecda 55%,#f6f0e2);
+  box-shadow:0 0 0 1px #0000000c,0 42px 130px #3a2f1d38;
+  overflow:hidden;
+}
+@media (min-aspect-ratio:16/9){
+  .stage{transform:translate(-50%,-50%) scale(calc(100vh / 1080px))}
+}
+.slide{position:relative;inset:auto;opacity:1;pointer-events:auto}
+html.js .slide{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  padding:46px 80px 38px;opacity:0;pointer-events:none;
+}
+html.js .slide.is-active{opacity:1;pointer-events:auto}
+html.js .slide > :not(.gnum){position:relative;z-index:1}
+/* ghost numeral — 紙上淡淡的水印頁碼 */
+.gnum{
+  position:absolute;top:120px;right:30px;font-weight:900;font-size:380px;line-height:1;
+  font-family:var(--serif);
+  color:transparent;-webkit-text-stroke:1.5px #14597a0e;
+  letter-spacing:-.04em;user-select:none;pointer-events:none;z-index:0;
+}
+/* ---- shared type ---- */
+.meta{display:flex;align-items:center;gap:14px;color:var(--muted);font-size:16px;letter-spacing:.16em;text-transform:uppercase;font-weight:700}
+.num{color:var(--ice-deep);font-weight:900;letter-spacing:.06em}
+.part{color:var(--muted);font-weight:700}
+.part b{color:var(--ice-deep)}
+.h2{font-size:50px;line-height:1.24;margin:12px 0 0;font-weight:900;letter-spacing:-.01em;max-width:1760px;color:var(--ink);font-family:var(--serif)}
+.h2 strong{color:var(--ice-deep)}
+.title-h2{font-size:88px;line-height:1.14;margin-top:26px}
+.title-h2 em{font-style:normal;color:var(--ice-deep)}
+.sub{max-width:1680px;font-size:24px;line-height:1.6;color:var(--muted);margin:16px 0 0}
+.sub b{color:var(--ink)}
+.note{margin-top:14px;color:var(--muted);font-size:19px;line-height:1.6;max-width:1760px}
+.note b{color:var(--ink)}
+.take{
+  margin-top:16px;padding:11px 22px;border-left:6px solid var(--ice-deep);
+  background:linear-gradient(90deg,#e8f1f4,#f7f1e300);
+  font-size:22px;line-height:1.5;color:#17435a;font-weight:700;max-width:1760px;
+}
+.take b{color:var(--ice-deep)}
+.take.warn{border-left-color:var(--ember);background:linear-gradient(90deg,#f7e6dd,#f7f1e300);color:#7c3a1e}
+.take.warn b{color:var(--ember-deep)}
+/* ---- chips & labels ---- */
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 13px;font-size:15px;font-weight:800;white-space:nowrap;font-family:var(--sans)}
+.chip.d{background:var(--ice-soft);color:var(--ice-deep)}
+.chip.a{background:var(--ember-soft);color:var(--ember-deep)}
+.chip.g{background:var(--gold-soft);color:#6f5215}
+.chip.k{background:var(--green-soft);color:var(--green)}
+.chip.s{background:var(--slate-soft);color:var(--slate)}
+.chip.m{background:#ffffffcc;border:1px solid var(--line-2);color:var(--muted);font-family:var(--mono);font-size:13.5px;font-weight:600}
+.up{font-size:14px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.up.ice{color:var(--ice-deep)}
+.mono{font-family:var(--mono);font-size:.92em}
+.muted{color:var(--muted)}
+/* ---- generic layout helpers ---- */
+.row{display:flex;gap:14px;align-items:stretch}
+.row.c{align-items:center}
+.row.w{flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.grid4{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 26px var(--shadow)}
+.arr{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--ice-deep);font-size:26px;font-weight:900;flex:0 0 auto;padding:0 1px;line-height:1}
+.arr .al{font-size:12.5px;color:var(--muted);font-weight:700;white-space:nowrap;line-height:1.25;text-align:center;letter-spacing:.04em}
+.arr.sm{font-size:19px}
+/* 內容區：讓 diagram 佔滿 meta+h2 與 take 之間 */
+.mid{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;justify-content:center;margin-top:8px}
+/* node 通用卡片 */
+.nd{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 16px;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:4px;box-shadow:0 8px 22px var(--shadow)}
+.nd .t{font-size:20px;font-weight:900;color:var(--ink);line-height:1.3}
+.nd .s{font-size:15.5px;color:var(--muted);line-height:1.5}
+.nd .s b{color:var(--ink)}
+.nd.hl{border-color:#1f7ea855;background:linear-gradient(165deg,#eaf3f6,#fdfaf1)}
+.nd.warn{border-color:#b8431f66;background:linear-gradient(165deg,#f9eae2,#fdfaf1)}
+.nd.ok{border-color:#46733f55;background:linear-gradient(165deg,#edf4e8,#fdfaf1)}
+.nd.gold{border-color:#9a722255;background:linear-gradient(165deg,#f6eeda,#fdfaf1)}
+.nd.dark{background:linear-gradient(160deg,#23404e,#17303d);border-color:#23404e;color:#f4efe3}
+.nd.dark .t{color:#f4efe3}
+.nd.dark .s{color:#b9ccd4}
+.nd.dark .s b{color:#ffe1a8}
+/* band（橫條說明） */
+.band{margin-top:12px;border-radius:12px;padding:9px 18px;font-size:18px;line-height:1.5;display:flex;gap:12px;align-items:baseline;border:1px solid transparent}
+.band .bl{flex:0 0 auto;font-weight:900;font-size:16px;letter-spacing:.08em;text-transform:uppercase}
+.band.ice{background:var(--ice-soft);border-color:#1f7ea844}.band.ice .bl{color:var(--ice-deep)}
+.band.ember{background:var(--ember-soft);border-color:#b8431f44}.band.ember .bl{color:var(--ember-deep)}
+.band.gold{background:var(--gold-soft);border-color:#9a722244}.band.gold .bl{color:#6f5215}
+.band.green{background:var(--green-soft);border-color:#46733f44}.band.green .bl{color:var(--green)}
+.band.dark{background:linear-gradient(120deg,#23404e,#17303d);border-color:#23404e;color:#e6edf0}
+.band.dark .bl{color:#ffe1a8}
+.band b{color:var(--ink)}
+.band.ice b{color:var(--ice-deep)}
+.band.ember b{color:var(--ember-deep)}
+/* 檔案路徑行 */
+.frow{display:flex;align-items:baseline;gap:10px;font-family:var(--mono);font-size:15px;line-height:1.7;white-space:nowrap}
+.frow .fp{color:var(--ink)}
+.frow .fc{color:var(--muted);font-family:var(--sans);font-size:13.5px;white-space:normal}
+/* 內容區 scroll 保險：mid 內元素 min-width 0 */
+.mid > *, .row > *, .grid2 > *, .grid3 > *, .grid4 > *{min-width:0}
+</style>
+</head>
+<body>
+<script>document.documentElement.classList.add('js')</script>
+<div class="viewport">
+<div class="stage" id="stage">
+<style>
+/* ============================================================
+   SLIDE-SPECIFIC LAYOUTS (Iceberg field manual)
+   ============================================================ */
+/* ---------- S2 心智模型：版本疊卡 ---------- */
+.mn2{display:grid;grid-template-columns:1.2fr .8fr;gap:22px;margin-top:10px}
+.vwrap{display:grid;grid-template-columns:1fr 240px;gap:6px;align-items:center;position:relative;min-width:0}
+.vers{position:relative;height:338px;min-width:0}
+.ver{position:absolute;left:0;width:100%;height:102px;border-radius:12px;border:1.5px solid var(--line-2);background:linear-gradient(160deg,#ffffff,#f6f0e0);box-shadow:0 10px 26px var(--shadow);padding:8px 16px;font-family:var(--mono);font-size:12.5px;color:var(--muted);line-height:1.5}
+.ver b{color:var(--ink);font-size:13.5px}
+.ver .vt{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.ver .vt .tag{font-family:var(--sans);font-size:10.5px;font-weight:900;letter-spacing:.08em;color:var(--ice-deep);background:var(--ice-soft);padding:1px 8px;border-radius:999px;white-space:nowrap}
+.ver.v1{top:0;transform:rotate(-1.6deg)}
+.ver.v2{top:112px;transform:rotate(1deg);border-color:#9a7222aa}
+.ver.v3{top:224px;transform:rotate(-.6deg);border-color:var(--ice);background:linear-gradient(160deg,#eaf3f6,#f6f0e0)}
+.ver.v3 b{color:var(--ice-deep)}
+.ver .versub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pointer{text-align:center;border:1.5px dashed var(--ember);background:#fdf6ee;border-radius:14px;padding:14px 10px;position:relative}
+.pointer .pt{font-family:var(--mono);font-size:13.5px;font-weight:700;background:var(--ember);color:#fff;border-radius:10px;padding:8px 6px;line-height:1.4}
+.pointer .ps{font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:8px;font-weight:600;text-align:center}
+.pointer::before{content:"⇠";position:absolute;left:-26px;top:50%;transform:translateY(-50%);font-size:24px;color:var(--ember);font-weight:900}
+.rule3{display:flex;flex-direction:column;gap:12px;justify-content:center}
+.rule3 .rl{display:flex;gap:14px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 16px;box-shadow:0 8px 22px var(--shadow)}
+.rule3 .rl .rn{flex:0 0 auto;width:34px;height:34px;border-radius:999px;background:var(--ice-deep);color:#fff;font-weight:900;font-size:17px;display:flex;align-items:center;justify-content:center;font-family:var(--serif)}
+.rule3 .rl .rt{font-size:19px;font-weight:900;color:var(--ink);line-height:1.3}
+.rule3 .rl .rs{font-size:15px;color:var(--muted);line-height:1.5}
+.rule3 .rl .rs b{color:var(--ink)}
+/* ---------- S3 兩棵樹 + 三洞 ---------- */
+.hive3{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:4px}
+.oldtree,.newtree{border-radius:16px;padding:13px 18px 11px;border:1px solid var(--line)}
+.oldtree{background:linear-gradient(170deg,#f6ead8,#f6f0e2)}
+.newtree{background:linear-gradient(170deg,#e4eff3,#f2f0e4);border-color:#1f7ea855}
+.ot-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.ot-title{font-family:var(--serif);font-weight:900;font-size:22px;color:var(--ember-deep)}
+.newtree .ot-title{color:var(--ice-deep)}
+.treebox{font-family:var(--mono);font-size:15.5px;line-height:1.72;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}
+.treebox .dir{color:var(--ember-deep);font-weight:700}
+.newtree .treebox .dir{color:var(--ice-deep)}
+.treebox .dim{color:var(--faint)}
+.treebox .hl2{background:#e9c78a55;border-radius:3px;padding:0 3px}
+.newtree .treebox .hl2{background:#8fc6dc55}
+.hole3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:16px}
+.hole{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 16px;box-shadow:0 8px 22px var(--shadow);display:flex;flex-direction:column;gap:5px}
+.hole .hn{font-size:19px;font-weight:900;color:var(--ember-deep)}
+.hole .hd{font-size:15.5px;color:var(--muted);line-height:1.55}
+.hole .hd b{color:var(--ink)}
+.hole .hf{margin-top:2px;font-size:14.5px;line-height:1.5;color:var(--ice-deep);font-weight:700;background:var(--ice-soft);border-radius:9px;padding:5px 10px}
+/* ---------- S4 metadata 五層 ---------- */
+.meta5{display:flex;flex-direction:column;gap:0;margin-top:6px}
+.ly5{display:flex;align-items:stretch;gap:0}
+.ly5 .lidx{flex:0 0 64px;display:flex;align-items:flex-start;justify-content:center;padding-top:34px;position:relative}
+.ly5 .lidx .dot{width:15px;height:15px;border-radius:50%;background:var(--ice-deep);border:3px solid #fff;box-shadow:0 0 0 1px var(--ice-deep);z-index:2}
+.ly5 .lidx::after{content:"";position:absolute;left:50%;top:40px;width:2px;height:calc(100% - 18px);background:var(--line-2)}
+.ly5:last-child .lidx::after{display:none}
+.ly5 .lbody{flex:1;min-width:0;display:grid;grid-template-columns:1.25fr 1fr .8fr;align-items:center;gap:14px;border:1px solid var(--line-soft);border-left:4px solid var(--ice);background:var(--panel);border-radius:10px;margin:3px 0;padding:8px 16px;box-shadow:0 6px 18px var(--shadow)}
+.ly5 .lbody.hot{border-left-color:var(--ember);background:linear-gradient(160deg,#fdf6ee,#fdfaf1)}
+.ly5 .lname{font-size:19px;font-weight:900;color:var(--ink)}
+.ly5 .lname .en{display:block;font-family:var(--mono);font-size:13.5px;font-weight:600;color:var(--ice-deep)}
+.ly5 .lrole{font-size:15px;color:var(--muted);line-height:1.5}
+.ly5 .lrole b{color:var(--ink)}
+.ly5 .lpath{font-family:var(--mono);font-size:12.5px;color:var(--faint);line-height:1.5;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* ---------- S5 metadata.json ---------- */
+.json2{display:grid;grid-template-columns:1.22fr .78fr;gap:20px;margin-top:8px}
+.jsonbox{border-radius:14px;overflow:hidden;border:1px solid var(--line-2);box-shadow:0 10px 30px var(--shadow)}
+.jsonbox .jb-head{background:linear-gradient(120deg,#23404e,#1a3541);color:#dce9ee;font-family:var(--mono);font-size:13px;padding:8px 16px;display:flex;justify-content:space-between;align-items:center}
+.jsonbox .jb-head .jpath{color:#9fc3d2}
+.jsonbox .jb-body{background:#fffdf6;font-family:var(--mono);font-size:13.5px;line-height:1.62;padding:12px 16px 14px;overflow:hidden;white-space:pre-wrap;word-break:break-all;max-height:520px}
+.jk{color:var(--ice-deep);font-weight:600}
+.jv{color:#7a5a17}
+.jc{color:var(--faint)}
+.jcm{color:#a3957a;font-style:italic}
+.rcards{display:flex;flex-direction:column;gap:12px;justify-content:center}
+.rcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 16px;box-shadow:0 8px 22px var(--shadow)}
+.rcard .rt2{font-size:18px;font-weight:900;color:var(--ice-deep);margin-bottom:4px}
+.rcard .rd2{font-size:15px;color:var(--muted);line-height:1.55}
+.rcard .rd2 b{color:var(--ink)}
+.rcard .rd2 code{font-family:var(--mono);font-size:13px;color:var(--ink);background:var(--ice-faint);padding:1px 5px;border-radius:5px}
+/* ---------- S6 snapshot 解剖 ---------- */
+.snap2{display:grid;grid-template-columns:1.12fr .88fr;gap:20px;margin-top:8px}
+.snapcard{border-radius:16px;border:1px solid var(--line-2);overflow:hidden;box-shadow:0 10px 30px var(--shadow)}
+.snapcard .sn-head{background:linear-gradient(120deg,#23404e,#1a3541);color:#fff;padding:10px 18px;display:flex;align-items:center;gap:12px}
+.snapcard .sn-head .sn-id{font-family:var(--mono);font-size:15px;color:#ffe1a8;font-weight:700}
+.snapcard .sn-head .sn-lbl{margin-left:auto;font-family:var(--mono);font-size:12px;color:#9fc3d2}
+.snapcard .sn-body{background:#fffdf6;font-family:var(--mono);font-size:13.5px;line-height:1.85;padding:12px 18px}
+.snapcard .sn-body .snr{display:flex;gap:10px;align-items:baseline}
+.snapcard .sn-body .snk{flex:0 0 190px;color:var(--faint);font-size:12.5px;text-align:right}
+.snapcard .sn-body .snv{color:var(--ink)}
+.snapcard .sn-body .snv em{color:var(--ember-deep);font-style:normal;font-weight:700}
+.snapcard .sn-body .snv.hl2{background:#e9c78a55;padding:0 4px;border-radius:4px}
+</style>
+
+<!-- ============ 01 · TITLE ============ -->
+<section class="slide" id="s1" aria-labelledby="s1t">
+  <p class="meta"><span class="num">01</span><span class="part">ICEBERG TABLE FORMAT · 內部技術文件 v1</span></p>
+  <div class="mid" style="justify-content:center">
+    <p class="up ice" style="font-size:19px;letter-spacing:.34em">APACHE ICEBERG · 底層原理拆解</p>
+    <h2 class="h2 title-h2" id="s1t">Iceberg <em>運作原理</em></h2>
+    <p class="sub" style="max-width:1500px;margin-top:26px">給每天都在用它的資料工程師：<b>metadata 樹、commit 協定、scan planning、row-level delete、partition／schema 演進、maintenance</b>——一次講到能自己推理的程度，之後當字典反覆翻。</p>
+    <div class="row w" style="gap:10px;margin-top:34px;align-items:center">
+      <span class="chip m">Spark 3.5.1</span><span class="chip m">Trino 467</span><span class="chip m">HMS 4.0.0</span><span class="chip m">Iceberg 1.5.2</span><span class="chip m">MinIO</span>
+      <span class="note" style="margin:0 0 0 14px;font-size:17px">全篇檔案路徑與案例都以這套 stack 為準</span>
+    </div>
+    <div class="row w" style="gap:12px;margin-top:40px">
+      <span class="chip d">25 頁 · 整讀約 40 分鐘</span>
+      <span class="chip g">之後跳讀：每頁 takeaway 是最短摘要</span>
+      <span class="chip a">講不清楚就翻回去對應頁</span>
+    </div>
+    <div class="chrow">
+      <span class="chp"><b>Ⅰ 心智模型</b> S2</span>
+      <span class="chp"><b>Ⅱ 為什麼</b> S3</span>
+      <span class="chp"><b>Ⅲ Metadata 解剖</b> S4–8</span>
+      <span class="chp"><b>Ⅳ Commit</b> S9–13</span>
+      <span class="chp"><b>Ⅴ 讀取</b> S14–16</span>
+      <span class="chp"><b>Ⅵ 進階語意</b> S17–19</span>
+      <span class="chp"><b>Ⅶ 維運 × 落地</b> S20–23</span>
+      <span class="chp"><b>Ⅷ 驗收</b> S24–25</span>
+    </div>
+  </div>
+  <div class="take">目標不是「會用」，是「<b>出事時能自己推理</b>」——每頁都從底層機制出發，最後用 8 題自測驗收。</div>
+</section>
+
+<!-- ============ 02 · 心智模型 ============ -->
+<section class="slide" id="s2" aria-labelledby="s2t">
+  <p class="meta"><span class="num">02</span><span class="part">Ⅰ 心智模型</span></p>
+  <h2 class="h2" id="s2t">先記住一句話：<strong>資料檔不動，動的是「指標」</strong></h2>
+  <div class="mid"><div class="mn2">
+    <div class="vwrap">
+      <div class="vers">
+        <div class="ver v1"><div class="vt"><b>metadata.json v1</b><span class="tag">SNAPSHOT S1</span></div><div class="versub">schema v0 · spec v0 · snapshots: [S1]</div></div>
+        <div class="ver v2"><div class="vt"><b>metadata.json v2</b><span class="tag">SNAPSHOT S2</span></div><div class="versub">schema v0 · spec v0 · snapshots: [S1, S2]</div></div>
+        <div class="ver v3"><div class="vt"><b>metadata.json v3</b><span class="tag">SNAPSHOT S3 · current</span></div><div class="versub">schema v1 · spec v0 · snapshots: [S1, S2, S3]</div></div>
+      </div>
+      <div class="pointer"><div class="pt">HMS 指標<br>metadata_location</div><div class="ps">catalog 只記「現在指到哪一顆」，reader 從這裡開始往下走</div></div>
+    </div>
+    <div class="rule3">
+      <div class="rl"><span class="rn">1</span><div><div class="rt">檔案不可變</div><div class="rs">data 與 metadata 檔一寫出就不再改寫——<b>全部 append-only</b>。想「改」就是寫新檔。</div></div></div>
+      <div class="rl"><span class="rn">2</span><div><div class="rt">表 = 一顆 metadata 檔</div><div class="rs">表「現在長什麼樣」由 current metadata 決定，<b>reader 每次從指標往下讀</b>。</div></div></div>
+      <div class="rl"><span class="rn">3</span><div><div class="rt">操作 = 寫新檔 + 換指標</div><div class="rs">舊指標、舊檔全部留著 → <b>time travel、回滾、並行讀寫</b>都從這裡免費長出來。</div></div></div>
+    </div>
+  </div>
+  <div class="band ice" style="margin-top:10px"><span class="bl">對照 Git</span><span>commit 只移動 branch 指標，底下的 objects 永不修改，要回滾就指回舊 commit——<b>Iceberg 把同一招用在資料表上</b>。</span></div></div>
+<div class="take">後面 23 頁都是這一句的展開：<b>先記住「換指標」，再一層層看它怎麼換得安全、換得快</b>。</div>
+</section>
+
+<!-- ============ 03 · 為什麼（Hive 的三個洞） ============ -->
+<section class="slide" id="s3" aria-labelledby="s3t">
+  <p class="meta"><span class="num">03</span><span class="part">Ⅱ 為什麼要這樣設計</span></p>
+  <h2 class="h2" id="s3t">舊世界：Hive 表把「目錄」當真相——<strong>一致性、演進、並發全卡在目錄上</strong></h2>
+  <div class="mid"><div class="hive3">
+    <div class="oldtree">
+      <div class="ot-head"><div class="ot-title">Hive 表 · 目錄即一切</div><span class="chip a">schema 在 metastore，partition 是路徑</span></div>
+      <div class="treebox">dw.db/events/
+  <span class="dir">dt=2026-09-01/</span>part-00001.parquet
+  <span class="dir">dt=2026-09-01/</span>part-00002.parquet
+  <span class="dir">dt=2026-09-02/</span>part-00007.parquet
+  <span class="dir">dt=2026-09-03/</span>part-00011.parquet
+  <span class="dim">「資料到哪了？」= list 目錄
+  「commit 到哪了？」= 檔名搬好了沒
+  「哪個檔多大/多新？」= 不存在</span></div>
+    </div>
+    <div class="newtree">
+      <div class="ot-head"><div class="ot-title">Iceberg 表 · metadata 即一切</div><span class="chip d">目錄只是擺放位置</span></div>
+      <div class="treebox">dw.db/events/
+  <span class="dir">metadata/</span><span class="hl2">00004-&lt;uuid&gt;.metadata.json</span>
+  <span class="dir">metadata/</span>snap-&lt;snapshot-id&gt;-1-&lt;uuid&gt;.avro
+  <span class="dir">metadata/</span>&lt;uuid&gt;-m0.avro
+  <span class="dir">data/</span>event_month=2026-09/&lt;uuid&gt;.parquet
+  <span class="dim">「資料到哪了？」= 讀 metadata 樹
+  「commit 到哪了？」= 指標換了沒
+  「哪個檔多大/多新？」= manifest 裡有統計</span></div>
+    </div>
+  </div>
+  <div class="hole3">
+    <div class="hole"><div class="hn">① 沒有跨目錄的 atomic commit</div><div class="hd">覆蓋多個 partition = <b>依序搬目錄/改名</b>，reader 可能看到「09-01 新版 + 09-02 舊版」交錯；搬一半掛掉就停在半套。</div><div class="hf">Iceberg：換一個指標 = 完整 commit，沒有半套狀態。</div></div>
+    <div class="hole"><div class="hn">② 演進 = 搬資料</div><div class="hd">schema、partition 規則寫死在目錄與 metastore 約定裡。<b>改 partition 欄位、改欄位名</b>都等於重寫整張表，代價大所以大家不敢改。</div><div class="hf">Iceberg：schema／partition 是 metadata 內容，換版即可（見 Ⅵ）。</div></div>
+    <div class="hole"><div class="hn">③ 並發靠運氣、查詢靠全掃</div><div class="hd">兩個 writer 同時寫同目錄 <b>互相覆蓋沒人擋</b>；沒有檔案統計，pruning 只能靠猜與全掃。</div><div class="hf">Iceberg：樂觀並行 + manifest 內建統計（見 Ⅳ、Ⅴ）。</div></div>
+  </div>
+  <div class="owcmp">
+    <div class="owrow"><span class="oww">同一個動作</span><span class="oww">HIVE 世界</span><span class="oww">ICEBERG 世界</span></div>
+    <div class="owrow"><span class="oww">一次 commit</span><span class="owh">依序搬多個 partition 目錄——<b>半套狀態隨時可見</b></span><span class="owi">寫新檔＋一次換指標——<b>沒有中間狀態</b></span></div>
+    <div class="owrow"><span class="oww">改 schema／partition</span><span class="owh">等於重寫資料，或祈禱沒人 rename</span><span class="owi">metadata 加一版描述——<b>檔案不動</b></span></div>
+    <div class="owrow"><span class="oww">查詢加速</span><span class="owh">list 目錄＋開檔案才知道長怎樣</span><span class="owi">metadata 內建統計，<b>先跳檔再開檔</b></span></div>
+  </div></div>
+<div class="take">Iceberg 把「資料長什麼樣」<b>從目錄搬進 metadata</b>——目錄回歸純儲存，一致性與演進交給 metadata 層處理。</div>
+</section>
+
+<!-- ============ 04 · metadata 樹全圖 ============ -->
+<section class="slide" id="s4" aria-labelledby="s4t">
+  <p class="meta"><span class="num">04</span><span class="part">Ⅲ Metadata 解剖 · 全景</span></p>
+  <h2 class="h2" id="s4t">一張表的 metadata 樹：<strong>五層，每一層都是一顆真實的檔案</strong></h2>
+  <div class="mid"><div class="meta5">
+    <div class="ly5"><div class="lidx"><span class="dot"></span></div><div class="lbody hot"><div class="lname">① Catalog 條目（根）<span class="en">metadata_location 指標</span></div><div class="lrole">唯一<b>會被更新</b>的地方：commit = 把這裡指到新 metadata 檔。<b>catalog 不存資料</b>。</div><div class="lpath">HMS: TBL_PROPERTIES<br>s3://…/events</div></div></div>
+    <div class="ly5"><div class="lidx"><span class="dot"></span></div><div class="lbody"><div class="lname">② Table metadata.json<span class="en">00004-&lt;uuid&gt;.metadata.json</span></div><div class="lrole">表的身分證＋完整歷史：schema／partition-spec／snapshot 清單／refs。每次 commit 換一顆新檔（KB 級）。</div><div class="lpath">…/events/metadata/<br>00004-&lt;uuid&gt;.metadata.json</div></div></div>
+    <div class="ly5"><div class="lidx"><span class="dot"></span></div><div class="lbody"><div class="lname">③ Manifest list<span class="en">snap-&lt;snapshot-id&gt;-1-&lt;uuid&gt;.avro</span></div><div class="lrole">一顆 snapshot 的「目錄」：列出這版要讀哪些 manifest，附每顆 manifest 的 partition 邊界（外層索引）。</div><div class="lpath">…/events/metadata/<br>snap-5659770742…-1-….avro</div></div></div>
+    <div class="ly5"><div class="lidx"><span class="dot"></span></div><div class="lbody"><div class="lname">④ Manifest<span class="en">&lt;uuid&gt;-m0.avro</span></div><div class="lrole">一批資料檔的索引：一行一顆檔 + 每檔統計（內層索引）。commit 只新增 manifest，不重寫舊的。</div><div class="lpath">…/events/metadata/<br>0a2711d8-…-m0.avro</div></div></div>
+    <div class="ly5"><div class="lidx"><span class="dot"></span></div><div class="lbody"><div class="lname">⑤ Data / delete 檔<span class="en">*.parquet · *.orc · *.avro</span></div><div class="lrole">真正的資料。內容<b>永遠不變</b>；被哪版引用、代表什麼 partition，全由上面四層決定。</div><div class="lpath">…/events/data/<br>event_month=2026-09/&lt;uuid&gt;.parquet</div></div></div>
+  </div>
+  <div class="band gold" style="margin-top:10px"><span class="bl">閱讀方向</span><span>reader 永遠從 ① 往下走到 ⑤；同一張表可以同時存在多顆 snapshot（多份 manifest list）——<b>它們是不同時間的「版本」，不是副本</b>。</span></div></div>
+<div class="take">從根到底只有 5 種檔，且除 catalog 指標外全部只增不改——<b>整棵樹的複雜度都來自「怎麼讓指標換得安全」</b>。</div>
+</section>
+
+<!-- ============ 05 · metadata.json ============ -->
+<section class="slide" id="s5" aria-labelledby="s5t">
+  <p class="meta"><span class="num">05</span><span class="part">Ⅲ Metadata 解剖 · Table Metadata</span></p>
+  <h2 class="h2" id="s5t">metadata.json：<strong>一張表的身分證——現在與歷史都住在同一顆檔裡</strong></h2>
+  <div class="mid"><div class="json2">
+    <div class="jsonbox">
+      <div class="jb-head"><span>00004-&lt;uuid&gt;.metadata.json</span><span class="jpath">2.4 KB · S3</span></div>
+      <div class="jb-body">{
+  <span class="jk">"format-version"</span>: <span class="jv">2</span>,
+  <span class="jk">"table-uuid"</span>: <span class="jv">"f1c3…-b0e2…"</span>,
+  <span class="jk">"location"</span>: <span class="jv">"s3://…/dw.db/events"</span>,
+  <span class="jk">"last-sequence-number"</span>: <span class="jv">12</span>,
+  <span class="jk">"last-column-id"</span>: <span class="jv">8</span>,
+  <span class="jk">"schemas"</span>: [
+    { <span class="jk">"schema-id"</span>: <span class="jv">0</span>, <span class="jk">"fields"</span>: [ {<span class="jk">"id"</span>:1, <span class="jk">"name"</span>:<span class="jv">"event_id"</span>, <span class="jk">"type"</span>:<span class="jv">"long"</span>}, … ] },
+    { <span class="jk">"schema-id"</span>: <span class="jv">1</span>, <span class="jk">"fields"</span>: [ … ] } ],  <span class="jc">← 演進保留每一版</span>
+  <span class="jk">"current-schema-id"</span>: <span class="jv">1</span>,
+  <span class="jk">"partition-specs"</span>: [
+    { <span class="jk">"spec-id"</span>: <span class="jv">0</span>, <span class="jk">"fields"</span>: [{ <span class="jk">"name"</span>:<span class="jv">"event_month"</span>, <span class="jk">"transform"</span>:<span class="jv">"month"</span>, <span class="jk">"source-id"</span>:<span class="jv">2</span> }] } ],
+  <span class="jk">"sort-orders"</span>: [ … ], <span class="jk">"default-sort-order-id"</span>: <span class="jv">0</span>,
+  <span class="jk">"properties"</span>: { <span class="jk">"write.format.default"</span>: <span class="jv">"parquet"</span> },
+  <span class="jk">"current-snapshot-id"</span>: <span class="jv">7234591029384756198</span>,
+  <span class="jk">"refs"</span>: { <span class="jk">"main"</span>: { <span class="jk">"snapshot-id"</span>: <span class="jv">7234591029384756198</span>,
+                    <span class="jk">"type"</span>: <span class="jv">"branch"</span> } },
+  <span class="jk">"snapshots"</span>: [ … 每顆 snapshot 一行摘要 … ],
+  <span class="jk">"snapshot-log"</span>: [ … ], <span class="jk">"metadata-log"</span>: [ … ]   <span class="jc">← 時間軸</span>
+}</div>
+    </div>
+    <div class="rcards">
+      <div class="rcard"><div class="rt2">歷史不是備份，是檔案的一部分</div><div class="rd2">schemas[]、partition-specs[] 各留多版，snapshot-log／metadata-log 記時間軸——<b>演進靠「加版本」，不靠「覆蓋」</b>，所以 rename 欄位不用搬資料。</div></div>
+      <div class="rcard"><div class="rt2">每次 commit 換一整顆新檔</div><div class="rd2">編號遞增（<code>00000-</code>、<code>00001-</code>…）。舊檔留著 = 可以 rollback 回舊 metadata（metadata-log 記著每顆檔的位置）。</div></div>
+      <div class="rcard"><div class="rt2">它小，所以換指標才快</div><div class="rd2">整顆只有 KB 級。所有引擎的 commit 最後都是「重寫這顆小檔 + 換指標」——<b>表再大，commit 的成本也跟資料量無關</b>。</div></div>
+    </div>
+  </div></div>
+<div class="take">這顆檔同時是<b>身分證、演化史與 commit 日誌</b>；讀懂它的欄位，就讀懂 Iceberg 一半的詞彙。</div>
+</section>
+<style>
+/* ---------- S7 兩層索引 ---------- */
+.idx7{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.snaprow{display:flex;align-items:center;gap:12px}
+.snaprow .sn-box{font-family:var(--mono);font-size:14px;font-weight:700;background:linear-gradient(160deg,#23404e,#17303d);color:#ffe1a8;border-radius:10px;padding:8px 14px;display:flex;align-items:center;gap:10px}
+.mlist{border:1.5px solid var(--line-2);border-radius:14px;overflow:hidden;box-shadow:0 8px 24px var(--shadow)}
+.mlist .ml-head{background:var(--panel-2);padding:6px 16px;display:flex;align-items:center;gap:12px;font-size:14px;font-weight:900;color:var(--ink)}
+.mlist .ml-head .mlf{font-family:var(--mono);font-size:12.5px;color:var(--ice-deep);font-weight:600}
+.ml-row{display:grid;grid-template-columns:1fr 1.1fr .9fr 1fr;gap:10px;align-items:center;border-top:1px solid var(--line-soft);padding:7px 16px;background:var(--panel)}
+.ml-row .mf{font-family:var(--mono);font-size:12.5px;color:var(--ink)}
+.ml-row .mb{font-size:12.5px;color:var(--muted);line-height:1.4}
+.ml-row .mb b{color:var(--ink)}
+.ml-row.hit{background:linear-gradient(160deg,#eaf3f6,#fdfaf1)}
+.ml-row .mhide{font-family:var(--sans);font-size:11.5px;font-weight:900;color:var(--ember-deep);background:var(--ember-soft);border-radius:999px;padding:2px 10px;text-align:center;white-space:nowrap}
+.arrowmid{display:flex;align-items:center;justify-content:center;gap:12px;color:var(--ember);font-weight:900;font-size:22px}
+.arrowmid .aml{font-family:var(--sans);font-size:13px;color:var(--muted);font-weight:700}
+.mrow3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.mcard{border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden;box-shadow:0 6px 18px var(--shadow);min-width:0}
+.mcard .mc-head{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--ice-deep);background:var(--ice-faint);padding:4px 12px;border-bottom:1px solid var(--line-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mcard .mc-body{font-family:var(--mono);font-size:11.5px;line-height:1.65;padding:6px 12px;color:var(--muted);white-space:nowrap;overflow:hidden}
+.mcard .mc-body .fn{color:var(--ink)}
+.mcard .mc-body .st{color:var(--ember-deep);font-weight:700}
+.mcard.off{opacity:.5}
+/* ---------- S8 manifest entry ---------- */
+.entry2{display:grid;grid-template-columns:1.3fr .7fr;gap:20px;margin-top:8px}
+.entrybox{border-radius:14px;overflow:hidden;border:1px solid var(--line-2);box-shadow:0 10px 30px var(--shadow)}
+.entrybox .en-head{background:linear-gradient(120deg,#23404e,#1a3541);color:#dce9ee;padding:7px 16px;font-size:13px;display:flex;gap:10px;align-items:center;font-family:var(--mono)}
+.entrybox .en-head .etag{font-family:var(--sans);font-size:11px;font-weight:900;background:#ffd9a8;color:#7a4a10;border-radius:999px;padding:1px 9px}
+.entrybox .en-body{background:#fffdf6;font-size:13px;line-height:1.5}
+.ek{display:flex;gap:0;border-top:1px solid var(--line-soft);padding:5px 14px}
+.ek:first-child{border-top:0}
+.ek .ekn{flex:0 0 215px;font-family:var(--mono);font-size:12.5px;color:var(--ice-deep);font-weight:600}
+.ek .ekv{flex:1;color:var(--ink);font-family:var(--mono);font-size:12.5px;min-width:0}
+.ek .ekd{flex:0 0 250px;font-size:12.5px;color:var(--muted);line-height:1.45;text-align:right}
+.ek .ekd b{color:var(--ink)}
+.ek.hot{background:linear-gradient(160deg,#f9eae2,#fffdf6)}
+.ek.hot .ekn{color:var(--ember-deep)}
+.v2b{font-size:10px;font-weight:900;color:#6f5215;background:var(--gold-soft);border-radius:4px;padding:0 5px;vertical-align:1px;letter-spacing:.04em}
+/* ---------- S9 commit 旅程 ---------- */
+.journey{display:grid;grid-template-columns:1.5fr 1fr;gap:22px;margin-top:6px}
+.jcol{display:flex;flex-direction:column;gap:6px;justify-content:center}
+.jstep{display:flex;gap:13px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--ice);border-radius:11px;padding:7px 14px;box-shadow:0 5px 14px var(--shadow)}
+.jstep.hot{border-left-color:var(--ember);background:linear-gradient(160deg,#fdf3ec,#fdfaf1)}
+.jstep.ok{border-left-color:var(--green)}
+.jstep .jsn{flex:0 0 auto;width:26px;height:26px;border-radius:50%;background:var(--ice-soft);color:var(--ice-deep);font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.jstep.hot .jsn{background:var(--ember-soft);color:var(--ember-deep)}
+.jstep .jst{font-size:16.5px;font-weight:900;color:var(--ink);line-height:1.3}
+.jstep .jst .who{font-size:11px;font-weight:900;letter-spacing:.08em;color:var(--faint);margin-left:8px}
+.jstep .jsd{font-size:13.5px;color:var(--muted);line-height:1.5;margin-top:1px}
+.jstep .jsd b{color:var(--ink)}
+.jstep .jsd .fp{font-family:var(--mono);font-size:12px;color:var(--ice-deep)}
+.siderail{display:flex;flex-direction:column;gap:10px;justify-content:center}
+.siderail .sr{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 15px;box-shadow:0 6px 18px var(--shadow)}
+.siderail .sr .srt{font-size:16.5px;font-weight:900;color:var(--ink);margin-bottom:3px}
+.siderail .sr .srd{font-size:14px;color:var(--muted);line-height:1.55}
+.siderail .sr .srd b{color:var(--ink)}
+.siderail .sr.vis{background:linear-gradient(165deg,#eef5ea,#fdfaf1)}
+.siderail .sr.vis .srt{color:var(--green)}
+.siderail .sr.nov{background:linear-gradient(165deg,#f6eeda,#fdfaf1)}
+.siderail .sr.nov .srt{color:#6f5215}
+/* ---------- S10 樂觀並行 ---------- */
+.lane2{display:grid;grid-template-columns:1fr .55fr 1fr;gap:14px;margin-top:6px}
+.lane{display:flex;flex-direction:column;gap:5px}
+.lane .ln-head{font-size:16px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:8px;margin-bottom:2px}
+.lane.a .ln-head{color:var(--ice-deep)}
+.lane.b .ln-head{color:var(--ember-deep)}
+.lst{display:flex;gap:9px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 12px;box-shadow:0 4px 12px var(--shadow)}
+.lst .lt{font-size:13.5px;font-weight:900;color:var(--ink)}
+.lst .ls{font-size:12px;color:var(--muted);line-height:1.45}
+.lst .ls b{color:var(--ink)}
+.lst .ls .fp{font-family:var(--mono);font-size:11px}
+.lst .lsn{flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:var(--ice-soft);color:var(--ice-deep);font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.lane.b .lst .lsn{background:var(--ember-soft);color:var(--ember-deep)}
+.lst.fail{background:linear-gradient(160deg,#f9eae2,#fdfaf1);border-color:#b8431f66}
+.lst.win{background:linear-gradient(160deg,#eef5ea,#fdfaf1);border-color:#46733f66}
+.hmsrail{display:flex;flex-direction:column;align-items:center;gap:0;justify-content:center}
+.hmsrail .hr-box{border:2px solid var(--ice-deep);background:linear-gradient(160deg,#eaf3f6,#fdfaf1);border-radius:12px;padding:7px 6px;text-align:center;font-family:var(--mono);font-size:11.5px;font-weight:700;color:var(--ice-deep);line-height:1.4;width:100%}
+.hmsrail .hr-line{width:2px;background:var(--line-2);height:22px}
+.hmsrail .hr-dot{width:10px;height:10px;border-radius:50%;background:var(--ember);border:2px solid #fff;box-shadow:0 0 0 1px var(--ember)}
+.hmsrail .hr-x{width:10px;height:10px;border-radius:50%;background:var(--faint);border:2px solid #fff;box-shadow:0 0 0 1px var(--faint)}
+.note3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px}
+/* ---------- S11 catalog CAS ---------- */
+.catgrid{border:1.5px solid var(--line-2);border-radius:14px;overflow:hidden;box-shadow:0 10px 30px var(--shadow);margin-top:6px}
+.catgrid .cg-head{display:grid;grid-template-columns:180px 1fr 1.1fr;gap:12px;background:var(--panel-2);padding:8px 18px;font-size:13px;font-weight:900;letter-spacing:.1em;color:var(--muted)}
+.cg-row{display:grid;grid-template-columns:180px 1fr 1.1fr;gap:12px;align-items:center;border-top:1px solid var(--line-soft);padding:10px 18px;background:var(--panel)}
+.cg-row.hotrow{background:linear-gradient(160deg,#eaf3f6,#fdfaf1);box-shadow:inset 4px 0 0 var(--ice-deep)}
+.cg-row .cn{font-weight:900;font-size:17px;color:var(--ink)}
+.cg-row .cn small{display:block;font-family:var(--sans);font-size:12px;color:var(--faint);font-weight:700}
+.cg-row .cm{font-size:14.5px;color:var(--ink);line-height:1.55}
+.cg-row .cm b{color:var(--ember-deep)}
+.cg-row .cx{font-size:14px;color:var(--muted);line-height:1.5}
+.cg-row .cx b{color:var(--ice-deep)}
+/* ---------- S12 三種結局 ---------- */
+.out3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px}
+.oc{border-radius:16px;padding:13px 18px;display:flex;flex-direction:column;gap:6px;box-shadow:0 10px 26px var(--shadow);border:1.5px solid}
+.oc.ok{background:linear-gradient(165deg,#eef5ea,#fdfaf1);border-color:#46733f66}
+.oc.fail{background:linear-gradient(165deg,#f9eae2,#fdfaf1);border-color:#b8431f66}
+.oc.unk{background:linear-gradient(165deg,#f6eeda,#fdfaf1);border-color:#9a722255}
+.oc .oh{display:flex;align-items:center;gap:9px;font-size:18.5px;font-weight:900}
+.oc.ok .oh{color:var(--green)}
+.oc.fail .oh{color:var(--ember-deep)}
+.oc.unk .oh{color:#6f5215}
+.oc .oh .st{font-family:var(--mono);font-size:12px;font-weight:600;margin-left:auto;opacity:.85}
+.oc .od{font-size:14.5px;color:var(--muted);line-height:1.6;flex:1}
+.oc .od b{color:var(--ink)}
+.oc .odo{margin-top:auto;font-size:13.5px;font-weight:700;line-height:1.5;background:#ffffff99;border-radius:9px;padding:6px 10px}
+.oc.ok .odo{color:var(--green)}
+.oc.fail .odo{color:var(--ember-deep)}
+.oc.unk .odo{color:#6f5215}
+.invrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;align-items:center}
+</style>
+
+<!-- ============ 06 · Snapshot ============ -->
+<section class="slide" id="s6" aria-labelledby="s6t">
+  <p class="meta"><span class="num">06</span><span class="part">Ⅲ Metadata 解剖 · Snapshot</span></p>
+  <h2 class="h2" id="s6t">Snapshot：一次成功 commit 的「出版目錄」——<strong>查詢讀的是 snapshot，不是表</strong></h2>
+  <div class="mid"><div class="snap2">
+    <div class="snapcard">
+      <div class="sn-head"><span>snapshot S6</span><span class="sn-id">7234591029384756198</span><span class="sn-lbl">manifest-list: snap-7234591029…-1-&lt;uuid&gt;.avro</span></div>
+      <div class="sn-body">
+        <div class="snr"><span class="snk">snapshot-id</span><span class="snv">7234591029384756198（唯一，長整數）</span></div>
+        <div class="snr"><span class="snk">sequence-number</span><span class="snv">12 <em>← 全域 commit 時鐘（見 16 頁）</em></span></div>
+        <div class="snr"><span class="snk">timestamp-ms</span><span class="snv">2026-09-04T01:02:03Z</span></div>
+        <div class="snr"><span class="snk">schema-id</span><span class="snv">1（這版用的 schema）</span></div>
+        <div class="snr"><span class="snk">summary.operation</span><span class="snv hl2">"append"</span></div>
+        <div class="snr"><span class="snk">summary</span><span class="snv">added-data-files: 12 · added-records: 2,140,883<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;added-file-size: 84.2 MB · total-records: 8,712,901</span></div>
+        <div class="snr"><span class="snk">manifest-list</span><span class="snv">metadata/snap-7234591029…-1-&lt;uuid&gt;.avro</span></div>
+      </div>
+    </div>
+    <div class="rcards">
+      <div class="rcard"><div class="rt2">summary：不開檔先知道這次 commit 多大</div><div class="rd2">operation（append／overwrite／delete…）與檔案數、列數、位元組都寫在 metadata.json 裡——<b>監控、估成本、判斷「commit 了沒」都不用讀 manifest</b>。</div></div>
+      <div class="rcard"><div class="rt2">refs：main 就是 current</div><div class="rd2"><code>main</code> branch 指到最新 snapshot；<b>branch／tag</b> 讓你把某個好版本釘住（tag 不會被 expire 清掉，見 20 頁）。</div></div>
+      <div class="rcard"><div class="rt2">time travel 的單位就是 snapshot</div><div class="rd2">Spark／Trino：<code>… FOR VERSION AS OF &lt;id&gt;</code> 或 <code>FOR TIMESTAMP AS OF '2026-09-01 08:00'</code>——引擎把請求換算成「讀哪一顆 snapshot」。</div></div>
+    </div>
+  </div>
+  <div class="band ice" style="margin-top:10px"><span class="bl">隔離的來源</span><span>查詢一開場就鎖定一顆 snapshot；<b>之後別人再 commit 幾次，都不會改變進行中查詢看到的資料</b>——這就是 snapshot isolation。</span></div></div>
+<div class="take">把 snapshot 想成「出版目錄」：<b>目錄定稿後不再改，加印新版只是再出一本</b>。</div>
+</section>
+
+<!-- ============ 07 · 兩層索引 ============ -->
+<section class="slide" id="s7" aria-labelledby="s7t">
+  <p class="meta"><span class="num">07</span><span class="part">Ⅲ Metadata 解剖 · 兩層索引</span></p>
+  <h2 class="h2" id="s7t">為什麼要 manifest list ＋ manifest 兩層？<strong>一層讓 commit 便宜，一層讓查詢少開檔</strong></h2>
+  <div class="mid"><div class="idx7">
+    <div class="snaprow">
+      <span class="chip d">snapshot S6</span>
+      <div class="arr sm" style="flex-direction:row">──▶<span class="al">讀 manifest list</span></div>
+      <div class="mlist grow">
+        <div class="ml-head"><span>snap-7234591029…-1-&lt;uuid&gt;.avro · manifest list</span><span class="mlf">每顆 manifest 一行摘要（partition 邊界＋檔案數＋列數）</span></div>
+        <div class="ml-row hit"><span class="mf">&lt;uuid-a&gt;-m0.avro</span><span class="mb">partition 邊界：<b>event_month 2026-08</b></span><span class="mb">40 檔 · 43.2M 列</span><span class="mhide">這個月查不到 → 整顆跳過</span></div>
+        <div class="ml-row"><span class="mf">&lt;uuid-b&gt;-m1.avro</span><span class="mb">partition 邊界：<b>event_month 2026-09</b></span><span class="mb">12 檔 · 2.1M 列</span><span class="mhide" style="background:#dcebf0;color:#14597a">命中 → 開來讀</span></div>
+        <div class="ml-row"><span class="mf">&lt;uuid-c&gt;-m2.avro</span><span class="mb">partition 邊界：<b>event_month 2026-10</b></span><span class="mb">8 檔 · 3.4M 列</span><span class="mhide">這個月查不到 → 整顆跳過</span></div>
+      </div>
+    </div>
+    <div class="arrowmid">WHERE event_month = '2026-09' ▼<span class="aml">planning 只開「邊界可能命中」的 manifest</span></div>
+    <div class="mrow3">
+      <div class="mcard off"><div class="mc-head">&lt;uuid-a&gt;-m0.avro（跳過）</div><div class="mc-body"><span class="fn">…/2026-08/&lt;u1&gt;.parquet</span><br>rows 1.2M · size 41MB<br>bounds: 08-01 ~ 08-31</div></div>
+      <div class="mcard"><div class="mc-head">&lt;uuid-b&gt;-m1.avro（開）</div><div class="mc-body"><span class="fn">…/2026-09/&lt;u2&gt;.parquet</span><br>rows 890K · size 32MB<br>bounds: 09-01 ~ 09-14</div></div>
+      <div class="mcard off"><div class="mc-head">&lt;uuid-c&gt;-m2.avro（跳過）</div><div class="mc-body"><span class="fn">…/2026-10/&lt;u3&gt;.parquet</span><br>rows 3.4M · size 118MB<br>bounds: 10-01 ~ 10-31</div></div>
+    </div>
+  </div>
+  <div class="band gold" style="margin-top:10px"><span class="bl">為什麼兩層</span><span>commit 時<b>只新增自己的 manifest</b>，把清單併進 manifest list——不用重寫別人的 manifest；查詢時<b>先讀小 list、跳過整顆無關 manifest</b>，不必開每顆 manifest 才知道裡面是什麼。</span></div></div>
+<div class="take">外層跳 manifest、內層跳檔案——<b>兩層都是為了「少開檔案」：一層省 commit 的寫，一層省 query 的讀</b>。</div>
+</section>
+
+<!-- ============ 08 · manifest entry ============ -->
+<section class="slide" id="s8" aria-labelledby="s8t">
+  <p class="meta"><span class="num">08</span><span class="part">Ⅲ Metadata 解剖 · Manifest Entry</span></p>
+  <h2 class="h2" id="s8t">Manifest 的每一行 = 一顆資料檔＋<strong>足以決定「要不要讀它」的全部統計</strong></h2>
+  <div class="mid"><div class="entry2">
+    <div class="entrybox">
+      <div class="en-head"><span>&lt;uuid-b&gt;-m1.avro · 其中一筆 entry</span><span class="etag">content = 0 · DATA FILE</span></div>
+      <div class="en-body">
+        <div class="ek"><span class="ekn">status</span><span class="ekv">1 = ADDED</span><span class="ekd"><b>1=ADDED／0=EXISTING／2=DELETED</b>：這顆 manifest 對該檔的立場</span></div>
+        <div class="ek"><span class="ekn">snapshot_id</span><span class="ekv">7234591029384756198</span><span class="ekd">把它加進來（或標 DELETED）的那顆 snapshot</span></div>
+        <div class="ek"><span class="ekn">sequence_number <span class="v2b">V2</span></span><span class="ekv">12</span><span class="ekd">這顆檔的 data sequence——<b>「何時生效」</b></span></div>
+        <div class="ek"><span class="ekn">content <span class="v2b">V2</span></span><span class="ekv">0 = data</span><span class="ekd">0=data 檔／1=position delete／2=equality delete（見 17 頁）</span></div>
+        <div class="ek"><span class="ekn">file_path</span><span class="ekv">s3://…/events/data/event_month=2026-09/&lt;uuid&gt;.parquet</span><span class="ekd">完整路徑＝這顆檔的唯一 identity</span></div>
+        <div class="ek"><span class="ekn">partition</span><span class="ekv">{ event_month: "2026-09" }</span><span class="ekd">這顆檔屬於哪個 partition（不是看目錄！）</span></div>
+        <div class="ek hot"><span class="ekn">record_count / file_size</span><span class="ekv">890,121 rows · 33,554,432 bytes</span><span class="ekd">規劃 split 與 cost 用</span></div>
+        <div class="ek hot"><span class="ekn">lower_bounds / upper_bounds</span><span class="ekv">event_ts: 09-01T00:00:00Z ~ 09-14T23:59:59Z<br>user_id: 1001 ~ 99872</span><span class="ekd"><b>每欄 min/max——檔案層 pruning 的燃料</b></span></div>
+        <div class="ek"><span class="ekn">null_value_counts…</span><span class="ekv">event_ts: 0 · user_id: 12 …</span><span class="ekd">value_counts／null／nan、column_sizes、split_offsets 等</span></div>
+      </div>
+    </div>
+    <div class="rcards">
+      <div class="rcard"><div class="rt2">一行 = 一顆檔的完整「病歷」</div><div class="rd2">大小、列數、每欄 min/max、null 數——<b>查詢還沒開 Parquet 就知道該不該讀它</b>。這些統計在 commit 寫入時由 writer 從檔案 footer 彙整出來。</div></div>
+      <div class="rcard"><div class="rt2">DELETED 不是「刪檔」</div><div class="rd2">overwrite／compaction 把舊檔在<b>新 manifest 裡標 2=DELETED</b>，新 snapshot 就不再引用它——檔案本身還躺在 S3，直到 expire 才物理刪除（20 頁）。</div></div>
+      <div class="rcard"><div class="rt2">manifest 本身也是 Avro 檔</div><div class="rd2">所以 manifest 可以很大、也可以被 rewrite 合併（20 頁）。<b>它的內容不是秘密：任何人都能開一顆 manifest 看表「實際上有哪些檔」</b>。</div></div>
+    </div>
+  </div></div>
+<div class="take">Entry 是「<b>檔案的索引卡</b>」：Iceberg 一切效能（跳檔、跳 manifest）與一切語意（ADDED／DELETED、content 型別）都寫在這一層。</div>
+</section>
+
+<!-- ============ 09 · commit 旅程 ============ -->
+<section class="slide" id="s9" aria-labelledby="s9t">
+  <p class="meta"><span class="num">09</span><span class="part">Ⅳ Commit · 寫入流程</span></p>
+  <h2 class="h2" id="s9t">一次 INSERT 的完整旅程：<strong>先寫完所有檔案，最後一動才換指標</strong></h2>
+  <div class="mid"><div class="journey">
+    <div class="jcol">
+      <div class="jstep"><span class="jsn">1</span><div><div class="jst">executor 平行寫資料檔<span class="who">EXECUTOR → S3</span></div><div class="jsd">每顆 Parquet 直接 PUT 到 <span class="fp">data/event_month=2026-09/&lt;uuid&gt;.parquet</span>——此時<b>還沒有任何 metadata 引用它</b>（孤兒候選）。</div></div></div>
+      <div class="jstep"><span class="jsn">2</span><div><div class="jst">driver 寫 manifest<span class="who">DRIVER → S3</span></div><div class="jsd">收集 DataFile 清單，寫一顆 <span class="fp">metadata/&lt;uuid&gt;-m0.avro</span>：每檔一行＋footer 統計（第 8 頁的 entry）。</div></div></div>
+      <div class="jstep"><span class="jsn">3</span><div><div class="jst">組 manifest list<span class="who">DRIVER</span></div><div class="jsd">舊 snapshot 的 manifests ＋ 新 manifest 併成 <span class="fp">snap-&lt;id&gt;-1-&lt;uuid&gt;.avro</span>。舊 manifest <b>直接沿用，不用重寫</b>。</div></div></div>
+      <div class="jstep"><span class="jsn">4</span><div><div class="jst">寫新 metadata.json<span class="who">DRIVER → S3</span></div><div class="jsd"><span class="fp">metadata/0000N-&lt;uuid&gt;.metadata.json</span>：current-snapshot-id 指向新 snapshot。此時<b>S3 上一切就緒，只差指標沒換</b>。</div></div></div>
+      <div class="jstep hot"><span class="jsn">5</span><div><div class="jst">CAS 換指標<span class="who">DRIVER → HMS</span></div><div class="jsd">對 table 拿 lock → 確認 catalog 目前仍指著舊 metadata → 把 <b>metadata_location</b> 更新成新檔（第 11 頁）。</div></div></div>
+      <div class="jstep ok"><span class="jsn">6</span><div><div class="jst">成功＝指標已換<span class="who">READER</span></div><div class="jsd">新 reader 從此刻起看到新資料；手上還握著舊指標的 reader <b>完全不受影響</b>。</div></div></div>
+    </div>
+    <div class="siderail">
+      <div class="sr nov"><div class="srt">步驟 1–4 失敗</div><div class="srd">表沒有變——那些檔變成<b>孤兒檔</b>，之後靠 <b>remove_orphan_files</b> 清（20 頁）。寫失敗 ≠ 表髒。</div></div>
+      <div class="sr"><div class="srt">步驟 5 失敗（明確）</div><div class="srd">收到明確拒絕（如衝突）→ <b>refresh 後重試</b>，或直接失敗退出，表維持原狀（10 頁）。</div></div>
+      <div class="sr"><div class="srt">步驟 5 結果不明（timeout）</div><div class="srd">指標「可能換了可能沒換」→ <b>CommitStateUnknown</b>，不能亂清檔（12 頁，你們 fault-lab 的主戰場）。</div></div>
+      <div class="sr vis"><div class="srt">讀者視角</div><div class="srd">讀者<b>只會看到「換指標前」或「換指標後」</b>兩種完整狀態——沒有中間狀態。</div></div>
+    </div>
+  </div></div>
+<div class="take">Commit 的祕密是順序：<b>先讓所有檔案就位，最後用一個原子動作「公布」</b>——公布前的一切都只是還沒被引用的檔案。</div>
+</section>
+
+<!-- ============ 10 · 樂觀並行 ============ -->
+<section class="slide" id="s10" aria-labelledby="s10t">
+  <p class="meta"><span class="num">10</span><span class="part">Ⅳ Commit · 樂觀並行</span></p>
+  <h2 class="h2" id="s10t">兩個 job 同時寫同一張表：<strong>不鎖資料、不鎖檔案，靠「重讀 ＋ 重試」</strong></h2>
+  <div class="mid"><div class="lane2">
+    <div class="lane a">
+      <div class="ln-head">Writer A（Spark job）</div>
+      <div class="lst"><span class="lsn">1</span><div><div class="lt">載入 base = M1</div><div class="ls">讀目前 metadata（snapshot S1）</div></div></div>
+      <div class="lst"><span class="lsn">2</span><div><div class="lt">寫檔＋manifest</div><div class="ls">A 的 data／manifest 已 PUT 到 S3</div></div></div>
+      <div class="lst"><span class="lsn">3</span><div><div class="lt">commit（CAS）</div><div class="ls">目前仍是 M1 → <b>換指標成功</b></div></div></div>
+      <div class="lst win"><span class="lsn">4</span><div><div class="lt">current = M2（含 S2）</div><div class="ls">A 完成，reader 看到 A 的資料</div></div></div>
+    </div>
+    <div class="hmsrail">
+      <div class="hr-box">HMS 指標<br>（單一變數）</div>
+      <div class="hr-line"></div>
+      <div class="hr-box">M1<br><span style="color:var(--faint)">base</span></div>
+      <div class="hr-dot"></div>
+      <div class="hr-line" style="background:var(--ice)"></div>
+      <div class="hr-box" style="border-color:var(--green);color:var(--green)">M2<br><span style="color:var(--faint)">A commit</span></div>
+      <div class="hr-dot"></div>
+      <div class="hr-line" style="background:var(--ember)"></div>
+      <div class="hr-box" style="border-color:var(--ember);color:var(--ember-deep)">M3<br><span style="color:var(--faint)">B commit</span></div>
+    </div>
+    <div class="lane b">
+      <div class="ln-head">Writer B（Trino insert）</div>
+      <div class="lst"><span class="lsn">1</span><div><div class="lt">載入 base = M1</div><div class="ls">跟 A 同時讀到舊版</div></div></div>
+      <div class="lst"><span class="lsn">2</span><div><div class="lt">寫檔＋manifest</div><div class="ls">B 的檔也已 PUT（跟 A 的檔互不干擾）</div></div></div>
+      <div class="lst fail"><span class="lsn">3</span><div><div class="lt">commit 被拒</div><div class="ls">驗證發現 base 已不是 M1 → <b>CommitFailedException</b>（正常訊號，不是資料錯誤）</div></div></div>
+      <div class="lst"><span class="lsn">4</span><div><div class="lt">refresh → 以 M2 重做</div><div class="ls">重讀 current，把 B 的 manifest 併進含 A 的 manifest list</div></div></div>
+      <div class="lst win"><span class="lsn">5</span><div><div class="lt">commit → current = M3</div><div class="ls">A、B 的資料都在——<b>誰都沒弄丟誰</b></div></div></div>
+    </div>
+  </div>
+  <div class="note3">
+    <div class="nd"><div class="t">衝突不是錯誤</div><div class="s">CommitFailedException 是樂觀並行的正常訊號；writer 會 <b>refresh 重讀後自動重試</b>（預設最多 4 次、指數退避，<span class="mono">commit.retry.num-retries</span>）。</div></div>
+    <div class="nd"><div class="t">重試不重寫資料</div><div class="s">B 的 data 檔已存在且不會變；重做的是 <b>manifest list／metadata 的編排</b>——所以重試成本低。</div></div>
+    <div class="nd"><div class="t">什麼時候會一直撞</div><div class="s">表太熱（秒級多 writer）→ 衝突率高。解法是<b>縮小 commit 粒度／合批</b>，不是上 global lock。</div></div>
+  </div></div>
+<div class="take">多 writer 安全 = <b>「寫檔互不干擾 ＋ 換指標前先驗證 ＋ 衝突後以新 base 重做」</b>——全程沒有鎖任何一顆資料檔。</div>
+</section>
+
+<!-- ============ 11 · catalog CAS ============ -->
+<section class="slide" id="s11" aria-labelledby="s11t">
+  <p class="meta"><span class="num">11</span><span class="part">Ⅳ Commit · 原子性從哪來</span></p>
+  <h2 class="h2" id="s11t">「換指標」這一下不是 Iceberg core 做的——<strong>原子性由 catalog 的 CAS 保證</strong></h2>
+  <div class="mid"><div class="catgrid">
+    <div class="cg-head"><span>CATALOG</span><span>「換指標」的原子機制</span><span>一句話特性</span></div>
+    <div class="cg-row hotrow"><div class="cn">Hive Metastore<small>你們的環境</small></div><div class="cm">Thrift <b>alter_table</b>：先對 table 拿 <b>exclusive lock</b>，lock 內比對目前 metadata_location（舊值符合才更新），由 HMS 的 DB transaction 保證單一更新原子。</div><div class="cx"><b>兩個 writer 的 CAS 被 lock 序列化</b>；HMS 掛 = 無法 commit（讀可用 cache 撐）。</div></div>
+    <div class="cg-row"><div class="cn">HadoopCatalog<small>HDFS</small></div><div class="cm">以檔案系統的 <b>atomic rename</b> 充當 CAS（<span class="mono">v&lt;N&gt;.metadata.json</span> 換檔名）。</div><div class="cx">只適合有 rename 語意的檔案系統；<b>S3／MinIO 沒有</b>，要用別種。</div></div>
+    <div class="cg-row"><div class="cn">AWS Glue／S3 Tables<small>＋ DynamoDB lock</small></div><div class="cm"><b>條件寫入</b>：version／attribute 檢查不過就拒絕請求。</div><div class="cx">把「CAS」變成物件儲存上的一次<b> put-if-absent／條件更新</b>。</div></div>
+    <div class="cg-row"><div class="cn">REST catalog<small>Polaris · Lakekeeper · 自家</small></div><div class="cm">HTTP <b>PUT + Requirement</b>：要求「目前仍是舊 metadata」才接受新檔。</div><div class="cx">跨引擎、跨語言的開放介面；<b>集中管權限與審計</b>。</div></div>
+    <div class="cg-row"><div class="cn">Nessie</div><div class="cm"><b>Git 式 commit</b>：每次更新形成 hash 前鏈，舊值不符就拒絕。</div><div class="cx">內建 branch／tag 版本控制，把 Iceberg 的「換指標」升級成 Git。</div></div>
+  </div>
+  <div class="band gold" style="margin-top:10px"><span class="bl">重點</span><span>Iceberg core <b>沒有 lock server</b>——誰當 catalog，誰就得提供「單一指標的 CAS」；catalog 只存指標不存資料，<b>換 catalog 不動資料</b>。</span></div></div>
+<div class="take">Commit 的原子性 = catalog 的 CAS 能力：<b>這是整張表 ACID 的地基，也是維運要盯的第一個環節</b>。</div>
+</section>
+
+<!-- ============ 12 · commit 三種結局 ============ -->
+<section class="slide" id="s12" aria-labelledby="s12t">
+  <p class="meta"><span class="num">12</span><span class="part">Ⅳ Commit · 失敗語意</span></p>
+  <h2 class="h2" id="s12t">Commit 只有三種結局：成功、確定失敗、<strong>「不確定」——第三種最危險</strong></h2>
+  <div class="mid"><div class="out3">
+    <div class="oc ok"><div class="oh">✓ SUCCESS<span class="st">CommitStatus.SUCCESS</span></div><div class="od">收到 HMS 成功 ack，且新 metadata 可讀。資料確定生效。<b>之後的 cleanup 才准動這次 commit 的檔？——不用，已被引用。</b></div><div class="oex">現象：job 成功；metadata_location 已前進到 0000N；下次查詢看得到</div><div class="odo">該做的：正常結束、記錄 snapshot id。</div></div>
+    <div class="oc fail"><div class="oh">✗ 確定失敗<span class="st">CommitFailedException</span></div><div class="od">明確收到拒絕（如 CAS 衝突）或確認指標沒動。表維持原狀；<b>本次寫的檔沒被任何 metadata 引用 = 孤兒</b>。</div><div class="oex">現象：例外明確、指標未動；log 常看到 retry 後放棄</div><div class="odo">該做的：可安全清（或留給 remove_orphan_files）；重試也安全。</div></div>
+    <div class="oc unk"><div class="oh">? 不確定<span class="st">CommitStateUnknownException</span></div><div class="od">timeout／斷線／499——<b>指標可能已換、可能沒換</b>。job 顯示失敗但資料可能已經 commit。</div><div class="oex">現象：client timeout < HMS 完成時間；ACK 遺失；重跑可能重複</div><div class="odo">該做的：<b>不能清任何檔</b>；先查 pointer 與 chain 再決定（重跑可能重複資料！）。</div></div>
+  </div>
+  <div class="band ember" style="margin-top:12px"><span class="bl">真實事故</span><span>你們 fault-lab 的兩類 data-integrity 事故都從這裡來：<b>① late-success</b>：client timeout 早於 HMS 完成 → caller 判定失敗 → abort cleanup 刪檔 → 刪到已被 current 引用的 metadata／parquet；<b>② false-success</b>：PUT 回應丟失但物件其實已寫 → commit 指向「以為存在」的 chain。</span></div>
+  <div class="invrow">
+    <span class="chip k">I2：只有「確定沒被引用」的檔才能清</span>
+    <span class="chip a">I3：unknown commit 的產物不可清（當孤兒留著）</span>
+    <span class="chip d">I4：判 live／dead 以「DELETE 當下是否被 current chain 引用」為準</span>
+    <span class="chip g">手動清 table location 底下的「新檔」＝踩雷</span>
+  </div></div>
+<div class="take warn">看到 timeout／unknown，<b>先當作「可能已成功」處理：查 metadata_location、走一遍 chain，別急著清檔</b>。</div>
+</section>
+<style>
+/* ---------- S13 DML 骨架表 ---------- */
+.opgrid{border:1.5px solid var(--line-2);border-radius:14px;overflow:hidden;box-shadow:0 10px 30px var(--shadow);margin-top:8px}
+.opgrid .og-head{display:grid;grid-template-columns:1.05fr 1.2fr 1.05fr .8fr;gap:12px;background:var(--panel-2);padding:9px 18px;font-size:13px;font-weight:900;letter-spacing:.1em;color:var(--muted)}
+.og-row{display:grid;grid-template-columns:1.05fr 1.2fr 1.05fr .8fr;gap:12px;align-items:center;border-top:1px solid var(--line-soft);padding:9px 18px;background:var(--panel);font-size:14.5px}
+.og-row .op{font-weight:900;color:var(--ink)}
+.og-row .op small{display:block;font-family:var(--sans);font-weight:700;font-size:12px;color:var(--faint)}
+.og-row .ow{font-family:var(--mono);font-size:12.5px;color:var(--ice-deep);line-height:1.6}
+.og-row .oo{font-size:13.5px;color:var(--muted);line-height:1.5}
+.og-row .oo b{color:var(--ink)}
+.og-row .opr{font-family:var(--mono);font-size:11.5px;color:var(--faint);line-height:1.5;text-align:right}
+/* ---------- S14 讀取流程 ---------- */
+.readflow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px}
+.rstep{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--ice);border-radius:12px;padding:9px 13px;box-shadow:0 5px 14px var(--shadow);display:flex;flex-direction:column;gap:3px}
+.rstep .rt2{font-size:16px;font-weight:900;color:var(--ink);display:flex;align-items:center;gap:8px}
+.rstep .rs2{font-size:12.5px;color:var(--muted);line-height:1.5;flex:1}
+.rstep .rs2 b{color:var(--ink)}
+.rstep .rtag{align-self:flex-start;font-family:var(--sans);font-size:10.5px;font-weight:900;letter-spacing:.06em;border-radius:999px;padding:1px 9px}
+.rstep .rtag.io{background:var(--ice-soft);color:var(--ice-deep)}
+.rstep .rtag.none{background:var(--slate-soft);color:var(--slate)}
+.rstep .rtag.data{background:var(--ember-soft);color:var(--ember-deep)}
+.rstep.hot{border-left-color:var(--ember);background:linear-gradient(160deg,#fdf3ec,#fdfaf1)}
+.rstep.hot .rtag.io{background:var(--ember-soft);color:var(--ember-deep)}
+.cmp2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+.cmp2 .cm2{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 15px;font-size:14px;color:var(--muted);line-height:1.55}
+.cmp2 .cm2 .cm2t{font-size:15px;font-weight:900;margin-bottom:2px}
+.cmp2 .cm2.hive .cm2t{color:var(--ember-deep)}
+.cmp2 .cm2.ice .cm2t{color:var(--ice-deep)}
+.cmp2 .cm2 b{color:var(--ink)}
+/* ---------- S15 pruning ---------- */
+.prune2{display:grid;grid-template-columns:1.45fr .55fr;gap:18px;margin-top:8px}
+.prune-l{display:flex;flex-direction:column;gap:7px}
+.prune-l .qbar{font-family:var(--mono);font-size:15.5px;background:linear-gradient(120deg,#23404e,#1a3541);color:#ffe1a8;border-radius:10px;padding:9px 18px}
+.prune-l .qbar span{color:#9fc3d2}
+.pstage{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:8px 14px;box-shadow:0 6px 18px var(--shadow)}
+.pstage .pst-h{font-size:14px;font-weight:900;color:var(--ink);display:flex;justify-content:space-between;align-items:center}
+.pstage .pst-h .psub{font-family:var(--sans);font-size:11.5px;color:var(--faint);font-weight:700;letter-spacing:.05em}
+.pfrow{display:grid;grid-template-columns:1.05fr 1.5fr .9fr auto;gap:10px;align-items:center;border-top:1px dashed var(--line-soft);padding:5px 0 2px;font-size:12.5px}
+.pfrow .pfn{font-family:var(--mono);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pfrow .pfb{font-family:var(--mono);color:var(--muted);font-size:11.5px}
+.pfrow .pfb b{color:var(--ink)}
+.pfrow .skip{font-family:var(--sans);font-weight:900;font-size:11px;color:var(--ember-deep);background:var(--ember-soft);border-radius:999px;padding:1px 10px;white-space:nowrap}
+.pfrow .pass{font-family:var(--sans);font-weight:900;font-size:11px;color:var(--ice-deep);background:var(--ice-soft);border-radius:999px;padding:1px 10px;white-space:nowrap}
+.pfrow.dead{opacity:.45}
+/* ---------- S16 sequence ---------- */
+.seqwrap{display:flex;flex-direction:column;gap:12px;margin-top:8px}
+.seqtl{display:flex;align-items:stretch;justify-content:space-between;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 20px;box-shadow:0 8px 22px var(--shadow)}
+.seqnode{display:flex;flex-direction:column;align-items:center;gap:6px;position:relative;flex:1}
+.seqnode::before{content:"";position:absolute;top:26px;left:-50%;width:100%;height:2px;background:var(--line-2)}
+.seqnode:first-child::before{display:none}
+.seqnode .sd{width:22px;height:22px;border-radius:50%;background:#fff;border:5px solid var(--ice);z-index:2}
+.seqnode.hot .sd{border-color:var(--ember);box-shadow:0 0 0 5px #b8431f1f}
+.seqnode .sy{font-size:15px;font-weight:900;color:var(--ice-deep);font-family:var(--mono)}
+.seqnode.hot .sy{color:var(--ember-deep)}
+.seqnode .sl{font-size:11.5px;color:var(--muted);text-align:center;line-height:1.4}
+.seqnode .sl b{color:var(--ink)}
+/* ---------- S17 row-level delete ---------- */
+.dl2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:6px}
+.dlp{border-radius:16px;padding:12px 18px 10px;border:1.5px solid;box-shadow:0 10px 26px var(--shadow);display:flex;flex-direction:column;gap:6px}
+.dlp.cow{background:linear-gradient(165deg,#eef5ea,#fdfaf1);border-color:#46733f66}
+.dlp.mor{background:linear-gradient(165deg,#eaf3f6,#fdfaf1);border-color:#1f7ea855}
+.dlp .dl-h{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:900}
+.dlp.cow .dl-h{color:var(--green)}
+.dlp.mor .dl-h{color:var(--ice-deep)}
+.dlp .dl-h .dlm{font-family:var(--mono);font-size:12px;font-weight:600;margin-left:auto;opacity:.8}
+.dlp .dl-d{font-size:14px;color:var(--muted);line-height:1.6;flex:1}
+.dlp .dl-d b{color:var(--ink)}
+.dlp .dl-flow{font-family:var(--mono);font-size:12px;color:var(--ice-deep);background:#ffffffcc;border-radius:9px;padding:6px 10px;line-height:1.7}
+.dlp .dl-pros{font-size:12.5px;color:var(--muted);line-height:1.6}
+.dlp .dl-pros b{color:var(--ink)}
+.delrow2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px}
+.delcard{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:10px 16px;box-shadow:0 6px 18px var(--shadow)}
+.delcard .dt2{font-size:16.5px;font-weight:900;color:var(--ember-deep);display:flex;align-items:center;gap:8px}
+.delcard .dt2 .en{font-family:var(--mono);font-size:11px;color:var(--faint);font-weight:600;margin-left:auto}
+.delcard .dd2{font-size:13.5px;color:var(--muted);line-height:1.6;margin-top:3px}
+.delcard .dd2 b{color:var(--ink)}
+.delcard .dd2 code{font-family:var(--mono);font-size:12px;background:var(--ember-soft);color:var(--ember-deep);padding:0 5px;border-radius:5px}
+/* ---------- S18 partition ---------- */
+.pspec{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.spev{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:stretch}
+.spev .sv{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 16px;box-shadow:0 5px 14px var(--shadow)}
+.spev .sv .sv-t{font-size:14.5px;font-weight:900;color:var(--ink)}
+.spev .sv .sv-t .en{font-family:var(--mono);font-size:11.5px;color:var(--faint);font-weight:600;margin-left:6px}
+.spev .sv .sv-d{font-family:var(--mono);font-size:12px;color:var(--ice-deep);line-height:1.8;margin-top:2px}
+.spev .sv .sv-n{font-size:11.5px;color:var(--faint);line-height:1.5;margin-top:2px}
+.spev .sv.new{border-color:#1f7ea855;background:linear-gradient(160deg,#eaf3f6,#fdfaf1)}
+.spev .sv-mid{display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--ember);font-size:24px;font-weight:900;white-space:nowrap}
+.spev .sv-mid .al{font-size:12px;color:var(--muted);font-weight:700}
+.trgrid{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px}
+.trc{font-family:var(--mono);font-size:13px;font-weight:600;background:#fff;border:1px solid var(--line-2);border-radius:999px;padding:3px 12px;color:var(--ink)}
+.trc b{color:var(--ice-deep)}
+/* ---------- S19 schema ---------- */
+.sch2{display:grid;grid-template-columns:1fr .9fr;gap:20px;margin-top:8px}
+.schgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.sch{border-radius:13px;border:1px solid var(--line-2);overflow:hidden;box-shadow:0 8px 22px var(--shadow)}
+.sch .sch-h{background:linear-gradient(120deg,#23404e,#1a3541);color:#fff;font-size:14px;font-weight:900;padding:7px 14px;display:flex;justify-content:space-between;align-items:center}
+.sch .sch-h .sn{font-family:var(--mono);font-size:12px;color:#9fc3d2}
+.sch.old .sch-h{background:linear-gradient(120deg,#6a5a3a,#54462a)}
+.sch .fld{display:flex;gap:10px;align-items:center;padding:5px 14px;border-top:1px solid var(--line-soft);background:#fffdf6}
+.sch .fld:first-of-type{border-top:0}
+.sch .fld .fid{flex:0 0 auto;font-family:var(--mono);font-size:11px;font-weight:700;color:#fff;background:var(--ice);border-radius:5px;padding:0 7px}
+.sch.old .fld .fid{background:#8a7a55}
+.sch .fld .fn2{font-family:var(--mono);font-size:13px;color:var(--ink)}
+.sch .fld .ft{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-left:auto}
+.sch .fld.chg{background:linear-gradient(160deg,#f6eeda,#fffdf6)}
+.sch .fld.chg .fn2{color:var(--ember-deep);font-weight:700}
+.oplist{display:flex;flex-direction:column;gap:8px;justify-content:center}
+.oplist .oli{display:flex;gap:11px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:8px 13px;box-shadow:0 5px 14px var(--shadow)}
+.oplist .oli .oln{flex:0 0 auto;font-size:16px;font-weight:900;color:var(--ice-deep);width:26px;text-align:center}
+.oplist .oli .old{font-size:14.5px;color:var(--muted);line-height:1.5}
+.oplist .oli .old b{color:var(--ink)}
+.oplist .oli.free .oln{color:var(--green)}
+.oplist .oli.nt .oln{color:var(--ember-deep)}
+</style>
+
+<!-- ============ 13 · 所有 DML 同一骨架 ============ -->
+<section class="slide" id="s13" aria-labelledby="s13t">
+  <p class="meta"><span class="num">13</span><span class="part">Ⅳ Commit · 操作盤點</span></p>
+  <h2 class="h2" id="s13t">INSERT、OVERWRITE、DELETE、compaction——<strong>全部是同一套 commit 骨架</strong></h2>
+  <div class="mid"><div class="opgrid">
+    <div class="og-head"><span>操作</span><span>commit 新寫了什麼</span><span>舊檔的下場</span><span>core 裡的 producer</span></div>
+    <div class="og-row"><div class="op">INSERT / COPY INTO<small>append</small></div><div class="ow">只有 data files</div><div class="oo">不動、繼續被引用（表只會變大）</div><div class="opr">FastAppend / MergeAppend</div></div>
+    <div class="og-row"><div class="op">INSERT OVERWRITE<small>replace 指定 partition</small></div><div class="ow">重寫受影響 partition 的 data files</div><div class="oo">新 snapshot 不再引用舊檔；<b>實體留著等 expire</b></div><div class="opr">OverwriteFiles</div></div>
+    <div class="og-row"><div class="op">DELETE / UPDATE / MERGE<small>copy-on-write</small></div><div class="ow">重寫「碰得到」的整顆 data file（含沒刪的列）</div><div class="oo">同上：舊檔不再被引用，等 expire</div><div class="opr">OverwriteFiles 路徑</div></div>
+    <div class="og-row"><div class="op">DELETE / UPDATE / MERGE<small>merge-on-read</small></div><div class="ow">data files ＋ <b>delete files</b>（黑名單）</div><div class="oo">舊檔仍被引用；讀的人現場套 delete（見 17 頁）</div><div class="opr">RowDelta</div></div>
+    <div class="og-row"><div class="op">compaction<small>rewrite_data_files</small></div><div class="ow">合併後的大 data files</div><div class="oo">小檔在新 snapshot 標 DELETED → 不再被引用</div><div class="opr">RewriteDataFiles</div></div>
+  </div>
+  <div class="band ice" style="margin-top:12px"><span class="bl">不變的骨架</span><span>寫新檔 → 寫 manifest → 組 manifest list → 寫新 metadata → <b>CAS 換指標</b>。各操作的差別只在前三步：「產生什麼檔、讓新指標少引用哪些舊檔」。</span></div></div>
+<div class="take">看懂一次 append commit 就懂 90%——<b>其餘操作是同一套 commit 上的不同「檔案編排」</b>，不是新的機制。</div>
+</section>
+
+<!-- ============ 14 · 讀取流程 ============ -->
+<section class="slide" id="s14" aria-labelledby="s14t">
+  <p class="meta"><span class="num">14</span><span class="part">Ⅴ 讀取 · 從 SQL 到 split</span></p>
+  <h2 class="h2" id="s14t">查詢的每一步：<strong>從 SQL 到 split，全程不 list 資料目錄</strong></h2>
+  <div class="mid"><div class="readflow">
+    <div class="rstep"><div class="rt2">① catalog 找指標</div><div class="rs2">依 <b>namespace.table</b> 向 HMS 查 <span class="mono">metadata_location</span></div><span class="rtag io">HMS THRIFT</span></div>
+    <div class="rstep"><div class="rt2">② 讀 metadata.json</div><div class="rs2">取 current-snapshot-id／refs.main → 決定讀哪顆 snapshot</div><span class="rtag io">S3 GET · KB</span></div>
+    <div class="rstep"><div class="rt2">③ 讀 manifest list</div><div class="rs2">拿到該 snapshot 的 manifests＋各自的 partition 邊界</div><span class="rtag io">S3 GET</span></div>
+    <div class="rstep hot"><div class="rt2">④ 跳過無關 manifest</div><div class="rs2">用 query filter 比對邊界——<b>不合的整顆不開</b>（15 頁）</div><span class="rtag none">CPU ONLY</span></div>
+    <div class="rstep hot"><div class="rt2">⑤ 讀剩下的 manifest</div><div class="rs2">逐顆開檔，拿每顆 data file 的 column stats</div><span class="rtag io">S3 GET</span></div>
+    <div class="rstep hot"><div class="rt2">⑥ 跳過無關檔案</div><div class="rs2">lower／upper bounds 不合的 data file 直接丟（15 頁）</div><span class="rtag none">CPU ONLY</span></div>
+    <div class="rstep"><div class="rt2">⑦ 產生 split</div><div class="rs2">每顆倖存檔＋它的 delete files 打包成一個 scan task</div><span class="rtag none">PLANNING</span></div>
+    <div class="rstep"><div class="rt2">⑧ worker 讀 Parquet</div><div class="rs2">split 派到 worker；此刻才真正碰資料檔（還套 delete filter）</div><span class="rtag data">S3 GET · BIG</span></div>
+  </div>
+  <div class="cmp2">
+    <div class="cm2 hive"><div class="cm2t">Hive 表怎麼做</div>先 <b>list 資料目錄</b>找出 partition → 再對每個目錄猜檔 → 讀 Parquet footer 才知道 min/max。<b>目錄越多、檔越多，planning 越慢</b>。</div>
+    <div class="cm2 ice"><div class="cm2t">Iceberg 怎麼做</div>metadata 樹本身就是索引。<b>規劃階段只讀 KB～MB 級的 metadata</b>；資料檔一顆都沒開，直到最後一步。</div>
+  </div></div>
+<div class="take">Iceberg 把「找資料」的成本從 <b>list 目錄（O(檔案數)）變成讀 metadata（O(manifest 數)）</b>——所以 manifest 越少、統計越準，查詢越快。</div>
+</section>
+
+<!-- ============ 15 · pruning 兩層 ============ -->
+<section class="slide" id="s15" aria-labelledby="s15t">
+  <p class="meta"><span class="num">15</span><span class="part">Ⅴ 讀取 · 為什麼快</span></p>
+  <h2 class="h2" id="s15t">快的原因：統計在 metadata 主流程裡——<strong>一層跳 manifest，一層跳檔案</strong></h2>
+  <div class="mid"><div class="prune2">
+    <div class="prune-l">
+      <div class="qbar">SELECT count(*) FROM events <span>WHERE event_ts &gt;= TIMESTAMP '2026-09-01'</span></div>
+      <div class="pstage">
+        <div class="pst-h">第一層：manifest list 的 partition 邊界 <span class="psub">整顆 manifest 跳過 · 不必開檔</span></div>
+        <div class="pfrow"><span class="pfn">m0 · 2026-08</span><span class="pfb">bounds: 08-01 ~ 08-31</span><span class="pfb">40 檔</span><span class="skip">✕ 整顆跳過</span></div>
+        <div class="pfrow"><span class="pfn">m1 · 2026-09</span><span class="pfb">bounds: 09-01 ~ 09-30</span><span class="pfb">12 檔</span><span class="pass">✓ 開</span></div>
+        <div class="pfrow"><span class="pfn">m2 · 2026-10</span><span class="pfb">bounds: 10-01 ~ 10-31</span><span class="pfb">8 檔</span><span class="skip">✕ 整顆跳過</span></div>
+      </div>
+      <div class="pstage">
+        <div class="pst-h">第二層：manifest entry 的 column stats <span class="psub">m1 內逐檔比對 min/max</span></div>
+        <div class="pfrow"><span class="pfn">&lt;u1&gt;.parquet</span><span class="pfb">event_ts: 09-01 ~ 09-04</span><span class="pfb">890K 列</span><span class="pass">✓ 讀（全在範圍內）</span></div>
+        <div class="pfrow"><span class="pfn">&lt;u2&gt;.parquet</span><span class="pfb">event_ts: 09-01 ~ 09-14</span><span class="pfb">1.1M 列</span><span class="pass">✓ 讀</span></div>
+        <div class="pfrow dead"><span class="pfn">&lt;u3&gt;.parquet</span><span class="pfb">event_ts: 06-12 ~ 06-30</span><span class="pfb">320K 列</span><span class="skip">✕ bounds 全在 filter 前 → 跳</span></div>
+      </div>
+    </div>
+    <div class="rcards">
+      <div class="rcard"><div class="rt2">跟 Hive 的 pruning 差在哪</div><div class="rd2">Hive 只能靠 <b>partition 目錄</b>切，filter 沒打在 partition 欄位就全掃；Iceberg 的 partition 是「隱藏的」——filter 直接打在來源欄位（<code>event_ts</code>）就自動生效，不用知道 partition 欄位存在（18 頁）。</div></div>
+      <div class="rcard"><div class="rt2">統計 pruning 是 inclusive</div><div class="rd2">min/max 只能說「<b>可能符合</b>」，不能說「保證符合」——所以最後的正確性還是落在 Parquet 的 row-group filter 與真實比對。<b>Iceberg 省的是「開檔數」，不是資料正確性</b>。</div></div>
+      <div class="rcard"><div class="rt2">統計會失真，要重寫才修</div><div class="rd2">bounds 只會隨新資料「放寬」，不會自動縮小——<b>頻繁 delete 後統計可能過寬</b>，重寫檔案（compaction／rewrite）後才會回到精準。</div></div>
+    </div>
+  </div></div>
+<div class="take">Pruning 的兩層都在 metadata 上完成：<b>先少開 manifest，再少開檔案——真正讀到的只有「可能命中」的資料</b>。</div>
+</section>
+
+<!-- ============ 16 · sequence number ============ -->
+<section class="slide" id="s16" aria-labelledby="s16t">
+  <p class="meta"><span class="num">16</span><span class="part">Ⅴ 讀取 · 時序真相</span></p>
+  <h2 class="h2" id="s16t">snapshot-id 是名字，<strong>sequence-number 才是「commit 的全域時鐘」</strong></h2>
+  <div class="mid"><div class="seqwrap">
+    <div class="seqtl">
+      <div class="seqnode"><div class="sd"></div><div class="sy">S1 · seq 8</div><div class="sl">INSERT 1M 列<br>（寫入 3 顆檔，<b>seq 8</b>）</div></div>
+      <div class="seqnode"><div class="sd"></div><div class="sy">S2 · seq 9</div><div class="sl">DELETE 條件 09-01 前<br>（新增 delete 檔，<b>seq 9</b>）</div></div>
+      <div class="seqnode"><div class="sd"></div><div class="sy">S3 · seq 10</div><div class="sl">INSERT 新資料<br>（新檔 <b>seq 10</b>）</div></div>
+      <div class="seqnode hot"><div class="sd"></div><div class="sy">S4 · seq 11</div><div class="sl">time travel 回 S2？<br><b>seq 11 以後的檔全部看不見</b></div></div>
+      <div class="seqnode"><div class="sd"></div><div class="sy">S5 · seq 12</div><div class="sl">current（last-sequence-number 12）</div></div>
+    </div>
+    <div class="seqlegend">
+      <span class="lg">metadata.json：<b>last-sequence-number</b>（下一號從這裡發）</span>
+      <span class="lg">snapshot：<b>sequence-number</b>（commit 當下領的號碼）</span>
+      <span class="lg">manifest：<b>sequence-number</b>（這批 entry 的時點）</span>
+      <span class="lg">entry：<b>sequence_number</b>（單顆檔的 data seq）</span>
+    </div>
+    <div class="note3">
+      <div class="nd"><div class="t">名字 vs 時鐘</div><div class="s">snapshot-id 是<b>唯一鍵</b>（長整數，隨機產生，無順序）；sequence-number 是<b>全域遞增</b>的 commit 序號，存在 metadata.json 的 <span class="mono">last-sequence-number</span>。v1 只有 id、沒有 clock。</div></div>
+      <div class="nd"><div class="t">讀舊 snapshot 的規則</div><div class="s">讀 seq = k 的 snapshot 時，<b>manifest／檔案的 seq &gt; k 的一律排除</b>——否則會看到「那之後才 commit」的資料或 delete，time travel 就壞了。</div></div>
+      <div class="nd"><div class="t">delete 只刪「過去」</div><div class="s">delete 檔只套用於 <b>seq ≤ 自己的 data 檔</b>：seq 9 的 delete 不會誤刪 seq 10 才寫入的新資料（S3 的新列活著）——<b>並行寫入＋delete 交錯時，clock 是唯一真相</b>。</div></div>
+    </div>
+  </div></div>
+<div class="take">沒有 sequence，v2 的 row-level delete 在並行下無法證明「刪對版本」——<b>id 回答「哪一版」，sequence 回答「先還是後」</b>。</div>
+</section>
+
+<!-- ============ 17 · row-level delete ============ -->
+<section class="slide" id="s17" aria-labelledby="s17t">
+  <p class="meta"><span class="num">17</span><span class="part">Ⅵ 進階語意 · Row-level Delete</span></p>
+  <h2 class="h2" id="s17t">DELETE 不改檔案，是「寫一張黑名單」——<strong>刪除 = 新增描述刪除的檔</strong></h2>
+  <div class="mid"><div class="dl2">
+    <div class="dlp cow"><div class="dl-h">Copy-on-Write<span class="dlm">寫時複製</span></div><div class="dl-d">受影響的整顆 Parquet <b>重寫</b>（沒刪到的列也一起複製），新檔取代舊檔。讀的人看到的就是乾淨的檔。</div><div class="dl-flow">DELETE … → 找出碰得到的檔<br>→ 重寫成新檔（去掉命中列）→ 換指標</div><div class="dl-pros"><b>讀最快</b>（沒有黑名單要套）｜寫放大的代價：一次刪 1 列也要重寫整顆檔</div></div>
+    <div class="dlp mor"><div class="dl-h">Merge-on-Read<span class="dlm">讀時合併</span></div><div class="dl-d">不動原檔，只<b>新增一顆 delete 檔</b>記錄「哪個檔的哪幾列／哪些值被刪」。讀的人現場套用。</div><div class="dl-flow">DELETE … → 寫 delete 檔（記錄被刪列）<br>→ 換指標（讀時過濾）</div><div class="dl-pros"><b>寫最快</b>（O(刪除量)，不重寫大檔）｜讀變慢：每顆檔都要先套黑名單，黑名單越多越慢</div></div>
+  </div>
+  <div class="delrow2">
+    <div class="delcard"><div class="dt2">Position Delete File<span class="en">content = 1 · V2</span></div><div class="dd2">逐列記 <code>(file_path, pos)</code>：哪顆檔、第幾列。精準、檔小；但要知道檔案 layout，重寫後（compaction 併入）才消失。<b>V3 起以 deletion vector 取代</b>。</div></div>
+    <div class="delcard"><div class="dt2">Equality Delete File<span class="en">content = 2 · V2</span></div><div class="dd2">只記被刪欄位的<b>值</b>（如 <code>user_id=42</code>）：不知道檔案 layout 也能寫。代價：可能誤殺同值新資料（要靠 seq 守護，16 頁），且比對成本高。</div></div>
+  </div>
+  <div class="band gold" style="margin-top:12px"><span class="bl">讀取端</span><span>worker 讀檔時由 <b>DeleteFilter</b> 把該檔相關的 delete 檔套上去；delete 檔累積太多 = 讀越來越慢 → <b>compaction 把 delete 併入資料檔（真正重寫）</b>，黑名單就消失。</span></div></div>
+<div class="take">資料檔<b>永遠不被修改</b>：「刪除」是新增描述刪除的檔 + 讓讀的人過濾；<b>CoW 與 MoR 只是把「重寫成本」放在寫端還是讀端</b>。</div>
+</section>
+
+<!-- ============ 18 · partition 演進 ============ -->
+<section class="slide" id="s18" aria-labelledby="s18t">
+  <p class="meta"><span class="num">18</span><span class="part">Ⅵ 進階語意 · Partition</span></p>
+  <h2 class="h2" id="s18t">partition 不是資料夾，是一條「transform 規則」——<strong>規則可以演進，舊檔不用搬</strong></h2>
+  <div class="mid"><div class="pspec">
+    <div class="spev">
+      <div class="sv"><div class="sv-t">2026-08 以前寫的檔<span class="en">spec-id 0 · month</span></div><div class="sv-d">event_month=2026-07/&lt;uuid&gt;.parquet<br>event_month=2026-08/&lt;uuid&gt;.parquet</div><div class="sv-n">manifest 記著 spec-id 0 → 用舊規則讀</div></div>
+      <div class="sv-mid">ALTER TABLE …<br>ADD PARTITION FIELD day(event_ts)<span class="al">2026-09-01 起</span></div>
+      <div class="sv new"><div class="sv-t">之後 commit 的檔<span class="en">spec-id 1 · month + day</span></div><div class="sv-d">event_day=2026-09-01/&lt;uuid&gt;.parquet<br>event_day=2026-09-02/&lt;uuid&gt;.parquet</div><div class="sv-n">新 manifest 記 spec-id 1；<b>新舊規則並存，都能被正確讀</b></div></div>
+    </div>
+    <div class="trgrid">
+      <span class="up">TRANSFORMS</span>
+      <span class="trc">identity(region) → <b>region=TW</b></span>
+      <span class="trc">month(ts) → <b>2026-09</b></span>
+      <span class="trc">day(ts) → <b>2026-09-14</b></span>
+      <span class="trc">hour(ts) → <b>2026-09-14-08</b></span>
+      <span class="trc">bucket(16, user_id) → <b>hash 分桶</b></span>
+      <span class="trc">truncate(8, name) → <b>前 8 字元</b></span>
+    </div>
+    <div class="cmp2">
+      <div class="cm2 hive"><div class="cm2t">Hive 的 partition</div>partition 欄位要<b>真的存在於資料裡</b>、寫進目錄路徑；filter 沒打在 partition 欄位 = 全掃。改 partition 策略 = 搬資料＋重建。</div>
+      <div class="cm2 ice"><div class="cm2t">Iceberg 的 hidden partitioning</div>partition value 是<b>從來源欄位算出來的</b>（transform），使用者不用加欄位；filter 直接打在來源欄位就自動 pruning。<b>換規則只改 metadata</b>（spec 跟著 snapshot 走），舊檔照常讀。</div>
+    </div>
+  </div></div>
+<div class="take">目錄只是「預設擺放位置」——partition 的真相在 manifest 的 <b>partition 欄位＋spec-id</b>，路徑長怎樣一點都不重要。</div>
+</section>
+
+<!-- ============ 19 · schema 演進 ============ -->
+<section class="slide" id="s19" aria-labelledby="s19t">
+  <p class="meta"><span class="num">19</span><span class="part">Ⅵ 進階語意 · Schema Evolution</span></p>
+  <h2 class="h2" id="s19t">欄位 id 才是 identity：<strong>所以 rename 欄位不用重寫任何資料</strong></h2>
+  <div class="mid"><div class="sch2">
+    <div class="schgrid">
+      <div class="sch old"><div class="sch-h">schema-id 0（2026-08 以前）<span class="sn">寫進舊 metadata.json</span></div>
+        <div class="fld"><span class="fid">1</span><span class="fn2">event_id</span><span class="ft">long</span></div>
+        <div class="fld"><span class="fid">2</span><span class="fn2">user_id</span><span class="ft">long</span></div>
+        <div class="fld"><span class="fid">3</span><span class="fn2">name</span><span class="ft">string</span></div>
+        <div class="fld"><span class="fid">4</span><span class="fn2">event_ts</span><span class="ft">timestamptz</span></div>
+      </div>
+      <div class="sch"><div class="sch-h">schema-id 1（現在）<span class="sn">rename + add</span></div>
+        <div class="fld"><span class="fid">1</span><span class="fn2">event_id</span><span class="ft">long</span></div>
+        <div class="fld"><span class="fid">2</span><span class="fn2">user_id</span><span class="ft">long</span></div>
+        <div class="fld chg"><span class="fid">3</span><span class="fn2">customer_name</span><span class="ft">string（改名）</span></div>
+        <div class="fld"><span class="fid">4</span><span class="fn2">event_ts</span><span class="ft">timestamptz</span></div>
+        <div class="fld chg"><span class="fid">5</span><span class="fn2">source</span><span class="ft">string（新欄 · 遞增 id）</span></div>
+      </div>
+    </div>
+    <div class="oplist">
+      <div class="oli free"><span class="oln">✓</span><div class="old"><b>rename／reorder</b>：只改 metadata 描述；資料檔連動都不用動——引擎靠 <b>id</b> 對齊，不靠名字。</div></div>
+      <div class="oli free"><span class="oln">✓</span><div class="old"><b>add nullable 欄</b>：吃新的 <b>last-column-id</b>；舊檔該欄讀出來是 null。</div></div>
+      <div class="oli free"><span class="oln">✓</span><div class="old"><b>drop 欄</b>：metadata 移除；舊檔的資料還在檔裡，只是不再被 schema 暴露。</div></div>
+      <div class="oli free"><span class="oln">✓</span><div class="old"><b>型別加寬</b>：int→long→float→double、decimal 加位數等白名單內的 promotion。</div></div>
+      <div class="oli nt"><span class="oln">✗</span><div class="old"><b>做不到的</b>：型別收窄、破壞性變更——那些要 <b>rewrite data</b>（新欄位 id，舊檔沒有資料）。</div></div>
+    </div>
+  </div>
+  <div class="band gold" style="margin-top:12px"><span class="bl">為什麼 Hive 做不到</span><span>Hive 的讀寫用「欄位名字／位置」對齊 → rename 就斷了；Iceberg 在寫檔時就把欄位 id 寫進 Parquet 的 field-id，<b>schema 只是「id → 名字」的查詢表</b>。</span></div></div>
+<div class="take">Iceberg 演進的是「描述」不是「資料」：<b>schema 與檔案靠 id 鬆綁，所以 rename／reorder 免費</b>——這正是資料工程師最常用的逃生門。</div>
+</section>
+<style>
+/* ---------- S20 maintenance ---------- */
+.mtgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}
+.mtc{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:12px 18px;box-shadow:0 8px 22px var(--shadow);display:flex;flex-direction:column;gap:5px}
+.mtc .mt-h{display:flex;align-items:center;gap:9px;font-size:19px;font-weight:900}
+.mtc .mt-h .eno{font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--faint);margin-left:auto}
+.mtc.n1 .mt-h{color:var(--ice-deep)}
+.mtc.n2 .mt-h{color:#6f5215}
+.mtc.n3 .mt-h{color:var(--ember-deep)}
+.mtc.n4 .mt-h{color:var(--green)}
+.mtc .mt-q{font-family:var(--mono);font-size:12.5px;background:var(--ice-faint);color:var(--ice-deep);border-radius:8px;padding:4px 10px;align-self:flex-start}
+.mtc.n4 .mt-q{background:var(--green-soft);color:var(--green)}
+.mtc.n2 .mt-q{background:var(--gold-soft);color:#6f5215}
+.mtc.n3 .mt-q{background:var(--ember-soft);color:var(--ember-deep)}
+.mtc .mt-d{font-size:13.5px;color:var(--muted);line-height:1.55;flex:1}
+.mtc .mt-d b{color:var(--ink)}
+.mtc .mt-s{font-size:12.5px;color:var(--green);font-weight:700;line-height:1.5}
+.mtc .mt-s b{color:var(--green)}
+/* ---------- S21 你們的 stack ---------- */
+.stackmap{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.stk{display:grid;grid-template-columns:260px 1fr 1.15fr;gap:16px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:9px 18px;box-shadow:0 6px 16px var(--shadow)}
+.stk .stk-n{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:900;color:var(--ink)}
+.stk .stk-n .v{font-family:var(--mono);font-size:11.5px;color:var(--faint);font-weight:600;display:block}
+.stk .stk-r{font-size:13.5px;color:var(--muted);line-height:1.55}
+.stk .stk-r b{color:var(--ink)}
+.stk .stk-f{font-size:13px;color:var(--muted);line-height:1.5;background:var(--panel-2);border-radius:10px;padding:6px 12px}
+.stk .stk-f b{color:var(--ember-deep)}
+.stk.hotrow2{border-color:#1f7ea855;background:linear-gradient(160deg,#eaf3f6,#fdfaf1)}
+.stk .ico{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:22px;flex:0 0 auto;background:var(--ice-soft);border:1px solid #1f7ea844}
+.stk.air .ico{background:var(--gold-soft);border-color:#9a722244}
+.stk.spark .ico,.stk.trino .ico{background:#e8edf3;border-color:#8899aa44}
+.stk.hms .ico{background:var(--ember-soft);border-color:#b8431f44}
+.stk.minio .ico{background:var(--green-soft);border-color:#46733f44}
+/* ---------- S22 myths ---------- */
+.myths{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+.myth{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--ember);border-radius:12px;padding:9px 15px;box-shadow:0 6px 16px var(--shadow);display:flex;flex-direction:column;gap:4px}
+.myth .my{font-size:15.5px;font-weight:900;color:var(--ember-deep)}
+.myth .my .x{font-weight:900;margin-right:6px}
+.myth .tr{font-size:13.5px;color:var(--muted);line-height:1.55}
+.myth .tr b{color:var(--ink)}
+/* ---------- S23 spec 版本 ---------- */
+.specv3{display:flex;flex-direction:column;gap:9px;margin-top:8px}
+.svrow{display:grid;grid-template-columns:190px 1fr 1.25fr;gap:18px;align-items:center;border-radius:14px;padding:11px 20px;border:1.5px solid;box-shadow:0 8px 22px var(--shadow)}
+.svrow .svn{font-family:var(--serif);font-weight:900;font-size:26px}
+.svrow .svn small{display:block;font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:.08em}
+.svrow .svf{font-size:13.5px;color:var(--muted);line-height:1.55}
+.svrow .svf b{color:var(--ink)}
+.svrow .svc{display:flex;flex-wrap:wrap;gap:7px}
+.svrow.v1{background:linear-gradient(160deg,#f4edda,#fdfaf1);border-color:#9a722266}
+.svrow.v1 .svn{color:#6f5215}
+.svrow.v2{background:linear-gradient(160deg,#eef4e9,#fdfaf1);border-color:#46733f66}
+.svrow.v2 .svn{color:var(--green)}
+.svrow.v3{background:linear-gradient(160deg,#eaf3f6,#fdfaf1);border-color:#1f7ea866}
+.svrow.v3 .svn{color:var(--ice-deep)}
+/* ---------- S24 QA ---------- */
+.qalist{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.qa{display:grid;grid-template-columns:44px 1fr 130px;gap:14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:7px 16px;box-shadow:0 4px 12px var(--shadow)}
+.qa .qn{width:30px;height:30px;border-radius:50%;background:var(--ice-deep);color:#fff;font-weight:900;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:15px}
+.qa .qt{font-size:15.5px;font-weight:900;color:var(--ink);line-height:1.35}
+.qa .qa-a{font-size:13px;color:var(--muted);line-height:1.5;margin-top:2px}
+.qa .qa-a b{color:var(--ice-deep)}
+.qa .qref{font-family:var(--mono);font-size:12px;color:var(--faint);text-align:right;white-space:nowrap}
+/* ---------- S25 closing ---------- */
+.close25{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:26px;text-align:center}
+.close25 .bigline{font-family:var(--serif);font-weight:900;font-size:74px;line-height:1.25;letter-spacing:-.01em;color:var(--ink)}
+.close25 .bigline em{font-style:normal;color:var(--ice-deep)}
+.close25 .bl3{display:flex;gap:14px}
+.close25 .bl3 .b3{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 20px;box-shadow:0 8px 22px var(--shadow);text-align:left;max-width:430px}
+.close25 .bl3 .b3 .b3t{font-size:17px;font-weight:900;color:var(--ice-deep);margin-bottom:4px}
+.close25 .bl3 .b3 .b3d{font-size:14px;color:var(--muted);line-height:1.55}
+.close25 .ext{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center}
+/* ============================================================
+   CHROME：進度、計數、hint、按鈕、overview、help
+   ============================================================ */
+.progress{position:fixed;left:0;top:0;height:5px;width:100%;z-index:1200;background:transparent}
+.progress-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--ice-deep),var(--glacier));transition:width .25s ease}
+.counter{position:fixed;right:26px;bottom:20px;z-index:1100;background:#fffdf6;border:1px solid var(--line-2);border-radius:999px;padding:7px 16px;font-family:var(--mono);font-size:14px;font-weight:700;color:var(--ink);box-shadow:0 8px 20px var(--shadow);letter-spacing:.04em}
+.hint{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:1100;background:#23404eee;color:#dce9ee;border-radius:999px;padding:8px 20px;font-size:14px;font-weight:700;box-shadow:0 8px 22px #3a2f1d55;white-space:nowrap;letter-spacing:.02em}
+.hsep{opacity:.45;margin:0 6px}
+.nav{position:fixed;left:22px;bottom:16px;display:flex;gap:10px;z-index:1100}
+.navbtn{width:50px;height:50px;border-radius:50%;border:1.5px solid var(--line-2);background:#fffdf6;color:var(--ice-deep);font-size:24px;font-weight:900;cursor:pointer;box-shadow:0 8px 20px var(--shadow);display:flex;align-items:center;justify-content:center;transition:transform .15s ease,border-color .15s ease}
+.navbtn:hover{transform:translateY(-2px);border-color:var(--ice)}
+#overview{position:fixed;inset:0;background:#f1ead9f0;z-index:1300;padding:52px 64px;display:none;overflow:auto}
+#overview.open{display:block}
+#overview h2{font-family:var(--serif);color:var(--ink);font-size:38px;margin:0 0 4px;font-weight:900}
+#overview .ov-sub{color:var(--muted);font-size:16px;margin:0 0 20px}
+.ovgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+.ovbtn{text-align:left;background:#fffdf6;border:1px solid var(--line);border-radius:12px;padding:10px 14px;cursor:pointer;display:flex;gap:12px;align-items:flex-start;box-shadow:0 4px 12px var(--shadow);font-family:var(--sans);transition:border-color .15s,transform .15s}
+.ovbtn:hover{border-color:var(--ice);transform:translateY(-1px)}
+.ovbtn .on{font-family:var(--mono);font-weight:700;color:var(--ice-deep);font-size:13px;padding-top:2px}
+.ovbtn .ot{font-size:14.5px;color:var(--ink);font-weight:700;line-height:1.4}
+#help{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);width:min(780px,92vw);background:#fffdf6;border:1px solid var(--line-2);border-radius:20px;padding:22px 26px;z-index:1400;display:none;box-shadow:0 30px 90px #3a2f1d55}
+#help.open{display:block}
+#help .help-title{font-size:21px;font-weight:900;color:var(--ink);margin-bottom:14px}
+.help-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.hcard{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:5px}
+.hcard .hicon{font-size:20px}
+.hcard .hkey{font-size:13px;color:var(--ice-deep);font-weight:700}
+.hcard .hkey kbd{font-family:var(--mono);background:#fff;border:1px solid var(--line-2);border-bottom-width:2.5px;border-radius:6px;padding:0 7px;font-size:12.5px;color:var(--ink)}
+.hcard .hdesc{font-size:12.5px;color:var(--muted);line-height:1.45}
+/* ============================================================
+   REDUCED MOTION + MOBILE PORTRAIT SCROLL MODE
+   ============================================================ */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+@media (max-width:900px) and (orientation:portrait){
+  body{display:block;overflow:auto;background:var(--paper-deep)}
+  .viewport{height:auto;overflow:visible}
+  .stage{position:relative;left:auto;top:auto;width:100%;height:auto;transform:none;box-shadow:none;background:linear-gradient(140deg,#fbf7ec,#f3ecda 55%,#f6f0e2)}
+  html.js .slide{position:relative;inset:auto;opacity:1;pointer-events:auto;display:flex;flex-direction:column;height:auto;padding:24px 18px 26px;margin-bottom:14px;border-bottom:6px solid var(--line-soft);border-radius:0}
+  .slide::before{display:none}
+  .gnum{display:none}
+  .nav,.counter,.hint,.progress{display:none}
+  .meta{font-size:12.5px;gap:8px;flex-wrap:wrap}
+  .h2{font-size:27px;line-height:1.35}
+  .title-h2{font-size:46px}
+  .sub{font-size:18.5px;line-height:1.6}
+  .take{font-size:15.5px;padding:9px 13px}
+  .note{font-size:16px}
+  .band{flex-direction:column;gap:3px;padding:9px 13px;font-size:15px}
+  .up{font-size:11px}
+  .mid{margin-top:2px}
+  .mn2,.json2,.snap2,.entry2,.sch2,.dl2,.delrow2,.prune2,.hive3,.lane2,.journey,.cmp2{grid-template-columns:1fr;gap:14px}
+  .hole3,.note3,.out3,.readflow,.mrow3{grid-template-columns:1fr;gap:10px}
+  .schgrid,.grid2,.grid4,.myths,.mtgrid{grid-template-columns:1fr;gap:10px}
+  .vwrap{grid-template-columns:1fr;gap:8px}
+  .vers{height:300px}
+  .ver{height:90px;font-size:11px;padding:7px 12px}
+  .ver.v2{top:100px}
+  .ver.v3{top:200px}
+  .pointer{padding:10px 8px}
+  .pointer .pt{font-size:12px}
+  .pointer .ps{font-size:11px}
+  .rule3{gap:9px}
+  .rule3 .rl{padding:10px 12px}
+  .rule3 .rl .rt{font-size:16.5px}
+  .rule3 .rl .rs{font-size:14px}
+  .treebox{font-size:13px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+  .oldtree,.newtree{padding:10px 12px}
+  .ot-title{font-size:18px}
+  .hole .hn{font-size:16px}
+  .hole .hd,.hole .hf{font-size:14px}
+  .meta5{gap:6px}
+  .ly5 .lbody{grid-template-columns:1fr;gap:4px;padding:8px 12px}
+  .ly5 .lname{font-size:16.5px}
+  .ly5 .lpath{text-align:left;white-space:normal;font-size:11.5px}
+  .ly5 .lrole{font-size:13.5px}
+  .ly5 .lidx{flex:0 0 34px}
+  .ly5 .lidx::after{top:30px;height:calc(100% - 12px)}
+  .ly5 .lidx .dot{width:12px;height:12px}
+  .jsonbox .jb-body{font-size:11px;max-height:none}
+  .jsonbox .jb-head{font-size:11px}
+  .rcards{gap:10px}
+  .rcard .rt2{font-size:16px}
+  .rcard .rd2{font-size:14px}
+  .snaprow{flex-direction:column;align-items:stretch}
+  .ml-row{grid-template-columns:1fr;gap:3px;padding:8px 12px}
+  .arrowmid{flex-direction:column;gap:4px;font-size:18px}
+  .mrow3 .mcard .mc-body{white-space:normal;font-size:11px}
+  .ek{flex-wrap:wrap;padding:6px 12px}
+  .ek .ekn{flex-basis:100%}
+  .ek .ekv{flex-basis:100%}
+  .ek .ekd{flex-basis:100%;text-align:left}
+  .entrybox .en-body{font-size:12px}
+  .journey{grid-template-columns:1fr;gap:12px}
+  .jstep .jst{font-size:15px}
+  .jstep .jsd{font-size:13px}
+  .jcol,.siderail{gap:6px}
+  .lane2{grid-template-columns:1fr}
+  .hmsrail{display:none}
+  .lst .lt{font-size:12.5px}
+  .lst .ls{font-size:11.5px}
+  .catgrid .cg-head,.cg-row{grid-template-columns:1fr;gap:4px;padding:8px 13px}
+  .catgrid .cg-head{display:none}
+  .cg-row .cm{font-size:13px}
+  .cg-row .cx{font-size:13px}
+  .oc{padding:11px 14px}
+  .oc .oh{font-size:16.5px}
+  .oc .od{font-size:13.5px}
+  .oc .odo{font-size:13px}
+  .invrow{gap:7px}
+  .opgrid .og-head{display:none}
+  .og-row{grid-template-columns:1fr;gap:4px;padding:9px 13px;font-size:13.5px}
+  .og-row .opr{text-align:left}
+  .readflow{gap:8px}
+  .rstep .rt2{font-size:15px}
+  .rstep .rs2{font-size:12.5px}
+  .prune-l .qbar{font-size:13px;overflow-wrap:anywhere}
+  .pfrow{grid-template-columns:1fr 1.2fr auto;gap:6px;font-size:11.5px}
+  .pfrow .pfb:nth-of-type(2){display:none}
+  .seqwrap{gap:10px}
+  .seqtl{flex-direction:column;gap:4px;padding:12px}
+  .seqnode{flex-direction:row;gap:10px;align-items:center;padding:4px 0}
+  .seqnode::before{display:none}
+  .seqnode .sl{text-align:left;font-size:11px}
+  .seqnode .sd{flex:0 0 auto}
+  .dlp{padding:11px 13px}
+  .dlp .dl-h{font-size:16.5px}
+  .dlp .dl-d{font-size:13.5px}
+  .dlp .dl-flow{font-size:11px}
+  .delcard .dd2{font-size:13px}
+  .spev{grid-template-columns:1fr;gap:6px}
+  .spev .sv-mid{flex-direction:row;gap:6px;font-size:16px;justify-content:flex-start}
+  .trc{font-size:11.5px}
+  .oplist{gap:7px}
+  .oplist .oli .old{font-size:13.5px}
+  .sch .fld{padding:5px 12px;flex-wrap:wrap}
+  .sch .fld .ft{margin-left:0}
+  .mtc .mt-d{font-size:13px}
+  .mtc .mt-s{font-size:12px}
+  .stk{grid-template-columns:1fr;gap:5px;padding:9px 13px}
+  .stk .stk-n{font-size:16.5px}
+  .stk .stk-r{font-size:13px}
+  .stk .stk-f{font-size:12.5px;padding:6px 10px}
+  .myth .my{font-size:14.5px}
+  .myth .tr{font-size:13px}
+  .svrow{grid-template-columns:1fr;gap:6px;padding:10px 14px}
+  .svrow .svn{font-size:21px}
+  .svrow .svf{font-size:13px}
+  .qa{grid-template-columns:36px 1fr;gap:8px;padding:8px 12px}
+  .qa .qref{grid-column:2;text-align:left;white-space:normal}
+  .qa .qt{font-size:14.5px}
+  .qa .qa-a{font-size:12.5px}
+  .close25{gap:18px;padding:10px 0}
+  .close25 .bigline{font-size:40px}
+  .close25 .bl3{flex-direction:column;gap:10px}
+  .close25 .bl3 .b3{max-width:none;padding:11px 15px}
+  .close25 .bl3 .b3 .b3t{font-size:15.5px}
+  .close25 .bl3 .b3 .b3d{font-size:13.5px}
+  #overview{padding:24px 16px}
+  .ovgrid{grid-template-columns:1fr 1fr;gap:8px}
+  .ovbtn .ot{font-size:12.5px}
+  #help{left:10px;right:10px;bottom:10px;width:auto;padding:16px;transform:none}
+  .help-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .hcard .hdesc{font-size:11.5px}
+  .frow{white-space:normal}
+}
+</style>
+
+<!-- ============ 20 · maintenance ============ -->
+<section class="slide" id="s20" aria-labelledby="s20t">
+  <p class="meta"><span class="num">20</span><span class="part">Ⅶ 維運 · Maintenance</span></p>
+  <h2 class="h2" id="s20t">四種 maintenance：<strong>全部都是「讓 metadata 不再引用 → 再物理刪除」</strong></h2>
+  <div class="mid"><div class="mtgrid">
+    <div class="mtc n1"><div class="mt-h">Compaction <span class="eno">rewrite_data_files</span></div><div class="mt-q">把 N 顆小檔讀出來重寫成幾顆大檔</div><div class="mt-d">解決：<b>小檔太多</b>（讀取要開太多檔、planning 慢）。做法：寫大檔 → 新 snapshot 把小檔標 DELETED。之後可再 <b>expire 回收空間</b>。</div><div class="mt-s">安全：小檔在舊 snapshot 仍被引用，直到 expire——不會中途消失。</div></div>
+    <div class="mtc n2"><div class="mt-h">Rewrite manifests <span class="eno">rewrite_manifests</span></div><div class="mt-q">把很多小 manifest 合併成少數幾顆</div><div class="mt-d">解決：<b>manifest 太多</b>（每次 commit 一顆，append-only 久了會上千）。合併後 planning 開檔次數大減。它<b>不動任何 data file</b>，只重排索引。</div><div class="mt-s">安全：metadata-only 操作，可頻繁跑。</div></div>
+    <div class="mtc n3"><div class="mt-h">Expire snapshots <span class="eno">expire_snapshots</span></div><div class="mt-q">刪掉「沒有被保留 snapshot 引用」的檔</div><div class="mt-d">唯一會<b>物理刪除舊檔</b>的操作。保留規則：<span class="mono">history.expire.min-snapshots-to-keep</span>（預設 1）＋<span class="mono">history.expire.max-snapshot-age-ms</span>（預設 5 天）。時間旅行只能回到「還沒被 expire 的 snapshot」。</div><div class="mt-s">安全：被任一保留 snapshot 引用的檔絕不刪——先算保留集再刪。</div></div>
+    <div class="mtc n4"><div class="mt-h">Remove orphan files <span class="eno">remove_orphan_files</span></div><div class="mt-q">刪「從來沒被任何 snapshot 引用」的檔</div><div class="mt-d">解決：commit 前 crash 留下的孤兒 data／manifest（第 9 頁步驟 1–4）。<b>預設只碰 3 天前就存在的檔</b>——避免砍到還在進行中的 commit。</div><div class="mt-s">安全：以「metadata 從未引用」為判準；不是列目錄就刪。</div></div>
+  </div>
+  <div class="band ember" style="margin-top:12px"><span class="bl">鐵則</span><span>任何 cleanup 都先算「<b>誰還在引用</b>」，沒被引用才輪得到刪；expire 的保留規則調太小 = 時間旅行資料不見，<b>刪完沒有復原按鈕</b>（object store 沒開 versioning 的話）。</span></div></div>
+<div class="take">Compaction 讓讀變快、expire 讓空間回來、rewrite manifests 讓 planning 變快、remove orphans 讓目錄乾淨——<b>四者都只是「換一顆新 snapshot 之後，順手刪檔」</b>。</div>
+</section>
+
+<!-- ============ 21 · 你們的 stack ============ -->
+<section class="slide" id="s21" aria-labelledby="s21t">
+  <p class="meta"><span class="num">21</span><span class="part">Ⅶ 維運 · 落地對照</span></p>
+  <h2 class="h2" id="s21t">在你們的 stack 上：<strong>每顆螺絲各自保證什麼、掛了會怎樣</strong></h2>
+  <div class="mid"><div class="stackmap">
+    <div class="stk air"><div class="stk-n"><span class="ico">⏱</span><span>Airflow<span class="v">排程與編排</span></span></div><div class="stk-r">決定<b>何時</b>跑寫入與 maintenance（compaction／expire／orphan cleanup 也排在這裡，不是靠 Iceberg 自己）。</div><div class="stk-f"><b>掛了</b>：排程停擺；不影響已排程外的 ad-hoc 讀寫。</div></div>
+    <div class="stk spark"><div class="stk-n"><span class="ico">🔥</span><span>Spark 3.5.1<span class="v">寫入／ETL／rewrite</span></span></div><div class="stk-r">經 Spark Iceberg runtime（1.5.2）寫 data／manifest、跑 <b>CALL system.rewrite_data_files…</b> 等 maintenance。</div><div class="stk-f"><b>掛了</b>：寫入停擺；讀（若走 Trino）不受影響。</div></div>
+    <div class="stk trino"><div class="stk-n"><span class="ico">🐘</span><span>Trino 467<span class="v">查詢／小寫入</span></span></div><div class="stk-r">查詢走 iceberg connector：metadata 樹由 Trino 自己讀（內建 Iceberg lib，<b>版本不一定等於 1.5.2</b>，見 23 頁）。</div><div class="stk-f"><b>掛了</b>：查詢停擺；Spark 寫不受影響。</div></div>
+    <div class="stk hms hotrow2"><div class="stk-n"><span class="ico">🗄</span><span>Hive Metastore 4.0.0<span class="v">catalog · 你們的 CAS</span></span></div><div class="stk-r">只存「指標」：table 註冊＋<b>metadata_location</b>＋commit 用的 lock／transaction。不讀資料內容。</div><div class="stk-f"><b>掛了</b>：開新表／任何 commit 失敗；已 load 的讀可用 metadata cache 撐一段。</div></div>
+    <div class="stk minio"><div class="stk-n"><span class="ico">🧊</span><span>MinIO<span class="v">物件儲存（S3 API）</span></span></div><div class="stk-r">所有 data／manifest／metadata 檔的家。Iceberg 對它的要求只有：<b>PUT／GET／DELETE + 一致性的 read-after-write</b>。</div><div class="stk-f"><b>掛了</b>：讀寫全掛；timeout 會把 commit 推入「unknown」（12 頁的雷區）。</div></div>
+  </div>
+  <div class="band ice" style="margin-top:10px"><span class="bl">為什麼兩邊讀同一張表</span><span>Spark 與 Trino 不直接溝通——它們<b>共用 HMS（指標）＋ MinIO（檔案）</b>，就自然看到同一張表的同一個 current snapshot。任何一對（引擎 × catalog × storage）能互換，就是 table format 的意義。</span></div></div>
+<div class="take">表格式把一致性收斂到「<b>catalog 的 CAS ＋ object store 的一致性</b>」兩件事——維運盯這兩層，就盯住了整張表。</div>
+</section>
+
+<!-- ============ 22 · 誤解 ============ -->
+<section class="slide" id="s22" aria-labelledby="s22t">
+  <p class="meta"><span class="num">22</span><span class="part">Ⅶ 維運 · 誤解清單</span></p>
+  <h2 class="h2" id="s22t">八個最常見誤解：<strong>多半是把資料庫或檔案系統的直覺套到 table format</strong></h2>
+  <div class="mid"><div class="myths">
+    <div class="myth"><div class="my"><span class="x">✗</span>「Iceberg 是儲存／檔案格式」</div><div class="tr">檔案還是 <b>Parquet／ORC</b>。Iceberg 是 <b>table format</b>：定義 metadata 怎麼描述這些檔。</div></div>
+    <div class="myth"><div class="my"><span class="x">✗</span>「Iceberg 自己會鎖表」</div><div class="tr">core <b>沒有 lock server</b>；原子性來自 catalog 的 CAS（HMS lock／條件寫入…）。</div></div>
+    <div class="myth"><div class="my"><span class="x">✗</span>「partition 就是資料夾」</div><div class="tr">partition 是 <b>transform 規則</b>，語意在 manifest 裡；資料夾只是預設擺法。</div></div>
+    <div class="myth"><div class="my"><span class="x">✗</span>「寫入 Iceberg = DB 等級 ACID」</div><div class="tr">是<b>單表</b> atomic ＋ snapshot isolation；沒有跨表 transaction、沒有 FK／約束。</div></div>
+    <div class="myth"><div class="my"><span class="x">✗</span>「DELETE 完資料就真的刪了」</div><div class="tr">MoR 只是寫黑名單；<b>物理刪除要等 compaction ＋ expire</b>，在那之前空間照佔。</div></div>
+    <div class="myth"><div class="my"><span class="x">✗</span>「time travel 可以回到任意時間」</div><div class="tr">只能回到<b>還沒被 expire 清掉的 snapshot</b>；保留規則由你設。</div></div>
+    <div class="myth"><div class="my"><span class="x">✗</span>「小檔 Iceberg 會自動合併」</div><div class="tr">不會。append-only 的結果就是小檔越積越多——<b>compaction 是維運的責任</b>。</div></div>
+    <div class="myth"><div class="my"><span class="x">✗</span>「v2 表 DELETE 一定很快」</div><div class="tr">v2 提供 delete 檔機制；快不快取決於 <b>CoW／MoR 策略與 delete 檔累積量</b>。</div></div>
+  </div></div>
+<div class="take">遇到 Iceberg 行為想不通時，先問一句：<b>「這是 metadata 哪一層的哪個動作造成的？」</b>——答案八成就在這份文件的某一頁。</div>
+</section>
+
+<!-- ============ 23 · spec 版本 ============ -->
+<section class="slide" id="s23" aria-labelledby="s23t">
+  <p class="meta"><span class="num">23</span><span class="part">Ⅶ 維運 · Spec × 引擎</span></p>
+  <h2 class="h2" id="s23t">規格（spec）與引擎是兩件事：<strong>看「引擎內建哪版 Iceberg」比看官網版本更準</strong></h2>
+  <div class="mid"><div class="specv3">
+    <div class="svrow v1"><div class="svn">v1<small>table format 起點</small></div><div class="svf">不可變檔案＋snapshot＋metadata 樹。<b>沒有 row-level delete</b>：刪資料只能整檔重寫。</div><div class="svc"><span class="chip g">metadata 樹</span><span class="chip g">snapshot isolation</span><span class="chip s">無 delete 檔</span></div></div>
+    <div class="svrow v2"><div class="svn">v2<small>2022 定案 · 你們的預設</small></div><div class="svf">新增 <b>row-level delete</b>（position／equality delete file）、<b>sequence number</b>（全域 commit 時鐘）、更嚴的型別與保留規則。<span class="mono">format-version: 2</span>。</div><div class="svc"><span class="chip k">position delete</span><span class="chip k">equality delete</span><span class="chip k">sequence number</span></div></div>
+    <div class="svrow v3"><div class="svn">v3<small>規格已出 · 生態逐步實作中</small></div><div class="svf"><b>Deletion Vectors</b>（壓縮的二進位刪除清單，取代 position delete）＋ <b>Row Lineage</b>（<span class="mono">_row_id</span>＋最後修改 seq，支援真正 row-level CDC／更新）＋ <b>新型別</b>（timestamp_ns／variant／geometry）＋欄位 default＋表級加密。</div><div class="svc"><span class="chip d">deletion vectors</span><span class="chip d">row lineage</span><span class="chip d">_row_id</span><span class="chip d">新型別</span><span class="chip d">表級加密</span></div></div>
+  </div>
+  <div class="band gold" style="margin-top:12px"><span class="bl">引擎 × 版本</span><span>Spark／Trino／Flink 各自內建自己的 Iceberg library：<b>Trino 467 打包的 Iceberg 版本未必等於 Spark runtime 的 1.5.2</b>——同一張表，兩種引擎支援度可能不同（fault-lab 提醒：以實際 jar 為準，別用「Iceberg 官方最新版」推斷）。</span></div></div>
+<div class="take">Spec 決定「檔案長相」，引擎決定「能做到什麼」——<b>跨引擎行為差異，先查兩邊內建的 Iceberg 版本</b>。</div>
+</section>
+
+<!-- ============ 24 · 90 分自測 ============ -->
+<section class="slide" id="s24" aria-labelledby="s24t">
+  <p class="meta"><span class="num">24</span><span class="part">Ⅷ 驗收 · 八題自測</span></p>
+  <h2 class="h2" id="s24t">90 分自測：<strong>八題都答得出來，才算真的懂</strong></h2>
+  <div class="mid"><div class="qalist">
+    <div class="qa"><span class="qn">1</span><div><div class="qt">Commit 成功／確定失敗／unknown 各代表什麼？為什麼 unknown 不能清檔？</div><div class="qa-a">只有 catalog 指標「確定沒動」才能清；unknown 時指標可能已換，清檔會刪到 live object。</div></div><span class="qref">見 S12</span></div>
+    <div class="qa"><span class="qn">2</span><div><div class="qt">兩個 job 同時 append，誰保證不互相覆蓋？後到者失敗重試後，先到者的資料會不見嗎？</div><div class="qa-a">CAS：後到者 refresh 到含先到者資料的新 base 再重做 manifest list——兩邊都在。</div></div><span class="qref">見 S10</span></div>
+    <div class="qa"><span class="qn">3</span><div><div class="qt">DELETE 一列之後，那顆 Parquet 還在嗎？什麼時候才真的從 S3 消失？</div><div class="qa-a">在。delete 檔只是黑名單；檔案要等 compaction 重寫＋expire 才物理刪除。</div></div><span class="qref">見 S17 · S20</span></div>
+    <div class="qa"><span class="qn">4</span><div><div class="qt">為什麼 rename 欄位不用搬資料？</div><div class="qa-a">欄位 id 才是 identity（Parquet field-id 對齊），rename 只改 metadata 查詢表。</div></div><span class="qref">見 S19</span></div>
+    <div class="qa"><span class="qn">5</span><div><div class="qt">為什麼查詢不用 list 目錄？</div><div class="qa-a">metadata 樹就是索引：manifest list 跳 manifest、entry 統計跳檔案，全程不碰資料檔。</div></div><span class="qref">見 S4 · S14–15</span></div>
+    <div class="qa"><span class="qn">6</span><div><div class="qt">snapshot-id 和 sequence-number 差在哪？為什麼 v1 沒有 sequence 會出問題？</div><div class="qa-a">id 是唯一名字、無順序；sequence 是全域 commit 時鐘，time travel 與 delete 適用範圍都靠它。</div></div><span class="qref">見 S16</span></div>
+    <div class="qa"><span class="qn">7</span><div><div class="qt">v1／v2／v3 各多了什麼？position delete 與 equality delete 差在哪？</div><div class="qa-a">v2＝row-level delete＋sequence；v3＝deletion vectors＋row lineage＋新型別。pos 記 (檔,列)、eq 記值。</div></div><span class="qref">見 S17 · S23</span></div>
+    <div class="qa"><span class="qn">8</span><div><div class="qt">expire_snapshots 會刪到「還在被查詢」的資料嗎？remove_orphan_files 跟它差在哪？</div><div class="qa-a">不會刪「被保留 snapshot 引用」的檔；進行中的查詢已鎖定 snapshot，不受影響。orphan 清「從未被引用」，expire 清「不再被引用」。</div></div><span class="qref">見 S20</span></div>
+  </div></div>
+<div class="take">卡住就翻回對應頁；<b>八題全通 = 可以開始讀 spec 原文，也能 debug 別人的 commit／cleanup 問題</b>。</div>
+</section>
+
+<!-- ============ 25 · 收尾 ============ -->
+<section class="slide" id="s25" aria-labelledby="s25t">
+  <p class="meta"><span class="num">25</span><span class="part">Ⅷ 收尾</span></p>
+  <div class="close25">
+    <p class="bigline">資料不動，動的是指標。<br><em>Iceberg 的一切，都是這句話的展開。</em></p>
+    <div class="bl3">
+      <div class="b3"><div class="b3t">腦中跑完 commit</div><div class="b3d">寫檔 → manifest → manifest list → metadata → CAS 換指標；失敗只有三種結局。</div></div>
+      <div class="b3"><div class="b3t">讀懂錯誤與 timeout</div><div class="b3d">unknown 先查 pointer 與 chain，別急著清檔；DELETE 不等於資料消失。</div></div>
+      <div class="b3"><div class="b3t">自己推理維運問題</div><div class="b3d">小檔、慢查詢、統計失真、時間旅行不見——都能定位到 metadata 的哪一層。</div></div>
+    </div>
+    <div class="ext">
+      <span class="chip m">延伸：iceberg.apache.org/spec（規格原文）</span>
+      <span class="chip m">vault：Codebases/Apache Iceberg.md（source code 拆解）</span>
+      <span class="chip m">fault-lab：commit-cleanup invariants I1–I4</span>
+      <span class="chip d">回 S2 重讀心智模型 → S24 自測</span>
+    </div>
+  </div>
+  <div class="take" style="text-align:center;max-width:none">讀完這份，你已經能回答「<b>Iceberg 底層到底怎麼運作</b>」——剩下的，交給 spec 與 source code。</div>
+</section>
+
+<style>
+/* ============================================================
+   FULL-CANVAS INFLATION (desktop only) + late components
+   ============================================================ */
+@media (min-width:901px){
+  /* 通用節奏 */
+  .take{font-size:24px;padding:13px 26px;margin-top:22px}
+  .band{margin-top:16px;padding:12px 24px;font-size:20px}
+  .sub{margin-top:20px}
+  .nd{padding:16px 20px;gap:6px}
+  .nd .t{font-size:22px}
+  .nd .s{font-size:17px;line-height:1.6}
+  .chip{font-size:16px;padding:4px 15px}
+  .note{font-size:20px}
+  /* S1 title */
+  .title-h2{font-size:118px}
+  .chrow{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin-top:44px}
+  .chrow .chp{font-size:15.5px;font-weight:800;color:var(--ink);background:#ffffffcc;border:1px solid var(--line-2);border-radius:999px;padding:6px 16px;letter-spacing:.02em}
+  .chrow .chp b{color:var(--ice-deep)}
+  /* S2 */
+  .mn2{gap:30px}
+  .vers{height:470px}
+  .ver{height:132px;padding:13px 22px;font-size:14.5px}
+  .ver b{font-size:17px}
+  .ver.v2{top:156px}
+  .ver.v3{top:312px}
+  .rule3{gap:17px}
+  .rule3 .rl{padding:19px 22px}
+  .rule3 .rl .rn{width:42px;height:42px;font-size:20px}
+  .rule3 .rl .rt{font-size:22.5px}
+  .rule3 .rl .rs{font-size:17px;line-height:1.62}
+  .pointer{padding:22px 12px}
+  .pointer .pt{font-size:16px}
+  .pointer .ps{font-size:14.5px}
+  /* S3 */
+  .hive3{gap:24px}
+  .oldtree,.newtree{padding:18px 26px 15px}
+  .ot-title{font-size:26px}
+  .treebox{font-size:18px;line-height:2.05}
+  .hole3{gap:18px;margin-top:20px}
+  .hole{padding:18px 22px;gap:8px}
+  .hole .hn{font-size:22px}
+  .hole .hd{font-size:17.5px;line-height:1.68}
+  .hole .hf{font-size:16.5px;padding:8px 13px}
+  .owcmp{border:1px solid var(--line-2);border-radius:14px;overflow:hidden;box-shadow:0 8px 22px var(--shadow);margin-top:18px}
+  .owcmp .owrow{display:grid;grid-template-columns:200px 1fr 1fr;gap:16px;align-items:center;padding:10px 22px;background:var(--panel);border-top:1px solid var(--line-soft);font-size:15.5px}
+  .owcmp .owrow:first-child{border-top:0;background:var(--panel-2)}
+  .owcmp .oww{font-weight:900;color:var(--ink);font-size:16px}
+  .owcmp .owrow:first-child .oww{color:var(--faint);font-size:13px;letter-spacing:.12em}
+  .owcmp .owh{color:var(--muted);line-height:1.5}
+  .owcmp .owh b{color:var(--ember-deep)}
+  .owcmp .owi{color:var(--muted);line-height:1.5}
+  .owcmp .owi b{color:var(--ice-deep)}
+  /* S4 */
+  .meta5{gap:4px}
+  .ly5 .lbody{padding:12px 20px;gap:16px}
+  .ly5 .lname{font-size:21px}
+  .ly5 .lname .en{font-size:15px}
+  .ly5 .lrole{font-size:16.5px;line-height:1.6}
+  .ly5 .lpath{font-size:14px}
+  .ly5 .lidx{flex-basis:74px}
+  /* S5 */
+  .json2{gap:24px}
+  .jsonbox .jb-head{font-size:14px;padding:10px 20px}
+  .jsonbox .jb-body{font-size:15px;line-height:1.78;padding:16px 22px 20px}
+  .rcards{gap:16px}
+  .rcard{padding:17px 22px}
+  .rcard .rt2{font-size:21px}
+  .rcard .rd2{font-size:16.5px;line-height:1.7}
+  /* S6 */
+  .snap2{gap:24px}
+  .snapcard .sn-head{padding:12px 22px}
+  .snapcard .sn-head .sn-id{font-size:17px}
+  .snapcard .sn-body{font-size:15px;line-height:2.1;padding:14px 22px}
+  .snapcard .sn-body .snk{flex-basis:210px;font-size:13.5px}
+  /* S7 */
+  .idx7{gap:12px}
+  .mlist .ml-head{padding:9px 20px;font-size:15.5px}
+  .ml-row{padding:10px 20px}
+  .ml-row .mf{font-size:14px}
+  .ml-row .mb{font-size:13.5px}
+  .mrow3{gap:16px}
+  .mcard .mc-head{font-size:13px;padding:6px 14px}
+  .mcard .mc-body{font-size:12.5px;line-height:1.85;padding:8px 14px}
+  .snaprow{gap:16px}
+  .arrowmid{font-size:24px}
+  /* S8 */
+  .entrybox .en-head{padding:9px 18px;font-size:14px}
+  .entrybox .en-body{font-size:14px}
+  .ek{padding:8px 18px}
+  .ek .ekn{flex-basis:240px;font-size:13.5px}
+  .ek .ekv{font-size:13.5px}
+  .ek .ekd{flex-basis:300px;font-size:13.5px}
+  /* S9 */
+  .journey{gap:28px}
+  .jstep{gap:16px;padding:10px 18px}
+  .jstep .jst{font-size:18px}
+  .jstep .jsd{font-size:14.5px;line-height:1.6}
+  .jstep .jsn{width:30px;height:30px;font-size:15px}
+  .siderail{gap:12px}
+  .siderail .sr{padding:13px 18px}
+  .siderail .sr .srt{font-size:18px}
+  .siderail .sr .srd{font-size:15px;line-height:1.62}
+  /* S10 */
+  .lane2{gap:20px}
+  .lst{gap:12px;padding:9px 15px}
+  .lst .lsn{width:26px;height:26px;font-size:13px}
+  .lst .lt{font-size:15px}
+  .lst .ls{font-size:13px;line-height:1.55}
+  .hmsrail .hr-box{font-size:12.5px;padding:9px 6px}
+  .note3{gap:16px;margin-top:12px}
+  /* S11 */
+  .catgrid .cg-head{padding:11px 22px;font-size:14px}
+  .cg-row{padding:13px 22px;gap:16px}
+  .cg-row .cn{font-size:19px}
+  .cg-row .cn small{font-size:13px}
+  .cg-row .cm{font-size:15.5px;line-height:1.65}
+  .cg-row .cx{font-size:15px;line-height:1.6}
+  /* S12 */
+  .out3{gap:18px}
+  .oc{padding:17px 22px;gap:8px}
+  .oc .oh{font-size:20px}
+  .oc .od{font-size:16px;line-height:1.7}
+  .oc .odo{font-size:15px;padding:8px 12px}
+  .oc .oex{font-family:var(--mono);font-size:12.5px;line-height:1.6;color:var(--muted);background:#ffffff99;border-radius:9px;padding:7px 11px}
+  .oc .oex b{color:var(--ink);font-weight:600}
+  .invrow{gap:12px;margin-top:12px}
+  .invrow .chip{font-size:15.5px;padding:6px 16px}
+  /* S13 */
+  .opgrid .og-head{padding:11px 22px;font-size:14px}
+  .og-row{padding:12px 22px;font-size:15.5px;gap:16px}
+  .og-row .ow{font-size:13.5px}
+  .og-row .oo{font-size:14.5px}
+  .og-row .opr{font-size:12.5px}
+  /* S14 */
+  .readflow{gap:14px}
+  .rstep{padding:13px 16px;gap:5px}
+  .rstep .rt2{font-size:17.5px}
+  .rstep .rs2{font-size:13.5px;line-height:1.6}
+  .rstep .rtag{font-size:11.5px;padding:2px 11px}
+  .cmp2{margin-top:16px}
+  .cmp2 .cm2{padding:12px 18px;font-size:15.5px;line-height:1.65}
+  .cmp2 .cm2 .cm2t{font-size:16.5px}
+  /* S15 */
+  .prune-l .qbar{font-size:16.5px;padding:11px 20px}
+  .pstage{padding:10px 18px}
+  .pstage .pst-h{font-size:15px}
+  .pfrow{font-size:13.5px;padding:7px 0 4px}
+  .pfrow .pfb{font-size:12.5px}
+  /* S16 */
+  .seqwrap{gap:16px}
+  .seqtl{padding:18px 28px}
+  .seqnode .sd{width:28px;height:28px;border-width:6px}
+  .seqnode::before{top:32px}
+  .seqnode .sy{font-size:17px}
+  .seqnode .sl{font-size:13px;line-height:1.5}
+  /* S17 */
+  .dl2{gap:22px}
+  .dlp{padding:16px 22px 14px;gap:9px}
+  .dlp .dl-h{font-size:21px}
+  .dlp .dl-d{font-size:15.5px;line-height:1.7}
+  .dlp .dl-flow{font-size:13.5px;line-height:1.85;padding:9px 13px}
+  .dlp .dl-pros{font-size:14px;line-height:1.7}
+  .delrow2{gap:18px;margin-top:14px}
+  .delcard{padding:13px 20px}
+  .delcard .dt2{font-size:18.5px}
+  .delcard .dd2{font-size:15px;line-height:1.7}
+  /* S18 */
+  .spev .sv{padding:13px 22px}
+  .spev .sv .sv-t{font-size:16.5px}
+  .spev .sv .sv-d{font-size:13.5px;line-height:2}
+  .spev .sv .sv-n{font-size:12.5px}
+  .trgrid{gap:10px;margin-top:10px}
+  .trc{font-size:14.5px;padding:5px 15px}
+  /* S19 */
+  .sch .sch-h{font-size:15.5px;padding:9px 16px}
+  .sch .fld{padding:8px 16px;gap:12px}
+  .sch .fld .fid{font-size:12px;padding:0 9px}
+  .sch .fld .fn2{font-size:14.5px}
+  .sch .fld .ft{font-size:12.5px}
+  .oplist{gap:11px}
+  .oplist .oli{padding:11px 16px}
+  .oplist .oli .old{font-size:15.5px;line-height:1.6}
+  /* S20 */
+  .mtgrid{gap:16px}
+  .mtc{padding:15px 22px;gap:7px}
+  .mtc .mt-h{font-size:21px}
+  .mtc .mt-q{font-size:14px;padding:6px 12px}
+  .mtc .mt-d{font-size:15px;line-height:1.65}
+  .mtc .mt-s{font-size:14px}
+  /* S21 */
+  .stackmap{gap:10px}
+  .stk{padding:11px 22px;gap:18px}
+  .stk .stk-n{font-size:20px}
+  .stk .stk-r{font-size:15px;line-height:1.6}
+  .stk .stk-f{font-size:14px;line-height:1.6;padding:8px 13px}
+  .stk .ico{width:48px;height:48px;font-size:24px}
+  /* S22 */
+  .myths{gap:16px}
+  .myth{padding:13px 19px;gap:6px}
+  .myth .my{font-size:17.5px}
+  .myth .tr{font-size:15px;line-height:1.65}
+  /* S23 */
+  .specv3{gap:14px}
+  .svrow{padding:16px 26px;gap:22px}
+  .svrow .svn{font-size:32px}
+  .svrow .svf{font-size:15.5px;line-height:1.7}
+  /* S24 */
+  .qalist{gap:11px}
+  .qa{padding:10px 18px;gap:16px}
+  .qa .qn{width:34px;height:34px;font-size:16px}
+  .qa .qt{font-size:17px}
+  .qa .qa-a{font-size:14.5px;line-height:1.6}
+  .qa .qref{font-size:13px}
+}
+@media (max-width:900px) and (orientation:portrait){
+  .owcmp .owrow{grid-template-columns:1fr;gap:2px;padding:9px 14px;font-size:13.5px}
+  .oc .oex{font-size:12px}
+  .chrow{margin-top:22px}
+  .chrow .chp{font-size:13px;padding:5px 12px}
+  .siderail .sr .srd,.jstep .jsd{overflow-wrap:anywhere}
+}
+</style>
+
+<style>
+/* ============================================================
+   ROUND 2 — 剩餘偏空頁的桌面密度修正
+   ============================================================ */
+@media (min-width:901px){
+  .h2{margin-top:14px}
+  .take{margin-top:26px}
+  .band{margin-top:18px}
+  /* S1 */
+  .sub{font-size:29px}
+  .chrow{gap:11px;margin-top:48px}
+  .chrow .chp{font-size:16.5px;padding:7px 18px}
+  /* S7 兩層索引 */
+  .idx7{gap:16px}
+  .snaprow{gap:20px}
+  .mlist .ml-head{font-size:16.5px;padding:11px 22px}
+  .ml-row{padding:12px 22px}
+  .ml-row .mf{font-size:15px}
+  .ml-row .mb{font-size:14.5px}
+  .mrow3{gap:18px;margin-top:2px}
+  .mcard .mc-head{font-size:14px;padding:7px 16px}
+  .mcard .mc-body{font-size:13.5px;line-height:1.95;padding:10px 16px}
+  .arrowmid{font-size:26px;margin:2px 0}
+  /* S8 */
+  .ek{padding:9px 18px}
+  .ek .ekn{font-size:14px}
+  .ek .ekv{font-size:14px}
+  .ek .ekd{font-size:14px}
+  .entrybox .en-body{font-size:14.5px}
+  .entrybox .en-head{font-size:15px;padding:10px 18px}
+  /* S9 */
+  .jstep{gap:18px;padding:12px 20px}
+  .jstep .jst{font-size:19px}
+  .jstep .jsd{font-size:15.5px;line-height:1.68}
+  .journey{gap:32px}
+  /* S12 */
+  .oc{padding:19px 24px}
+  .oc .oh{font-size:21.5px}
+  .oc .od{font-size:16.5px}
+  .oc .oex{font-size:13.5px;padding:8px 12px}
+  .oc .odo{font-size:15.5px}
+  .out3{gap:20px}
+  /* S13 */
+  .og-row{padding:14px 22px;font-size:16.5px}
+  .og-row .oo{font-size:15.5px}
+  .og-row .ow{font-size:14.5px}
+  .opgrid .og-head{padding:12px 22px;font-size:14.5px}
+  /* S14 */
+  .rstep{padding:15px 18px}
+  .rstep .rt2{font-size:18.5px}
+  .rstep .rs2{font-size:14.5px}
+  .rstep .rtag{font-size:12px;padding:3px 12px}
+  .readflow{gap:16px}
+  .cmp2 .cm2{font-size:16px;padding:14px 20px}
+  /* S16 */
+  .seqtl{padding:22px 30px}
+  .seqnode .sy{font-size:18.5px}
+  .seqnode .sl{font-size:14.5px;line-height:1.6}
+  .seqlegend{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin-top:4px}
+  .seqlegend .lg{font-family:var(--mono);font-size:13.5px;color:var(--ink);background:#ffffffcc;border:1px solid var(--line-2);border-radius:999px;padding:5px 15px}
+  .seqlegend .lg b{color:var(--ice-deep)}
+  /* S17 */
+  .dlp{padding:19px 24px 16px}
+  .dlp .dl-d{font-size:16.5px}
+  .dlp .dl-flow{font-size:14.5px;padding:11px 14px}
+  .dlp .dl-pros{font-size:15px}
+  .delcard{padding:15px 22px}
+  .delcard .dd2{font-size:16px}
+  /* S18 */
+  .spev .sv{padding:16px 24px}
+  .spev .sv .sv-t{font-size:17.5px}
+  .spev .sv .sv-d{font-size:14.5px;line-height:2.1}
+  .spev .sv .sv-n{font-size:13.5px;line-height:1.6}
+  .trgrid{gap:11px;margin-top:13px}
+  .trc{font-size:15px;padding:6px 16px}
+  .cmp2 .cm2t{font-size:17px}
+  /* S19 */
+  .sch .fld{padding:9px 16px}
+  .sch .fld .fn2{font-size:15px}
+  .sch .fld .ft{font-size:13px}
+  .oplist .oli{padding:13px 17px}
+  .oplist .oli .old{font-size:16.5px;line-height:1.62}
+  /* S20 */
+  .mtc{padding:17px 24px}
+  .mtc .mt-d{font-size:15.5px}
+  /* S22 */
+  .myths{gap:18px}
+  .myth{padding:15px 21px}
+  .myth .my{font-size:18.5px}
+  .myth .tr{font-size:15.5px;line-height:1.7}
+  /* S23 */
+  .svrow{padding:19px 28px}
+  .svrow .svf{font-size:16.5px}
+  .svrow .svn{font-size:34px}
+  /* S25 */
+  .close25{gap:34px}
+  .close25 .bigline{font-size:86px}
+  .close25 .bl3 .b3{padding:17px 24px}
+  .close25 .bl3 .b3 .b3t{font-size:18.5px}
+  .close25 .bl3 .b3 .b3d{font-size:15.5px}
+  .close25 .ext .chip{font-size:14.5px;padding:5px 15px}
+}
+@media (max-width:900px) and (orientation:portrait){
+  .seqlegend{justify-content:flex-start;gap:7px}
+  .seqlegend .lg{font-size:11.5px;padding:4px 11px}
+  .oc .oh{flex-wrap:wrap;row-gap:2px}
+  .oc .oh .st{margin-left:0}
+  .ot-head{flex-wrap:wrap;row-gap:4px}
+  .chrow .chp{max-width:100%}
+  .spev .sv-mid{flex-wrap:wrap}
+  .invrow .chip,.close25 .ext .chip{white-space:normal;line-height:1.45;text-align:left;overflow-wrap:anywhere}
+}
+</style>
+
+<style>
+/* ============================================================
+   ROUND 3 — 最後密度微調
+   ============================================================ */
+@media (min-width:901px){
+  /* S12 */
+  .oc{padding:21px 25px;gap:10px}
+  .oc .oh{font-size:22.5px}
+  .oc .od{font-size:17px;line-height:1.75}
+  .oc .oex{font-size:14px}
+  .oc .odo{font-size:16px;padding:9px 13px}
+  .out3{gap:22px}
+  .invrow .chip{font-size:16px}
+  /* S14 */
+  .rstep{padding:17px 19px}
+  .rstep .rt2{font-size:19.5px}
+  .rstep .rs2{font-size:15px;line-height:1.65}
+  .cmp2 .cm2{font-size:17px;padding:15px 21px}
+  /* S16 */
+  .note3{gap:18px}
+  .seqwrap .note3 .nd .t{font-size:23px}
+  .seqwrap .note3 .nd .s{font-size:17.5px}
+  /* S17 */
+  .dlp .dl-d{font-size:17px;line-height:1.75}
+  .dlp .dl-flow{font-size:15px;padding:12px 15px}
+  .delcard .dd2{font-size:16.5px;line-height:1.72}
+  .dlp .dl-pros{font-size:15.5px}
+  /* S18 */
+  .spev .sv{padding:19px 27px}
+  .spev .sv .sv-d{font-size:15px;line-height:2.15}
+  .spev .sv .sv-n{font-size:14px}
+  .cmp2 .cm2{font-size:16.5px;line-height:1.7}
+  .trc{font-size:15.5px;padding:7px 17px}
+  /* S19 */
+  .oplist .oli .old{font-size:17.5px}
+  .oplist .oli{padding:14px 18px}
+  .sch .fld{padding:10px 17px}
+  /* S22 */
+  .myths{gap:19px}
+  .myth{padding:16px 22px;gap:7px}
+  .myth .my{font-size:19px}
+  .myth .tr{font-size:16px;line-height:1.72}
+  /* S25 */
+  .close25 .bigline{font-size:92px}
+  .close25 .bl3 .b3{padding:19px 26px}
+  .close25 .bl3 .b3 .b3d{font-size:16px}
+}
+</style>
+
+<!-- ============ CHROME ============ -->
+<div class="progress"><div class="progress-bar" id="progressbar"></div></div>
+<div class="counter" id="counter">01 / 25</div>
+<div class="hint">⬅️➡️ 換頁 <span class="hsep">·</span> 🗺️ <b>O</b> 總覽 <span class="hsep">·</span> ⛶ <b>F</b> 全螢幕 <span class="hsep">·</span> ❓ 說明</div>
+<div class="nav">
+  <button class="navbtn" id="prevBtn" aria-label="上一頁">‹</button>
+  <button class="navbtn" id="nextBtn" aria-label="下一頁">›</button>
+</div>
+
+<div id="overview" aria-hidden="true">
+  <h2>總覽</h2>
+  <p class="ov-sub">Iceberg 運作原理 · 25 頁 · 心智模型 → 解剖 → Commit → 讀取 → 演進 → 維運</p>
+  <div class="ovgrid" id="ovgrid"></div>
+</div>
+<div id="help" aria-hidden="true">
+  <div class="help-title">操作說明 ✨</div>
+  <div class="help-grid">
+    <div class="hcard"><span class="hicon">⬅️➡️</span><span class="hkey"><kbd>←</kbd> <kbd>→</kbd></span><span class="hdesc">換頁</span></div>
+    <div class="hcard"><span class="hicon">🖱️</span><span class="hkey">點左右兩側</span><span class="hdesc">換頁</span></div>
+    <div class="hcard"><span class="hicon">📱</span><span class="hkey">左右滑動</span><span class="hdesc">換頁</span></div>
+    <div class="hcard"><span class="hicon">🗺️</span><span class="hkey"><kbd>O</kbd></span><span class="hdesc">總覽</span></div>
+    <div class="hcard"><span class="hicon">⛶</span><span class="hkey"><kbd>F</kbd></span><span class="hdesc">全螢幕</span></div>
+    <div class="hcard"><span class="hicon">🏠</span><span class="hkey"><kbd>Home</kbd></span><span class="hdesc">第一頁</span></div>
+    <div class="hcard"><span class="hicon">🏁</span><span class="hkey"><kbd>End</kbd></span><span class="hdesc">最後一頁</span></div>
+    <div class="hcard"><span class="hicon">❌</span><span class="hkey"><kbd>Esc</kbd></span><span class="hdesc">關閉視窗</span></div>
+  </div>
+</div>
+
+</div><!-- /stage -->
+</div><!-- /viewport -->
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  var current = 0;
+  var progress = document.getElementById('progressbar');
+  var counter = document.getElementById('counter');
+  var overview = document.getElementById('overview');
+  var help = document.getElementById('help');
+  var ovgrid = document.getElementById('ovgrid');
+
+  function show(n, updateHash){
+    if(n < 0) n = 0;
+    if(n > total - 1) n = total - 1;
+    current = n;
+    slides.forEach(function(s, i){ s.classList.toggle('is-active', i === n); });
+    if(progress) progress.style.width = ((n + 1) / total * 100) + '%';
+    if(counter) counter.textContent = String(n + 1).padStart(2,'0') + ' / ' + String(total).padStart(2,'0');
+    if(updateHash !== false){
+      try{ history.replaceState(null, '', '#s' + (n + 1)); }catch(e){}
+    }
+    if(overview) overview.classList.remove('open');
+    if(help) help.classList.remove('open');
+  }
+  function next(){ show(current + 1); }
+  function prev(){ show(current - 1); }
+
+  slides.forEach(function(s, i){
+    var t = s.querySelector('.h2');
+    var title = t ? t.textContent.trim() : ('第 ' + (i+1) + ' 頁');
+    var btn = document.createElement('button');
+    btn.className = 'ovbtn';
+    btn.innerHTML = '<span class="on">' + String(i+1).padStart(2,'0') + '</span><span class="ot">' + title + '</span>';
+    btn.addEventListener('click', function(){ show(i); });
+    ovgrid.appendChild(btn);
+  });
+
+  slides.forEach(function(s, i){
+    var numEl = s.querySelector('.num');
+    var num = numEl ? numEl.textContent.trim() : String(i + 1).padStart(2, '0');
+    var g = document.createElement('span');
+    g.className = 'gnum';
+    g.textContent = num;
+    s.insertBefore(g, s.firstChild);
+  });
+
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && ((overview && overview.classList.contains('open')) || (help && help.classList.contains('open')))){
+      show(current, false); return;
+    }
+    switch(e.key){
+      case 'ArrowRight': case 'ArrowDown': case 'PageDown': case ' ': next(); e.preventDefault(); break;
+      case 'ArrowLeft': case 'ArrowUp': case 'PageUp': prev(); e.preventDefault(); break;
+      case 'Home': show(0); e.preventDefault(); break;
+      case 'End': show(total - 1); e.preventDefault(); break;
+      case 'o': case 'O':
+        if(overview){ overview.classList.toggle('open'); help.classList.remove('open'); }
+        e.preventDefault(); break;
+      case 'f': case 'F': {
+        var de = document.documentElement;
+        var req = de.requestFullscreen || de.webkitRequestFullscreen;
+        var exit = document.exitFullscreen || document.webkitExitFullscreen;
+        var isFs = document.fullscreenElement || document.webkitFullscreenElement;
+        if(req){
+          if(isFs){ if(exit){ exit.call(document); } }
+          else { var pr = req.call(de); if(pr && pr.catch){ pr.catch(function(){}); } }
+        }
+        e.preventDefault(); break;
+      }
+      case '?': help.classList.toggle('open'); e.preventDefault(); break;
+    }
+  });
+
+  document.querySelector('.stage').addEventListener('click', function(e){
+    if(overview && overview.classList.contains('open')) return;
+    if(help && help.classList.contains('open')) return;
+    var x = e.clientX / window.innerWidth;
+    if(x < 0.28){ prev(); }
+    else if(x > 0.72){ next(); }
+  });
+
+  var tx = null;
+  document.addEventListener('touchstart', function(e){ tx = e.changedTouches[0].clientX; }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    if(tx === null) return;
+    var dx = e.changedTouches[0].clientX - tx;
+    if(Math.abs(dx) > 60){ dx < 0 ? next() : prev(); }
+    tx = null;
+  }, {passive:true});
+
+  var nb = document.getElementById('nextBtn');
+  var pb = document.getElementById('prevBtn');
+  if(nb) nb.addEventListener('click', function(e){ e.stopPropagation(); next(); });
+  if(pb) pb.addEventListener('click', function(e){ e.stopPropagation(); prev(); });
+
+  window.addEventListener('hashchange', function(){
+    var m = location.hash.match(/^#s(\d+)$/);
+    if(m){ show(parseInt(m[1],10) - 1, false); }
+  });
+  var m0 = location.hash.match(/^#s(\d+)$/);
+  show(m0 ? parseInt(m0[1],10) - 1 : 0, false);
+})();
+</script>
+</body>
+</html>
