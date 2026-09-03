@@ -1,0 +1,1151 @@
+<!doctype html>
+<html lang="zh-Hant" class="js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>拆解 Apache Doris：資料工程師的底層運作原理</title>
+<meta name="description" content="拆解 Apache Doris 運作原理：FE/BE 骨架、partition/bucket/tablet 切分、列存與索引、寫入路徑與版本發布、compaction、MPP + Pipeline 查詢引擎、副本一致與修復。25 slides。">
+<style>
+/* ============================================================
+   暖紙編輯風 × Doris 內部原理 — fixed 1920×1080 stage
+   給「每天都在用 Doris 的資料工程師」的閱讀型 deck
+   每頁：meta + h2 + 圖區 + 三張註解卡 + takeaway
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@700;900&family=IBM+Plex+Mono:wght@400;600&display=swap');
+:root{
+  color-scheme:light;
+  --paper:#f6f0e3; --paper-deep:#ece3cf; --panel:#fdfaf2; --panel-warm:#f8efdd;
+  --ink:#2b2318; --muted:#6c5f4c; --faint:#a2957c;
+  --terra:#bd4f2a; --terra-soft:#f4e0d4; --teal:#1e6f65; --teal-soft:#dcede6;
+  --gold:#9a7a22; --gold-soft:#f4eac9; --red:#ae3f3a; --red-soft:#f5e0dd;
+  --line:#e0d5bc; --line-strong:#c9b995; --shadow:#00000017;
+  --mono:"IBM Plex Mono","Noto Sans Mono CJK TC",monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  display:grid;place-items:center;overflow:hidden;
+  background:radial-gradient(circle at 14% 12%,#efe6d2 0,#f6f0e4 45%,#eae1cb 100%);
+  font-family:"Noto Sans TC",ui-sans-serif,system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+  color:var(--ink);
+}
+a{color:var(--teal);text-decoration:underline;text-underline-offset:3px}
+a:hover{color:var(--terra)}
+.mono,.num,.part,.chips,.code,.metric{font-family:var(--mono)}
+
+/* ---- fixed stage ---- */
+.viewport{position:relative;width:100vw;height:100vh;overflow:hidden}
+.stage{
+  position:absolute;left:50%;top:50%;width:1920px;height:1080px;
+  transform:translate(-50%,-50%) scale(calc(100vw / 1920px));
+  transform-origin:center;
+  background:
+    repeating-linear-gradient(0deg,transparent 0 59px,rgba(189,79,42,.03) 59px 60px),
+    repeating-linear-gradient(90deg,transparent 0 59px,rgba(189,79,42,.03) 59px 60px),
+    linear-gradient(135deg,#faf6ec,#f2ebd9 58%,#f7f1e3);
+  box-shadow:0 0 0 1px #0000000d,0 40px 130px #00000038;
+  overflow:hidden;
+}
+@media (min-aspect-ratio:16/9){
+  .stage{transform:translate(-50%,-50%) scale(calc(100vh / 1080px))}
+}
+.slide{position:relative;inset:auto;opacity:1;pointer-events:auto;visibility:visible}
+html.js .slide{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  padding:48px 84px 34px;opacity:0;pointer-events:none;visibility:hidden;
+}
+html.js .slide.is-active{opacity:1;pointer-events:auto;visibility:visible}
+
+/* ---- print: 每頁一張 16:9 ---- */
+@media print{
+  html,body{width:1920px;height:auto;overflow:visible;background:#fff}
+  body{display:block}
+  .viewport{position:static;width:auto;height:auto;overflow:visible}
+  .stage{position:static;transform:none !important;width:auto;height:auto;box-shadow:none;overflow:visible}
+  .slide,html.js .slide{position:relative;inset:auto;display:block !important;visibility:visible !important;opacity:1 !important;pointer-events:auto !important;width:1920px;height:1080px;break-after:page;page-break-after:always}
+  .slide:last-child{break-after:auto;page-break-after:auto}
+  #prevB,#nextB,#count,#hint,.ovl{display:none !important}
+}
+
+/* ---- reduced motion ---- */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;transition-duration:.2s !important}
+}
+
+/* ---- 頁碼角標 ---- */
+.pnum{
+  position:absolute;top:36px;right:64px;font-weight:900;font-size:19px;
+  letter-spacing:.1em;color:var(--faint);font-family:var(--mono);
+  background:var(--panel);border:1.5px solid var(--line);border-radius:999px;
+  padding:6px 18px;
+}
+.pnum b{color:var(--terra)}
+
+/* ---- 共用文字 ---- */
+.meta{display:flex;align-items:center;gap:14px;font-size:16px;letter-spacing:.22em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.part{color:var(--terra);font-weight:600;letter-spacing:.16em}
+.num{color:var(--teal);font-weight:600}
+.h2{font-family:"Noto Serif TC",Georgia,"Songti TC",serif;font-size:56px;line-height:1.24;margin:12px 0 0;font-weight:900;letter-spacing:-.01em;color:var(--ink);max-width:1760px}
+.h2 strong{color:var(--terra);font-weight:900}
+.h2 em{color:var(--teal);font-style:normal;font-weight:900}
+.sub{max-width:1720px;font-size:24px;line-height:1.6;color:var(--muted);margin:12px 0 0}
+.sub b{color:var(--ink)}
+.slide > .lead{margin-bottom:14px}
+.slide > .lead:last-child{margin-bottom:0}
+
+/* ---- takeaway band ---- */
+.take{
+  margin-top:auto;display:flex;align-items:center;gap:14px;
+  padding:13px 24px;border-top:4px solid var(--terra);border-bottom:1.5px solid var(--line);
+  font-size:23px;line-height:1.5;color:var(--ink);font-weight:700;
+}
+.take .tk{flex:0 0 auto;font-size:15px;letter-spacing:.2em;color:var(--terra);font-weight:900;font-family:var(--mono)}
+.take b{color:var(--terra)}
+.take.teal{border-top-color:var(--teal)}
+.take.teal .tk{color:var(--teal)}
+.take.teal b{color:var(--teal)}
+
+/* ---- 三張註解卡 ---- */
+.cards{display:grid;grid-template-columns:1.05fr 1fr 1fr;gap:20px;margin-top:16px}
+.card{
+  background:var(--panel);border:1.5px solid var(--line);border-radius:18px;
+  padding:16px 20px 14px;box-shadow:0 6px 18px var(--shadow);flex-shrink:0;
+}
+.card h4{margin:0 0 7px;font-size:17px;font-weight:900;letter-spacing:.08em;display:flex;align-items:center;gap:8px}
+.card h4 .ic{width:26px;height:26px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;flex:0 0 auto}
+.card.solve h4{color:var(--teal)} .card.solve .ic{background:var(--teal-soft)}
+.card.limit h4{color:var(--gold)} .card.limit .ic{background:var(--gold-soft)}
+.card.example h4{color:var(--terra)} .card.example .ic{background:var(--terra-soft)}
+.card p{margin:0;font-size:19px;line-height:1.55;color:var(--muted)}
+.card p b{color:var(--ink)}
+.card .code{display:inline-block;background:#efe7d3;border-radius:6px;padding:0 7px;font-size:17px;color:var(--ink)}
+
+/* ---- 圖區容器 ---- */
+.diag{position:relative;margin-top:16px;background:var(--panel-warm);border:1.5px solid var(--line);border-radius:20px;padding:18px 24px;box-shadow:0 6px 18px var(--shadow)}
+.diag .dtitle{position:absolute;top:-13px;left:22px;background:var(--panel-warm);padding:0 10px;font-size:15px;letter-spacing:.14em;color:var(--faint);font-weight:900;text-transform:uppercase}
+.diag .dtitle b{color:var(--terra)}
+
+/* 流程列：node 盒 + 箭頭 */
+.flow{display:flex;align-items:stretch;gap:0;flex-wrap:nowrap}
+.fnode{
+  background:var(--panel);border:2px solid var(--ink);border-radius:12px;
+  padding:10px 14px;font-size:17px;line-height:1.35;text-align:center;
+  display:flex;flex-direction:column;justify-content:center;gap:2px;flex:1 1 0;min-width:0;
+}
+.fnode .ft{font-weight:900;color:var(--ink);font-size:18px}
+.fnode .fd{color:var(--muted);font-size:14.5px;line-height:1.35}
+.fnode.t{background:var(--teal-soft);border-color:var(--teal)} .fnode.t .ft{color:var(--teal)}
+.fnode.x{background:var(--terra-soft);border-color:var(--terra)} .fnode.x .ft{color:var(--terra)}
+.fnode.g{background:var(--gold-soft);border-color:var(--gold)} .fnode.g .ft{color:var(--gold)}
+.fnode.bare{background:transparent;border-style:dashed;border-color:var(--line-strong);box-shadow:none}
+.arr{flex:0 0 auto;display:flex;flex-direction:column;justify-content:center;padding:0 6px;color:var(--terra);font-size:30px;font-weight:900}
+.arr.sm{font-size:22px;color:var(--faint)}
+.arr.tl{color:var(--teal)}
+
+/* 上下兩層流程 (flow rows) */
+.frow{display:flex;align-items:stretch;gap:0}
+.frow + .frow{margin-top:12px}
+.frow .fnode{flex:1 1 0}
+
+/* 對照表格 */
+.tbl{width:100%;border-collapse:collapse;font-size:19px}
+.tbl th{font-size:16px;letter-spacing:.06em;color:var(--faint);text-transform:uppercase;text-align:left;padding:6px 12px;border-bottom:2px solid var(--ink);font-weight:900}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.5;color:var(--muted)}
+.tbl td b{color:var(--ink)}
+.tbl tr:last-child td{border-bottom:none}
+.tbl .hl td{background:var(--teal-soft)}
+.tbl td.k, .tbl th.k{width:240px;font-weight:900;color:var(--ink)}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line-strong);background:var(--panel);padding:4px 13px;font-size:16px;font-weight:700;border-radius:999px;color:var(--ink);white-space:nowrap}
+.chip.t{border-color:var(--teal);color:var(--teal);background:var(--teal-soft)}
+.chip.x{border-color:var(--terra);color:var(--terra);background:var(--terra-soft)}
+.chip.g{border-color:var(--gold);color:#7c6118;background:var(--gold-soft)}
+.legend{display:flex;gap:16px;align-items:center;font-size:15px;color:var(--muted);margin-top:8px;flex-wrap:wrap}
+.legend .sw{display:inline-block;width:14px;height:14px;border-radius:4px;margin-right:5px;vertical-align:-2px}
+
+/* 條列 mini */
+.mini{display:grid;gap:8px}
+.mini .row{display:flex;gap:12px;align-items:flex-start;font-size:19px;line-height:1.5;color:var(--muted)}
+.mini .row b{color:var(--ink)}
+.mini .row .dot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;background:var(--terra);margin-top:11px}
+.mini .row.t .dot{background:var(--teal)}
+.mini .row.g .dot{background:var(--gold)}
+.mini .row.x .dot{background:var(--red)}
+
+/* ============================================================
+   STAGE 外的 UI：換頁鈕 / 計數器 / 提示 / 總覽 / 說明 overlay
+   ============================================================ */
+html.js .stage{will-change:transform}
+#prevB,#nextB{position:fixed;top:50%;transform:translateY(-50%);z-index:900;width:62px;height:62px;border-radius:50%;border:2px solid var(--line-strong);background:var(--panel);color:var(--ink);font-size:28px;font-weight:900;cursor:pointer;box-shadow:0 10px 26px var(--shadow);opacity:.9;font-family:var(--mono)}
+#prevB{left:20px}#nextB{right:20px}
+#prevB:hover,#nextB:hover{opacity:1;background:var(--panel-warm);border-color:var(--terra)}
+#count{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:900;font-family:var(--mono);font-size:15px;color:var(--muted);background:var(--panel);border:1.5px solid var(--line);border-radius:999px;padding:7px 22px;letter-spacing:.14em;box-shadow:0 6px 18px var(--shadow)}
+#count b{color:var(--terra)}
+#hint{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(56px);z-index:899;font-size:15px;color:var(--muted);display:flex;gap:16px;align-items:center;white-space:nowrap;opacity:.9}
+.ovl{position:fixed;inset:0;background:rgba(38,28,14,.86);backdrop-filter:blur(6px);z-index:1300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .22s ease}
+.ovl.open{opacity:1;pointer-events:auto}
+.ov-panel{max-width:1560px;max-height:88vh;overflow:auto;padding:38px 46px;border-radius:26px;background:var(--paper);border:1.5px solid var(--line-strong);box-shadow:0 40px 120px rgba(0,0,0,.45);color:var(--ink)}
+.ov-panel::-webkit-scrollbar{width:10px}
+.ov-panel::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:99px}
+.ov-title{font-family:"Noto Serif TC",serif;font-size:34px;font-weight:900;margin:0}
+.ov-sub{color:var(--muted);font-size:17px;margin:8px 0 0}
+#ovgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:26px}
+#ovgrid button{border:1.5px solid var(--line);border-radius:14px;background:var(--panel);padding:12px 14px;text-align:left;cursor:pointer;color:var(--ink);font-family:"Noto Sans TC",sans-serif;transition:border-color .15s,background .15s;display:flex;flex-direction:column;gap:4px}
+#ovgrid button:hover{border-color:var(--terra);background:var(--panel-warm)}
+#ovgrid button .oi{font-family:var(--mono);font-size:13px;color:var(--faint);letter-spacing:.1em}
+#ovgrid button .ot{font-size:15px;font-weight:700;line-height:1.35}
+#ovgrid button.cur{border-color:var(--terra);background:var(--terra-soft)}
+.help-panel{max-width:880px}
+.help-panel .ov-sub{margin-bottom:20px}
+.hrow{display:flex;align-items:center;gap:18px;padding:14px 18px;background:var(--panel);border:1.5px solid var(--line);border-radius:16px;margin-bottom:10px}
+.hrow .hic{flex:0 0 64px;height:54px;border-radius:12px;background:var(--panel-warm);display:flex;align-items:center;justify-content:center;font-size:28px}
+.hrow .hk{font-weight:900;font-size:19px}
+.hrow .hd{color:var(--muted);font-size:16px;margin-top:2px}
+@media print{ #prevB,#nextB,#count,#hint,.ovl{display:none !important} }
+
+</style>
+</head>
+<body>
+<div class="viewport">
+<main class="stage" id="deckStage">
+<!-- SLIDES_GO_HERE -->
+
+<section class="slide" id="s1">
+  <div class="meta"><span class="part">APACHE DORIS · 內部原理</span><span class="num">01</span></div>
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 60px">
+    <p style="font-size:26px;letter-spacing:.34em;color:var(--terra);font-weight:900;margin:0 0 18px">資料工程師版 · 底層拆解</p>
+    <h1 style="font-family:'Noto Serif TC',serif;font-size:128px;line-height:1.12;margin:0;font-weight:900;letter-spacing:-.02em">拆解 Doris 運作原理</h1>
+    <p style="font-size:37px;line-height:1.55;color:var(--muted);margin:26px 0 0;max-width:1500px">從你下的 <b style="color:var(--ink)">SQL</b>、你跑的 <b style="color:var(--ink)">Stream Load</b>、你寫的 <b style="color:var(--ink)">CREATE TABLE</b> 那一刻起——資料在叢集裡到底經歷了什麼。</p>
+    <div style="display:flex;gap:14px;margin-top:44px;flex-wrap:wrap">
+      <span class="chip t">MPP 分散式查詢</span><span class="chip">列式儲存 × 索引</span><span class="chip x">LSM 寫入 × 版本發布</span><span class="chip">副本一致 × 修復</span>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;border-top:1.5px solid var(--line);padding-top:16px">
+    <span style="font-size:17px;color:var(--faint);font-weight:700">以 2.x / 3.x / 4.x 行為為準 · 25 slides · 閱讀型簡報（⬅️➡️ 或空白鍵換頁 · O 總覽 · ? 說明）</span>
+    <span style="font-size:17px;color:var(--faint)">Yuga · 2026-09</span>
+  </div>
+</section>
+
+<section class="slide" id="s2">
+  <div class="meta"><span class="part">總覽</span><span class="num">02</span><span style="color:var(--muted)">先看這一頁建立心智模型</span></div>
+  <h2 class="h2">一張圖記住 Doris：<strong>兩種程式、兩條路、四根支柱</strong></h2>
+  <div class="diag" style="margin-top:16px">
+    <div class="dtitle">全貌地圖 — 你的操作落在哪條路</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:6px">
+      <div style="border:2px solid var(--teal);border-radius:14px;background:var(--teal-soft);padding:12px 16px">
+        <div style="font-weight:900;color:var(--teal);font-size:20px;margin-bottom:4px">① 查詢路徑（讀）</div>
+        <div class="flow" style="gap:4px">
+          <div class="fnode" style="border-color:var(--teal);flex:0 0 120px"><div class="ft">你的 SQL</div></div>
+          <div class="arr tl" style="padding:0 2px">→</div>
+          <div class="fnode" style="border-color:var(--teal)"><div class="ft">FE</div><div class="fd">解析、最佳化、拆成分片計畫</div></div>
+          <div class="arr tl">→</div>
+          <div class="fnode"><div class="ft">多台 BE</div><div class="fd">平行掃描 tablet、join / 聚合</div></div>
+          <div class="arr" style="padding:0 2px">→</div>
+          <div class="fnode x" style="flex:0 0 110px"><div class="ft">結果集</div></div>
+        </div>
+      </div>
+      <div style="border:2px solid var(--terra);border-radius:14px;background:var(--terra-soft);padding:12px 16px">
+        <div style="font-weight:900;color:var(--terra);font-size:20px;margin-bottom:4px">② 寫入路徑（寫）</div>
+        <div class="flow" style="gap:4px">
+          <div class="fnode x" style="flex:0 0 150px"><div class="ft">Stream Load / Insert</div></div>
+          <div class="arr" style="padding:0 2px">→</div>
+          <div class="fnode" style="border-color:var(--teal)"><div class="ft">FE</div><div class="fd">開 transaction、指派 BE</div></div>
+          <div class="arr">→</div>
+          <div class="fnode"><div class="ft">BE 記憶體</div><div class="fd">memtable 累積</div></div>
+          <div class="arr">→</div>
+          <div class="fnode"><div class="ft">磁碟 rowset</div><div class="fd">publish 後才可見</div></div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;margin-top:14px;flex-wrap:wrap">
+      <span class="chip t">支柱 1 · 分散式執行 MPP</span><span class="chip t">支柱 2 · 列存＋多層索引</span><span class="chip x">支柱 3 · LSM 寫入＋版本發布</span><span class="chip x">支柱 4 · 多副本一致與修復</span>
+    </div>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>OLAP 最貴的三件事：<b>掃描量</b>（列存＋索引）、<b>平行度</b>（MPP＋分桶）、<b>寫讀互卡</b>（LSM 順寫＋版本快照）。Doris 用一套系統把三者一次解決。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>複雜度沒有消失，而是<b>轉移到建表與查詢設計</b>：key 順序、分桶鍵、寫入頻率，都會變成執行期的快或慢。這份 deck 就是讓你把「帳」算回來。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p>同一張事實表，<span class="code">WHERE user_id = ?</span> 可以差到<b>千倍</b>——只差在排序鍵有沒有把 user_id 放前面。看懂 03–10 頁後，你就能自己解釋這種差距。</p></div>
+  </div>
+  <div class="take teal"><span class="tk">TAKEAWAY</span><span>閱讀路線：<b>骨架 (03–05) → 資料怎麼切與放 (06–07) → 磁碟上的長相與加速 (08–11) → 寫入路徑 (12–16) → 查詢引擎 (17–21) → 副本與維運 (22–23) → 收尾回顧 (24) → 名詞速查 (25)</b>。</span></div>
+</section>
+
+<section class="slide" id="s3">
+  <div class="meta"><span class="part">01 · 骨架</span><span class="num">03</span></div>
+  <h2 class="h2">Doris 只有兩種程式：<strong>FE 管「想」</strong>，<em>BE 管「做」</em></h2>
+  <div class="diag">
+    <div class="dtitle">一顆大腦 + 一群手腳</div>
+    <div style="display:grid;grid-template-columns:1fr 150px 1fr;gap:10px;align-items:stretch">
+      <div style="border:2.5px solid var(--teal);border-radius:16px;background:var(--teal-soft);padding:14px 18px">
+        <div style="font-size:22px;font-weight:900;color:var(--teal)">FE · Frontend（大腦）</div>
+        <div class="mini" style="margin-top:8px">
+          <div class="row t"><span class="dot"></span><span>對外講 <b>MySQL 協定</b>（預設 9030）——你以為在連 MySQL，其實是連 Doris</span></div>
+          <div class="row t"><span class="dot"></span><span>收 SQL：<b>解析 → 綁定 → 最佳化</b>，產出「分片執行藍圖」</span></div>
+          <div class="row t"><span class="dot"></span><span>管 <b>全部元資料</b>：庫表 schema、tablet 分佈、副本狀態</span></div>
+          <div class="row t"><span class="dot"></span><span>協調寫入 <b>transaction</b>、排程修復 / 平衡</span></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;font-size:34px;color:var(--faint)">⇄</div>
+      <div style="border:2.5px solid var(--terra);border-radius:16px;background:var(--terra-soft);padding:14px 18px">
+        <div style="font-size:22px;font-weight:900;color:var(--terra)">BE · Backend（手腳 × N）</div>
+        <div class="mini" style="margin-top:8px">
+          <div class="row x"><span class="dot"></span><span>真正<b>儲存資料</b>：列存檔、索引、compaction 都在這裡</span></div>
+          <div class="row x"><span class="dot"></span><span>執行查詢：<b>掃描 tablet、join、聚合、排序</b>（向量化 + pipeline）</span></div>
+          <div class="row x"><span class="dot"></span><span>接收寫入資料流並<b>落地成檔案</b>（HTTP 8030）</span></div>
+          <div class="row x"><span class="dot"></span><span>每秒向 FE <b>心跳回報</b>：活著嗎？哪些 tablet 落後？</span></div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:16px;color:var(--faint);margin-top:10px">BE 越多 → 儲存與算力越分散（水平擴充）；FE 通常 1–5 台即可</div>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>把<b>「誰來規劃」與「誰來執行／存資料」分開</b>：規劃集中一處（好做全域最佳化與一致性），執行與資料打散到所有機器（拿平行度）。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>FE 是<b>單點協調者</b>：所有 SQL 都要經過它解析與規劃，併發再高也會在 FE 排隊——所以 Doris 的做法是「FE 只規劃不碰資料」＋可以加多台 FE 分攤。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p>你 <span class="code">mysql -h fe_host -P 9030</span> 下查詢，Doris 傳回的「Query OK, 10 rows」其實經歷了：<b>FE 規劃 → 派給 8 台 BE 平行算 → coordinator 彙整</b>。EXPLAIN 給你的就是 FE 那張藍圖。</p></div>
+  </div>
+  <div class="take"><span class="tk">TAKEAWAY</span><span>查詢慢或寫入卡關時，先分清楚：是 <b>FE 層（規劃／元資料／協調）</b>的問題，還是 <b>BE 層（掃描／執行／寫檔）</b>的問題——兩邊的看診方式完全不同。</span></div>
+</section>
+
+<section class="slide" id="s4">
+  <div class="meta"><span class="part">01 · 骨架</span><span class="num">04</span></div>
+  <h2 class="h2">FE 的元資料是「<strong>要同步的帳本</strong>」：多台 FE 靠 BDBJE 扮演同一顆大腦</h2>
+  <div class="diag">
+    <div class="dtitle">DDL / 建表 / 任何 schema 或 tablet 變更 → edit log</div>
+    <div class="flow">
+      <div class="fnode x"><div class="ft">你下 DDL</div><div class="fd">CREATE TABLE / ALTER / 授權</div></div>
+      <div class="arr">→</div>
+      <div class="fnode t"><div class="ft">Leader FE（唯一寫入者）</div><div class="fd">改記憶體鏡像 + 寫一筆 edit log</div></div>
+      <div class="arr tl">→</div>
+      <div class="fnode"><div class="ft">BDBJE 日誌複製</div><div class="fd">同步給 Follower（多數派確認才算成功）</div></div>
+      <div class="arr">→</div>
+      <div class="fnode"><div class="ft">定期 checkpoint</div><div class="fd">edit log 壓成 image 快照</div></div>
+      <div class="arr">→</div>
+      <div class="fnode bare"><div class="ft">所有 FE 記憶體一致</div><div class="fd">任何一台都能回答「表在哪」</div></div>
+    </div>
+    <div style="display:flex;gap:14px;margin-top:12px;flex-wrap:wrap;justify-content:center">
+      <span class="chip t">Leader：唯一寫</span><span class="chip">Follower：可寫入轉送、可被選舉、容錯（建議奇數台）</span><span class="chip g">Observer：唯讀，純水平擴充查詢規劃</span>
+    </div>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>元資料是叢集的<b>單一事實來源</b>：誰都不能亂改。讓多台 FE 共用同一份「帳本日誌」（Berkeley DB Java Edition 複製），leader 掛了 follower 能接手，資料庫不腦死。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>帳本要<b>多數派確認</b>才安全——2 台 FE 掛 1 台就無法選舉（50% 不是多數）。所以最少要 <b>3 台 FE</b>（或 1+1 observer）；元資料量其實很小，瓶頸不在容量而在「同步延遲」。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p>你 <span class="code">CREATE TABLE</span> 之所以要等一拍，不是磁碟慢——是這筆 DDL 正在<b>寫入帳本並等 Follower 確認</b>。改欄位、加 partition 全都走同一條路，所以「DDL 突然變慢」常是 BDBJE 同步出問題。</p></div>
+  </div>
+  <div class="take teal"><span class="tk">TAKEAWAY</span><span>FE 叢集＝一本<b>會自我修復的分散式帳本</b>：資料的「位置與結構」永遠一致；而真正的大資料本體，一筆都不放在 FE。</span></div>
+</section>
+
+<section class="slide" id="s5">
+  <div class="meta"><span class="part">01 · 骨架</span><span class="num">05</span></div>
+  <h2 class="h2">你的 SQL 在 FE 被「<strong>編譯</strong>」：從文字變成給 BE 們的分片執行藍圖</h2>
+  <div class="diag">
+    <div class="dtitle">一條查詢在 FE 內部的旅程（&lt; 幾十毫秒）</div>
+    <div class="flow">
+      <div class="fnode x"><div class="ft">SQL 文字</div><div class="fd">SELECT ... FROM orders JOIN users ...</div></div>
+      <div class="arr sm">→</div>
+      <div class="fnode"><div class="ft">① Parser</div><div class="fd">語法檢查 → 語法樹</div></div>
+      <div class="arr sm">→</div>
+      <div class="fnode"><div class="ft">② Analyzer</div><div class="fd">對帳：表／欄位存在？型別對？</div></div>
+      <div class="arr sm">→</div>
+      <div class="fnode"><div class="ft">③ Optimizer</div><div class="fd">RBO 規則 → CBO 算成本：join 順序、走哪顆索引、要不要 runtime filter</div></div>
+      <div class="arr sm">→</div>
+      <div class="fnode t"><div class="ft">④ 切 Fragment</div><div class="fd">切成「可以在不同 BE 平行跑」的片段，中間插 EXCHANGE 交換節點</div></div>
+      <div class="arr">→</div>
+      <div class="fnode x"><div class="ft">派送執行</div><div class="fd">每個 Fragment 送到相關 BE</div></div>
+    </div>
+    <div style="text-align:center;font-size:17px;color:var(--muted);margin-top:10px"><b>EXPLAIN 給你看的，就是 ③④ 的產物</b>——欄位、join 順序、分片方式一目了然</div>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>查詢最佳化需要<b>全域視野</b>（統計資訊、所有 tablet 分佈、並行 join 的成本），集中在一顆大腦做，比每個 worker 各自亂猜便宜得多——這是 MPP 資料庫的共同設計。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>CBO 靠統計資訊吃飯：<b>沒有 ANALYZE / 統計過期</b>時它會選錯 join 順序或誤判要不要 shuffle。資料工程師能做的：定期更新統計、必要時用 <span class="code">/*+ hint */</span> 或調 session 變數。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p><span class="code">EXPLAIN SELECT ...</span> 看到 <b>Fragment 0 / Fragment 1…</b>：Fragment 0 通常是彙總端（coordinator 所在），其餘是分散到 BE 的掃描與 join 段——「查詢有幾個 Fragment」就是你這條 SQL 的平行架構。</p></div>
+  </div>
+  <div class="take"><span class="tk">TAKEAWAY</span><span>SQL 不是被「執行」的，是被<b>編譯成一張分工藍圖</b>再派工的——所以同樣的 SQL，tablet 分佈不同、統計不同，跑法可以完全不一樣。</span></div>
+</section>
+
+<section class="slide" id="s6">
+  <div class="meta"><span class="part">02 · 資料怎麼切與放</span><span class="num">06</span></div>
+  <h2 class="h2">切資料的四層刀：<strong>table → partition → bucket → tablet</strong>，每層解決一件事</h2>
+  <div class="diag">
+    <div class="dtitle">orders 表為例：先按日期切 partition，再按 user_id 切 16 個 bucket</div>
+    <div style="display:grid;grid-template-columns:1.05fr 1fr;gap:18px;align-items:center">
+      <div style="border:2px solid var(--ink);border-radius:14px;padding:10px">
+        <div style="font-weight:900;font-size:18px;text-align:center">orders（邏輯表）</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <div style="flex:1;border:2px solid var(--teal);border-radius:10px;padding:6px;background:var(--teal-soft)">
+            <div style="text-align:center;font-size:14px;font-weight:900;color:var(--teal)">partition p20260901</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-top:5px">
+              <div style="background:var(--panel);border:1px solid var(--line);border-radius:5px;text-align:center;font-size:11px;padding:2px 0;font-family:var(--mono)">b0</div>
+              <div style="background:var(--panel);border:1px solid var(--line);border-radius:5px;text-align:center;font-size:11px;padding:2px 0;font-family:var(--mono)">b1</div>
+              <div style="background:var(--panel);border:1px solid var(--line);border-radius:5px;text-align:center;font-size:11px;padding:2px 0;font-family:var(--mono)">…</div>
+              <div style="background:var(--panel);border:1px solid var(--line);border-radius:5px;text-align:center;font-size:11px;padding:2px 0;font-family:var(--mono)">b15</div>
+            </div>
+          </div>
+          <div style="flex:1;border:2px solid var(--teal);border-radius:10px;padding:6px;background:var(--teal-soft)">
+            <div style="text-align:center;font-size:14px;font-weight:900;color:var(--teal)">partition p20260902</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-top:5px">
+              <div style="background:var(--panel);border:1px solid var(--line);border-radius:5px;text-align:center;font-size:11px;padding:2px 0;font-family:var(--mono)">b0</div>
+              <div style="background:var(--panel);border:1px solid var(--line);border-radius:5px;text-align:center;font-size:11px;padding:2px 0;font-family:var(--mono)">b1</div>
+              <div style="background:var(--panel);border:1px solid var(--line);border-radius:5px;text-align:center;font-size:11px;padding:2px 0;font-family:var(--mono)">…</div>
+              <div style="background:var(--panel);border:1px solid var(--line);border-radius:5px;text-align:center;font-size:11px;padding:2px 0;font-family:var(--mono)">b15</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mini">
+        <div class="row t"><span class="dot"></span><b>partition = 剪枝單位</b>：WHERE dt 命中哪幾區就只掃那幾區；過期資料整區 DROP，比 DELETE 快幾個量級</div>
+        <div class="row"><span class="dot"></span><b>bucket = hash(key) % 固定數</b>：把資料打散成可平行、可分散的片段；同一 partition 內 bucket 數固定（可 AUTO 自動選）</div>
+        <div class="row g"><span class="dot"></span><b>每個 bucket = 1 個 tablet</b>：最小複製單位（3 副本）＋最小平衡單位（可在 BE 間搬移）</div>
+        <div class="row x"><span class="dot"></span><b>bucket 數 = 平行度上限</b>：查詢掃一個 partition 最多開 bucket 數個掃描任務</div>
+      </div>
+    </div>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>一次掃全表太貴。四層切法讓系統能<b>「只碰需要的、其餘平行掃」</b>：partition 砍掉時間範圍，bucket 把剩下的切成可分散的平行任務，tablet 讓副本與搬移有最小單位。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>切太細有代價：<b>tablet 數量暴增</b>會拖垮元資料與排程；切太粗則單 tablet 過大、平行度不足、compaction 變慢。bucket 數與資料量要一起長——這就是 AUTO bucket 存在的理由。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p><span class="code">DISTRIBUTED BY HASH(user_id) BUCKETS 16</span>：同 key 的資料永遠進同一個 bucket → 之後「兩張都按 user_id 分桶」的表 join 可以<b>不用搬資料</b>（見 20 頁 colocate）。選錯分桶鍵 = 這張表永遠無緣本地 join。</p></div>
+  </div>
+  <div class="take teal"><span class="tk">TAKEAWAY</span><span>建表時的三個決定——<b>partition 鍵、分桶鍵、bucket 數</b>——分別決定了剪枝、join 本地化與平行度的天花板，而且<b>事後都很難改</b>。</span></div>
+</section>
+
+<section class="slide" id="s7">
+  <div class="meta"><span class="part">02 · 資料怎麼切與放</span><span class="num">07</span></div>
+  <h2 class="h2">tablet 是一本「<strong>版本化小日誌</strong>」：每次寫入追加一筆 rowset，查詢時合併著讀</h2>
+  <div class="diag">
+    <div class="dtitle">單一 tablet 內部：rowset 依版本排列，visible 以上的才給查詢讀</div>
+    <div style="display:grid;grid-template-columns:1.15fr 1fr;gap:18px;align-items:stretch">
+      <div>
+        <div class="flow">
+          <div class="fnode bare" style="flex:0 0 150px"><div class="fd">版本時間軸 →</div></div>
+          <div class="fnode g" style="border-style:dashed"><div class="ft">rowset v1</div><div class="fd">昨天寫入（已壓縮）</div></div>
+          <div class="arr sm">+</div>
+          <div class="fnode g" style="border-style:dashed"><div class="ft">rowset v2</div><div class="fd">今天 09:00 load</div></div>
+          <div class="arr sm">+</div>
+          <div class="fnode" style="border-color:var(--teal);background:var(--teal-soft)"><div class="ft">rowset v3</div><div class="fd">今天 09:05 load</div></div>
+          <div class="arr sm">+</div>
+          <div class="fnode t"><div class="ft">v4</div><div class="fd">正在寫入</div></div>
+        </div>
+        <div style="margin-top:10px;background:var(--teal-soft);border:1.5px solid var(--teal);border-radius:10px;padding:8px 12px;font-size:17px;line-height:1.5">
+          <b style="color:var(--teal)">visible version = 3</b>：查詢只看到 v1–v3；v4 還在寫，任何查詢都看不見（見 14 頁）
+        </div>
+        <div style="margin-top:8px;font-size:16px;color:var(--muted)">compaction 會把 v1–v3 併成一個大 rowset（見 16 頁），但「版本語意」不變</div>
+      </div>
+      <div class="mini">
+        <div class="row"><span class="dot"></span><b>rowset = 一次寫入的資料批次</b>（含 1~N 個檔案），帶著自己的版本區間 [v-x, v-y]</div>
+        <div class="row"><span class="dot"></span><b>同 key 可能散在不同 rowset</b>：Aggregate 要跨 rowset 聚合、Unique 要去重——所以查詢要「多路合併」</div>
+        <div class="row t"><span class="dot"></span><b>寫入 = 順序 append 新 rowset</b>，不碰舊檔：這就是 LSM 精神，寫入快的根源</div>
+        <div class="row g"><span class="dot"></span><b>rowset 越多 → 合併路數越多</b>：compaction score 越高，查詢越慢（見 16 頁）</div>
+      </div>
+    </div>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>把「<b>隨機更新</b>」變成「<b>順序追加</b>」：新資料永遠寫新檔，不跟舊檔競爭鎖與磁碟位置——這是 Doris 能撐高吞吐寫入、又不卡查詢的根本。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>追加的債要還：檔案只增不減，查詢合併路數變多、重複 key 佔空間。解法是背景 <b>compaction</b> 重新整理——但它本身吃 CPU / IO，尖峰寫入時可能排隊。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p>每 5 分鐘一個 Stream Load，一天下來一個 tablet 內有近 300 個小 rowset。若查詢變慢，<span class="code">SHOW TABLET ...</span> 看 <b>compaction score</b>——數字越高，代表「查詢時要合併越多路」，該讓 compaction 追上。</p></div>
+  </div>
+  <div class="take"><span class="tk">TAKEAWAY</span><span>Doris 的 tablet = <b>LSM 風格的小日誌</b>：寫入永遠順序追加（快），讀取要跨 rowset 合併（所以需要索引與 compaction 保持它快）。</span></div>
+</section>
+
+<section class="slide" id="s8">
+  <div class="meta"><span class="part">03 · 磁碟上的長相</span><span class="num">08</span></div>
+  <h2 class="h2">rowset 落地成 segment：磁碟上<strong>一欄一欄排</strong>，不是一列一列</h2>
+  <div class="diag">
+    <div class="dtitle">rowset → segment 檔案 → 欄內又切 page（磁碟 I/O 的最小單位）</div>
+    <div class="flow">
+      <div class="fnode t"><div class="ft">rowset v3</div><div class="fd">資料量太大就拆檔</div></div>
+      <div class="arr sm">→</div>
+      <div class="fnode"><div class="ft">segment_0.dat</div><div class="fd">約幾百 MB 上限</div></div>
+      <div class="arr sm">→</div>
+      <div class="fnode"><div class="ft">segment_1.dat</div><div class="fd">…</div></div>
+      <div class="arr sm">→</div>
+      <div class="fnode"><div class="ft">segment_N.dat</div></div>
+    </div>
+    <div style="display:flex;gap:16px;margin-top:12px;align-items:stretch">
+      <div style="flex:0 0 42%;border:2px solid var(--ink);border-radius:12px;background:var(--panel);padding:10px 14px">
+        <div style="font-weight:900;font-size:17px">segment 內部（示意，按欄分區）</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px">
+          <div style="border:1.5px solid var(--teal);border-radius:8px;background:var(--teal-soft);padding:6px;text-align:center;font-size:13px"><b>欄 user_id</b><br><span style="font-family:var(--mono);font-size:12px">[page][page][page]</span></div>
+          <div style="border:1.5px solid var(--teal);border-radius:8px;background:var(--teal-soft);padding:6px;text-align:center;font-size:13px"><b>欄 dt</b><br><span style="font-family:var(--mono);font-size:12px">[page][page][page]</span></div>
+          <div style="border:1.5px solid var(--line-strong);border-radius:8px;background:var(--panel);padding:6px;text-align:center;font-size:13px;color:var(--faint)"><b>欄 amount</b><br>… 依此類推</div>
+        </div>
+        <div style="font-size:14.5px;color:var(--muted);margin-top:8px;line-height:1.5">每欄獨立<b>編碼 + 壓縮</b>（例：LZ4 / ZSTD）；同欄資料放一起，壓縮率與掃描效率都高</div>
+      </div>
+      <div class="mini" style="flex:1">
+        <div class="row t"><span class="dot"></span><b>只讀需要的欄</b>：查 3 欄就只載那 3 欄的 page——寬表也能當窄表讀</div>
+        <div class="row"><span class="dot"></span><b>page 是 I/O 與解壓單位</b>：欄內再切頁，配合 zonemap 可以只解「有機會命中的那幾頁」</div>
+        <div class="row g"><span class="dot"></span><b>append-only 排序寫入</b>：同一 segment 內照排序鍵寫，所以能建「前綴索引」（下一頁）</div>
+        <div class="row x"><span class="dot"></span><b>列存的代價</b>：要「一整列」的 OLTP 點查／逐列更新不是它的場——Doris 靠索引與主鍵模型補，不靠列存</div>
+      </div>
+    </div>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>分析查詢常只取 5% 的欄、掃 90% 的列。<b>列存讓磁碟 I/O 從「讀整列」變成「讀需要的欄」</b>，配合同欄連續存放，壓縮率也比列式高——這是 OLAP 快的第一層。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>列存對「<b>整列進出</b>」的操作不友善：主鍵更新、逐列 delete 都要額外機制（delete bitmap、delete rowset）來補，這些機制最後都靠 compaction 清乾淨。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p>SELECT 100 欄 vs SELECT 3 欄的差異在 OLAP 是「<b>要載多少磁碟資料</b>」的問題：前者可能差 10 倍 I/O。寬表別怕——怕的是 SELECT * 成習慣。</p></div>
+  </div>
+  <div class="take teal"><span class="tk">TAKEAWAY</span><span>「列存」= 把磁碟 I/O 從「以列為單位」改成「<b>以欄為單位</b>」——所以<b>少 SELECT *</b>、欄位越少越省，這不是習慣問題，是實打實的 IOPS 問題。</span></div>
+</section>
+
+<section class="slide" id="s9">
+  <div class="meta"><span class="part">03 · 磁碟上的長相</span><span class="num">09</span></div>
+  <h2 class="h2">第一個加速器：<strong>排序鍵 + 前綴索引</strong>——你的 key 順序就是查詢的跳躍表</h2>
+  <div class="diag">
+    <div class="dtitle">segment 內資料照排序鍵排 → 每 N 列一個 Data Block → 每 block 記一筆「前綴」索引項（≤36 bytes）</div>
+    <div style="display:grid;grid-template-columns:1.15fr 1fr;gap:18px;align-items:stretch">
+      <div style="border:2px solid var(--ink);border-radius:12px;background:var(--panel);padding:12px 16px">
+        <div style="font-weight:900;font-size:17px;margin-bottom:6px">排序鍵 user_id, age, message（示意，鍵值遞增）</div>
+        <div style="font-family:var(--mono);font-size:15.5px;line-height:1.9;background:#efe7d3;border-radius:10px;padding:8px 14px">
+          行 1: user_id=100 · age=20 · …<br>
+          行 2: user_id=100 · age=25 · …<br>
+          行 3: user_id=100 · age=30 · …<br>
+          <span style="color:var(--faint)">┈ block 邊界 ┈</span><br>
+          行 N: user_id=100 · age=45 · …
+        </div>
+        <div style="font-size:15px;color:var(--muted);margin-top:8px;line-height:1.5">同 key 連續相鄰 → 找 user_id=100 AND age≥20 只需<b>跳進一個 block 連續掃</b></div>
+      </div>
+      <div class="mini">
+        <div class="row t"><span class="dot"></span><b>前綴索引項 = block 第一行的排序列前 36 bytes</b>，全表只此一組、<b>全量常駐記憶體</b></div>
+        <div class="row"><span class="dot"></span>命中條件：WHERE 要<b>從最左排序列開始連續命中</b>（user_id → user_id+age → …）</div>
+        <div class="row g"><span class="dot"></span>跳過 user_id 直接 <span style="font-family:var(--mono)">WHERE age=25</span> → <b>用不上</b>（要等值才可能走倒排/其他索引）</div>
+        <div class="row x"><span class="dot"></span>VARCHAR 會<b>提前截斷</b>：遇到 VARCHAR 就停（即便未滿 36B），後面的排序列進不了前綴索引</div>
+        <div class="row"><span class="dot"></span>定位到 block 後，再靠<b>頁層級索引（ordinal index）</b>跳到正確 page</div>
+      </div>
+    </div>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>沒有索引時，找一段範圍要掃整個 segment。<b>排序鍵讓資料「物理上按查詢條件排好」</b>，前綴索引在記憶體裡二分定位 block——等值與範圍查詢都從「掃全檔」變成「跳進一小段」。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>一張表<b>只有一組</b>前綴索引（排序鍵唯一），而且必須「最左連續命中」。常用過濾條件不在排序鍵前綴上 → 這組加速器直接失靈——只能靠倒排索引或物化視圖補第二組。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p>官方例子：排序鍵 <span class="code">user_id + age + message</span>，前綴共 32B（沒截斷）；<span class="code">WHERE user_id=… AND age=20</span> 命中；只下 <span class="code">WHERE age=20</span> 就落空。看 Profile 的 <span class="code">RowsKeyRangeFiltered</span> 驗證。</p></div>
+  </div>
+  <div class="take"><span class="tk">TAKEAWAY</span><span>建表把 key 排前面不是語法習慣——<b>排序鍵 = 唯一一組自動前綴索引</b>，最常過濾的欄放最左、VARCHAR 別擋路，這是你第一個免費的查詢加速器。</span></div>
+</section>
+
+<section class="slide" id="s10">
+  <div class="meta"><span class="part">03 · 磁碟上的長相</span><span class="num">10</span></div>
+  <h2 class="h2">其餘三兄弟：<strong>Zonemap、BloomFilter、倒排索引</strong>——前綴沒命中時誰來救</h2>
+  <div class="diag">
+    <div class="dtitle">每種「過濾型條件」該找誰（加速矩陣）</div>
+    <table class="tbl">
+      <tr><th style="width:300px">你的 WHERE</th><th>主角</th><th>運作方式</th><th style="width:330px">Profile 驗證指標</th></tr>
+      <tr><td class="k">範圍 / 大於小於 / 前綴等值</td><td><b>Zonemap</b>（每頁 min/max）</td><td>先比頁的 min/max，整頁不可能命中就<b>整頁跳過</b>，不解壓</td><td style="font-family:var(--mono);font-size:16px">RowsZoneMapFiltered</td></tr>
+      <tr><td class="k">非前綴欄的等值 / IN</td><td><b>BloomFilter</b>（可建在指定欄）</td><td>先問「這頁／這 segment 有沒有可能含這值」——<b>說沒有就一定沒有</b>，省掉逐列比對</td><td style="font-family:var(--mono);font-size:16px">RowsBloomFilterFiltered</td></tr>
+      <tr><td class="k">非前綴等值 / 全文 / LIKE</td><td><b>倒排索引</b>（可建多組）</td><td>欄值建倒排清單：值 → 文件／行號；等值、範圍、字串搜尋都行</td><td style="font-family:var(--mono);font-size:16px">RowsInvertedIndexFiltered</td></tr>
+    </table>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>OLAP 掃描最怕「<b>整頁載進來才知道沒用</b>」。三兄弟都是<b>過濾下推</b>：在解壓與讀頁之前先用便宜的中繼資料（min/max、bitmap、倒排表）把不可能命中的資料塊扔掉。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>都是「<b>機率性省事</b>」：選擇性太低（命中 50% 資料）時 zonemap/bloom 幾乎不省；BloomFilter 有<b>誤判可能</b>（說有其實沒有 → 多掃一點，不會錯結果）；每個索引都吃寫入成本與空間，建太多寫入會痛。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p>明細表常按 <span class="code">event_time</span> 範圍查 → zonemap 自動跳頁；偶爾按 <span class="code">invoice_no</span> 等值查但它在排序鍵後面 → 對它建 <b>BloomFilter</b>（或倒排）；要 LIKE '%關鍵字%' 才需要<b>倒排索引</b>。</p></div>
+  </div>
+  <div class="take teal"><span class="tk">TAKEAWAY</span><span>加速矩陣一句話：<b>前綴索引管排序鍵前綴，zonemap 免費管範圍，BloomFilter 管「不存在」，倒排管「非前綴的等值與搜尋」</b>——先確認條件落在誰的射程，再決定要不要加索引。</span></div>
+</section>
+
+<section class="slide" id="s11">
+  <div class="meta"><span class="part">03 · 磁碟上的長相</span><span class="num">11</span></div>
+  <h2 class="h2">資料模型不是「選爽的」：<strong>Dup / Agg / Unique 決定了去重與更新發生在哪一層</strong></h2>
+  <div class="diag">
+    <div class="dtitle">同 key 重複寫入時，三種模型的行為（都是「排序鍵 = key 欄」）</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+      <div style="border:2px solid var(--line-strong);border-radius:12px;background:var(--panel);padding:10px 14px">
+        <div style="font-weight:900;font-size:19px">Duplicate</div>
+        <div style="font-size:16px;color:var(--muted);margin-top:4px;line-height:1.5">重複就保留，<b>不去重</b>；明細／日誌用</div>
+        <div style="font-size:15px;margin-top:8px;background:var(--gold-soft);border-radius:8px;padding:6px 10px;line-height:1.45"><b>讀寫都最便宜</b>：沒合併負擔；排序鍵只當索引用</div>
+      </div>
+      <div style="border:2px solid var(--gold);border-radius:12px;background:var(--panel-warm);padding:10px 14px">
+        <div style="font-weight:900;font-size:19px;color:#7c6118">Aggregate</div>
+        <div style="font-size:16px;color:var(--muted);margin-top:4px;line-height:1.5">同 key 用聚合函式<b>合併</b>（SUM/MAX/MIN/REPLACE…）</div>
+        <div style="font-size:15px;margin-top:8px;background:var(--gold-soft);border-radius:8px;padding:6px 10px;line-height:1.45">跨 rowset 讀取時也要<b>邊合併邊讀</b>；預聚合結果可能<b>不是你要的維度</b> → 通常要建「明細 + 匯總」兩張</div>
+      </div>
+      <div style="border:2px solid var(--terra);border-radius:12px;background:var(--terra-soft);padding:10px 14px">
+        <div style="font-weight:900;font-size:19px;color:var(--terra)">Unique（主鍵模型）</div>
+        <div style="font-size:16px;color:var(--muted);margin-top:4px;line-height:1.5">同 key 以「最新」為準；維度／狀態表用</div>
+        <div style="font-size:15px;margin-top:8px;background:var(--panel);border-radius:8px;padding:6px 10px;line-height:1.45"><b>Merge-on-Write（3.x 預設）</b>：寫入當下查主鍵索引，舊版本直接在 <b>delete bitmap</b> 標刪除 → 讀取不用現場去重</div>
+      </div>
+    </div>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>把「<b>去重與更新</b>」這件 OLAP 最麻煩的事，用「資料模型」在<b>儲存層</b>制度化：Aggregate 讓部分聚合沉到檔案層，Unique MOW 讓「讀到的就是最新」不用查詢時現場比對千百個版本。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>MOW 把讀的麻煩轉成<b>寫的麻煩</b>：每行要查主鍵索引、要寫 delete bitmap → 寫放大、記憶體吃緊（大主鍵表要靠索引落到磁碟）；Aggregate 的 REPLACE 等函式選錯，合併出來的數字會錯。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p>訂單明細（只 append）→ Duplicate；每日各店匯總 → Aggregate(SUM)；會員／庫存狀態（會被 update）→ Unique。把「明細」放 Unique 表＝用主鍵索引換一張永遠不更新的表，白白付寫放大。</p></div>
+  </div>
+  <div class="take"><span class="tk">TAKEAWAY</span><span>選模型＝選「<b>誰來付去重的錢</b>」：Duplicate 最便宜但重複留著；Aggregate 把聚合沉進儲存；Unique MOW 用<b>寫放大換讀取純淨</b>——高頻更新、大主鍵、高寫入三者不可能全都要。</span></div>
+</section>
+
+<section class="slide" id="s12">
+  <div class="meta"><span class="part">04 · 寫入路徑</span><span class="num">12</span></div>
+  <h2 class="h2">一次 Stream Load 的完整旅程：<strong>先寫記憶體、再落不可見檔、最後 publish 一次讓全部可見</strong></h2>
+  <div class="diag">
+    <div class="dtitle">以「curl 送 CSV 給 stream load」為例</div>
+    <div class="flow" style="flex-wrap:wrap;row-gap:10px">
+      <div class="fnode x" style="flex:0 0 170px"><div class="ft">① 你送 HTTP PUT</div><div class="fd">CSV + label + 目標表</div></div>
+      <div class="arr sm">→</div>
+      <div class="fnode" style="flex:0 0 250px"><div class="ft">② FE 收件</div><div class="fd">驗證權限、label 唯一、開 transaction、依 bucket 規劃派給哪些 BE</div></div>
+      <div class="arr sm">→</div>
+      <div class="fnode" style="flex:0 0 200px"><div class="ft">③ 資料進 BE</div><div class="fd">每個 bucket 對應一個 tablet writer，收進各自 <b>memtable</b>（記憶體）</div></div>
+      <div class="arr sm">→</div>
+      <div class="fnode" style="flex:0 0 230px"><div class="ft">④ flush 成 rowset</div><div class="fd">memtable 達閾值／逾時 → 寫成 segment 檔，但版本尚未 publish</div></div>
+      <div class="arr sm">→</div>
+      <div class="fnode" style="flex:0 0 200px"><div class="ft">⑤ 回報完成</div><div class="fd">所有 BE 都寫完、都 ready</div></div>
+      <div class="arr sm">→</div>
+      <div class="fnode t" style="flex:0 0 240px"><div class="ft">⑥ FE publish</div><div class="fd">一次推進所有 tablet 的 visible version → 查詢才看得到</div></div>
+    </div>
+    <div style="text-align:center;margin-top:8px;font-size:17px;color:var(--muted)">任一步失敗：整個 label 失敗可重試；重送同 label 不會重複寫（見下頁）</div>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>寫入被設計成<b>「記憶體累積 → 順序寫大檔 → 一次生效」</b>：不在磁碟上做隨機小寫入，所以能撐高吞吐；且 ④ 之前全部 BE 平行進行，瓶頸只在最慢那台。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>寫入是「<b>全有或全無</b>」：任一 tablet 的任一副本失敗就整體失敗；且 <b>⑥ publish 是全域協調點</b>——tablet 數極多時 publish 本身要花時間。小批次灌太頻繁 → 開銷被 transaction 吃光（解法：group commit，見 13 頁）。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p>1 秒 1 筆的小 stream load 會把效能打趴——每筆都是一次完整 transaction（FE 協調、多副本確認、publish）。Doris 把這攤事設計給「<b>一次一大包</b>」，不是給「逐筆」用的。</p></div>
+  </div>
+  <div class="take teal"><span class="tk">TAKEAWAY</span><span>寫入路徑的關鍵字是<b>「批次 + 一次生效」</b>：memtable 吸收、順序落盤、publish 統一開閘。資料工程師的任務是<b>餵大包、別餵碎屑</b>。</span></div>
+</section>
+
+<section class="slide" id="s13">
+  <div class="meta"><span class="part">04 · 寫入路徑</span><span class="num">13</span></div>
+  <h2 class="h2">所有寫入口殊途同歸：<strong>差別只在「誰把資料搬到 BE」，之後走同一條引擎</strong></h2>
+  <div class="diag">
+    <div class="dtitle">五種常見寫入 → 同一條 transaction + tablet writer + publish 管線</div>
+    <table class="tbl">
+      <tr><th style="width:250px">入口</th><th>誰搬資料 / 特性</th><th style="width:300px">何時用</th></tr>
+      <tr><td class="k">Stream Load</td><td>client 直接 HTTP 餵 BE，<b>同步等結果</b>，靠 label 冪等重試</td><td>離線批次／程式內送檔，最大宗</td></tr>
+      <tr><td class="k">Routine Load</td><td>常駐任務：FE 派 task 給 BE，<b>BE 直接當 Kafka consumer</b>，自動提交 offset</td><td>Kafka → Doris 近即時管道</td></tr>
+      <tr><td class="k">Broker / S3 Load</td><td>由 BE 從物件儲存／broker 讀檔，非同步</td><td>超大檔、已在 S3/HDFS 的資料</td></tr>
+      <tr><td class="k">INSERT INTO</td><td>走查詢引擎產出資料再寫入（也能 CTAS）</td><td>ETL 內搬移、小量補數</td></tr>
+      <tr><td class="k">Flink / CDC 連接器</td><td>外部串流引擎當搬運工，可兩階段提交</td><td>資料庫 CDC 同步到 Doris</td></tr>
+    </table>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>不管資料從哪來，<b>「進 Doris 之後的品質保證」只有一套</b>：transaction、多副本、publish 可見性全部一致。入口多但心智模型只有一個，維運與除錯成本因此很低。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>每個入口有自己的<b>「搬運工」要顧</b>：Routine Load 的 task 掛了要自動重啟（offset 落在哪）、CDC 端到端 exactly-once 需要來源端配合、小批次進 routine load 一樣會製造大量小 rowset。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p>大量<b>小批次</b>（每 30 秒幾百列）→ 開啟 <b>group commit</b>：多個小 load 的資料在 BE 合併成一批才 publish，transaction 數量與小 rowset 都大幅下降——把小寫入「攢成大包」是官方推薦姿勢。</p></div>
+  </div>
+  <div class="take"><span class="tk">TAKEAWAY</span><span>選入口只看一件事：<b>你的資料源與時效性適合哪個搬運工</b>。進了管線之後，label / transaction / publish 的規則對所有入口一視同仁。</span></div>
+</section>
+
+<section class="slide" id="s14">
+  <div class="meta"><span class="part">04 · 寫入路徑</span><span class="num">14</span></div>
+  <h2 class="h2">為什麼「load 還沒結束就查不到」？——<strong>因為查詢永遠讀一個已發布的版本快照</strong></h2>
+  <div class="diag">
+    <div class="dtitle">讀寫隔離：寫入方在「publish 線」之後，查詢方在線之前（快照隔離）</div>
+    <div style="display:grid;grid-template-columns:1.15fr 1fr;gap:18px;align-items:center">
+      <div style="display:flex;flex-direction:column;gap:0">
+        <div style="display:flex;align-items:center;gap:8px;font-size:16px"><span style="flex:0 0 90px">寫入方：</span>
+          <span style="border:1.5px solid var(--terra);border-radius:8px;background:var(--terra-soft);padding:6px 12px;font-size:15px">memtable 累積中</span><span class="arr sm">→</span>
+          <span style="border:1.5px solid var(--terra);border-radius:8px;background:var(--terra-soft);padding:6px 12px;font-size:15px">rowset 已落盤（不可見）</span><span class="arr sm">→</span>
+          <span style="border:2.5px solid var(--terra);border-radius:8px;background:var(--panel);padding:6px 12px;font-size:16px;font-weight:900">★ publish</span><span class="arr sm">→</span>
+          <span style="border:1.5px solid var(--teal);border-radius:8px;background:var(--teal-soft);padding:6px 12px;font-size:15px">查詢可見</span>
+        </div>
+        <div style="margin-top:10px;font-size:16px;color:var(--muted);line-height:1.6">publish 前後各一秒啟動的兩條查詢：<b>前者看不到、後者看得到</b>——沒有「看到一半」的中間態</div>
+      </div>
+      <div class="mini">
+        <div class="row t"><span class="dot"></span>讀者拿到的是「<b>當下最大已 publish 版本</b>」的快照，rowset 只增不減 → 讀取永遠一致</div>
+        <div class="row"><span class="dot"></span>publish 是 FE 的<b>全域動作</b>：一個 label 的 rowset 要在所有 tablet 一起生效，不會這張 tablet 有、那張沒有</div>
+        <div class="row g"><span class="dot"></span>失敗的 load：未 publish 的 rowset 變成 <b>garbage</b>，由背景清理回收</div>
+        <div class="row x"><span class="dot"></span>代價：publish 需要「所有副本都準備好」→ 最慢副本拖住整批；而查詢會 hold 舊版本直到跑完（版本不會立刻被 compaction 吃掉）</div>
+      </div>
+    </div>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>OLAP 同時有「高頻寫」與「長查詢」，最怕彼此看到一半。<b>版本發布制</b>讓寫入像「換頁」：一次換一整頁，讀者要嘛看舊頁要嘛看新頁，永遠一致——連 MVCC 的鎖都省了。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>版本機制讓<b>「剛剛寫入立刻讀到」有天然延遲</b>（要等 publish），也讓「極高頻小批次」的代價很高；另外長查詢會釘住舊版本，擋住後續 compaction 的清理範圍。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p>Stream Load 回傳 <span class="code">OK</span> 的瞬間查詢就讀得到——因為 OK 代表 publish 完成。若看到「<span class="code">PUBLISH_TIMEOUT</span>」類錯誤，表示 tablet 太多或副本太慢，不是資料壞掉，重試同 label 即可。</p></div>
+  </div>
+  <div class="take teal"><span class="tk">TAKEAWAY</span><span>「寫完立刻查不到」不是 latency bug，是<b>交易設計</b>：publish 前全世界看不見，publish 後全世界同時看見——這就是 Doris 不用鎖也能讀寫並行的秘密。</span></div>
+</section>
+
+<section class="slide" id="s15">
+  <div class="meta"><span class="part">04 · 寫入路徑</span><span class="num">15</span></div>
+  <h2 class="h2">DELETE / UPDATE 的真實成本：<strong>Doris 不原地改，只「記一筆不要了」</strong>——清償在 compaction</h2>
+  <div class="diag">
+    <div class="dtitle">delete 的一生：標記 → 查詢過濾 → compaction 才物理消失</div>
+    <div class="flow" style="flex-wrap:wrap;row-gap:10px">
+      <div class="fnode x" style="flex:0 0 220px"><div class="ft">你下 DELETE</div><div class="fd">WHERE 範圍（不是逐列改檔）</div></div>
+      <div class="arr sm">→</div>
+      <div class="fnode" style="flex:0 0 260px"><div class="ft">產生「delete 標記」</div><div class="fd">Duplicate/Agg：只記<b>刪除謂詞</b>的 rowset；Unique MOW：在 <b>delete bitmap</b> 標掉那些 key 的舊版本</div></div>
+      <div class="arr sm">→</div>
+      <div class="fnode" style="flex:0 0 250px"><div class="ft">之後每次查詢</div><div class="fd">掃描時套用標記：<b>該濾的照濾</b>（MOW 甚至讀取時直接跳過被標的行）</div></div>
+      <div class="arr sm">→</div>
+      <div class="fnode t" style="flex:0 0 260px"><div class="ft">Compaction 清償</div><div class="fd">合併 rowset 時才把被刪資料<b>真正從檔案移除</b>、空間還給磁碟</div></div>
+    </div>
+    <div style="text-align:center;margin-top:8px;font-size:17px;color:var(--muted)">UPDATE = 標記舊的 + 寫入新的（Unique 表兩步都做）</div>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>維持 LSM「<b>永不原地改檔</b>」的承諾：刪除也走 append（記標記），寫入路徑不會因為刪改而變慢或鎖表。對「維度值會變」的資料，這比整表重寫便宜太多。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>被刪資料在 compaction 前仍然<b>佔空間、且查詢要過濾它</b>；delete 標記若分散成幾萬個小片段，還會拖慢掃描與壓縮。習慣性「每分鐘 DELETE 幾列」會讓 tablet 永遠清不乾淨。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p>「刪除上個月某渠道資料」→ 直接 <span class="code">DROP PARTITION</span> 或整 partition 重寫，秒級完成；「逐筆刪幾筆」→ DELETE + 讓 compaction 追上；「每秒刪一堆」→ 這是 OLTP 行為，Doris 會一直背著墓碑。</p></div>
+  </div>
+  <div class="take"><span class="tk">TAKEAWAY</span><span>在 Doris 裡 DELETE 是「<b>標記死亡、緩慢安葬</b>」：物理刪除要等 compaction。能用 partition 級別解決的刪除，就別用列級 DELETE 解決。</span></div>
+</section>
+
+<section class="slide" id="s16">
+  <div class="meta"><span class="part">04 · 寫入路徑</span><span class="num">16</span></div>
+  <h2 class="h2">Compaction：Doris 的「<strong>資源回收 + 合併同類項</strong>」——查詢變慢先看它的 Score</h2>
+  <div class="diag">
+    <div class="dtitle">兩個階段分工：Cumulative 收拾小檔，Base 偶爾跟大檔大合併（每 10 輪 1 次）</div>
+    <div style="display:grid;grid-template-columns:1.12fr 1fr;gap:18px;align-items:stretch">
+      <div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:15px;flex-wrap:wrap">
+          <span style="border:1.5px solid var(--line-strong);border-radius:6px;padding:3px 8px;background:var(--panel);font-family:var(--mono)">v1-3 base</span>
+          <span style="border:1.5px solid var(--gold);border-radius:6px;padding:3px 8px;background:var(--gold-soft);font-family:var(--mono)">v4</span>
+          <span style="border:1.5px solid var(--gold);border-radius:6px;padding:3px 8px;background:var(--gold-soft);font-family:var(--mono)">v5</span>
+          <span style="border:1.5px solid var(--gold);border-radius:6px;padding:3px 8px;background:var(--gold-soft);font-family:var(--mono)">v6</span>
+          <span style="border:1.5px solid var(--gold);border-radius:6px;padding:3px 8px;background:var(--gold-soft);font-family:var(--mono)">v7</span>
+          <span style="color:var(--faint)">→ 9 成時間</span>
+        </div>
+        <div style="margin:6px 0;font-family:var(--mono);color:var(--gold);font-size:18px;text-align:center">▼ cumulative：把小 rowset 併成中等檔（也順帶清 delete）</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:15px;flex-wrap:wrap">
+          <span style="border:1.5px solid var(--line-strong);border-radius:6px;padding:3px 8px;background:var(--panel);font-family:var(--mono)">v1-3 base</span>
+          <span style="border:2px solid var(--teal);border-radius:6px;padding:3px 8px;background:var(--teal-soft);font-family:var(--mono)">v4-7 已併</span>
+          <span style="color:var(--faint)">→ 累積到夠大</span>
+        </div>
+        <div style="margin:6px 0;font-family:var(--mono);color:var(--teal);font-size:18px;text-align:center">▼ base：把 boundary 之前的全部併成單一大檔（每 10 輪 1 次）</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:15px">
+          <span style="border:2px solid var(--teal);border-radius:6px;padding:3px 10px;background:var(--teal-soft);font-family:var(--mono)">v1-7 一個大 rowset（乾淨、有序、去重後）</span>
+        </div>
+      </div>
+      <div class="mini">
+        <div class="row"><span class="dot"></span><b>Compaction Score = 查詢時要合併的路數</b>；越高查詢越慢，compaction 優先處理高分 tablet</div>
+        <div class="row t"><span class="dot"></span>選擇策略：<b>cumulative</b> 併小檔（最大檔 ≤ 總量一半）、<b>base</b> 需與 base 檔比例 ≥ 0.3 才划算——避免寫放大爆表</div>
+        <div class="row g"><span class="dot"></span>資源有限：每個磁碟每輪挑 score 最高的 tablet 做；單次併檔數量有上限（cumulative ≤1000、base ≤20）</div>
+        <div class="row x"><span class="dot"></span>Vertical compaction 按「列組」合併降記憶體；別把 compaction 整個關掉「拼查詢」——那是透支</div>
+      </div>
+    </div>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>把「追加出來的碎片」重新疊整齊：<b>路數變少 → 查詢合併成本下降</b>；順帶物理清除 delete 標記、Aggregate 預聚合、Unique 去重——檔案數量與空間都回到健康狀態。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>compaction 吃 CPU / IO / 記憶體，<b>跟查詢搶資源</b>；高頻小寫入會讓它永遠追不上（score 居高不下）；且 merge 期間要hold 住版本，太長會拖住後續寫入的清理。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p>某張表一天幾百個小 load，查詢每況愈下：<span class="code">SHOW TABLET …</span> 看到 <b>compaction score 破百</b>。解法不是加機器——是<b>餵大包 / 開 group commit</b>，讓 rowset 數量長回正常。</p></div>
+  </div>
+  <div class="take teal"><span class="tk">TAKEAWAY</span><span>Compaction 是 LSM 的「<b>還債機制</b>」：寫入越快越碎、債越多。健康的 Doris 是「寫入節奏 × compaction 能力」的平衡——score 是這份健康的儀表板。</span></div>
+</section>
+
+<section class="slide" id="s17">
+  <div class="meta"><span class="part">05 · 查詢引擎</span><span class="num">17</span></div>
+  <h2 class="h2">讀的路徑反過來看：<strong>藍圖派給 BE 後，多台機器平行「掃描 → 運算 → 交換」</strong></h2>
+  <div class="diag">
+    <div class="dtitle">查詢旅程的下半場（上半場見 05 頁：SQL → Fragment 藍圖）</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="flow">
+        <div class="fnode t" style="flex:0 0 180px"><div class="ft">FE（coordinator）</div><div class="fd">把 Fragment 派到相關 BE，彙整結果回你</div></div>
+        <div class="arr">⇣</div>
+        <div style="display:flex;gap:6px;flex:1">
+          <div style="flex:1;border:2px solid var(--ink);border-radius:10px;padding:8px;background:var(--panel)">
+            <div style="font-weight:900;font-size:14.5px;text-align:center">BE-A</div>
+            <div style="font-size:13px;text-align:center;color:var(--muted)">掃描 tablet 1–6</div>
+          </div>
+          <div style="flex:1;border:2px solid var(--ink);border-radius:10px;padding:8px;background:var(--panel)">
+            <div style="font-weight:900;font-size:14.5px;text-align:center">BE-B</div>
+            <div style="font-size:13px;text-align:center;color:var(--muted)">掃描 tablet 7–12</div>
+          </div>
+          <div style="flex:1;border:2px solid var(--ink);border-radius:10px;padding:8px;background:var(--panel)">
+            <div style="font-weight:900;font-size:14.5px;text-align:center">BE-C</div>
+            <div style="font-size:13px;text-align:center;color:var(--muted)">掃描 tablet 13–18</div>
+          </div>
+          <div style="flex:1;border:2px dashed var(--line-strong);border-radius:10px;padding:8px;background:var(--panel-warm)">
+            <div style="font-weight:900;font-size:14.5px;text-align:center;color:var(--faint)">…更多 BE</div>
+          </div>
+        </div>
+      </div>
+      <div class="flow" style="align-items:center">
+        <div class="fnode" style="flex:0 0 210px"><div class="ft">每台 BE 內部</div><div class="fd">把 fragment 拆成 pipeline，多執行緒平行跑（見 19 頁）</div></div>
+        <div class="arr sm">→</div>
+        <div class="fnode"><div class="ft">向量化運算子</div><div class="fd">一次處理一整個 block（約 4,096 列），欄式迴圈 + SIMD</div></div>
+        <div class="arr sm">→</div>
+        <div class="fnode"><div class="ft">EXCHANGE 交換</div><div class="fd">join / 聚合需要時，資料經網路換手到別台（見 20 頁）</div></div>
+        <div class="arr sm">→</div>
+        <div class="fnode t"><div class="ft">回傳 coordinator</div><div class="fd">逐批送，client 邊收邊印</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>單機算不完的，<b>拆給所有機器一起算</b>：掃描天然平行（每台 BE 掃自己那份 tablet），中間結果靠交換節點串起來——這是「一查詢、全叢集」的 MPP 架構。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>平行不是免費：<b>資料交換要過網路</b>、最慢的那台（或那個傾斜 key）決定總時間。查詢調優的兩大主題就是「少交換」與「別傾斜」——正是接下來三頁的內容。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p>為什麼加 BE 節點能加速大查詢？因為 18 個 tablet 從 3 台分到 6 台掃——但若你的查詢只掃 1 個 tablet（例如只等值查一天且只分 1 bucket），加機器<b>完全沒用</b>。平行度來自資料切分，不來自機器數。</p></div>
+  </div>
+  <div class="take"><span class="tk">TAKEAWAY</span><span>MPP 的真理：<b>「每個 fragment 在所有相關 BE 上各跑一份」</b>。查詢的平行度天花板 = tablet 切得多細，不是機器有多快。</span></div>
+</section>
+
+<section class="slide" id="s18">
+  <div class="meta"><span class="part">05 · 查詢引擎</span><span class="num">18</span></div>
+  <h2 class="h2">「一查詢、全叢集」：<strong>scatter-gather 讓 100 億列也只要數秒</strong></h2>
+  <div class="diag">
+    <div class="dtitle">例：SELECT channel, COUNT(*) FROM events GROUP BY channel（events 切了 64 個 tablet）</div>
+    <div style="display:flex;gap:10px;align-items:stretch">
+      <div style="flex:1.4;display:flex;flex-direction:column;gap:6px">
+        <div style="border:1.5px solid var(--line);border-radius:8px;background:var(--panel);padding:6px 10px;font-size:14px;text-align:center"><b>Fragment 1（scan + 局部聚合）</b> — 在每台 BE 上照 tablet 份數開 instance</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+          <div style="border:2px solid var(--ink);border-radius:8px;background:var(--panel);padding:6px;text-align:center"><div style="font-weight:900;font-size:14px">BE-1</div><div style="font-family:var(--mono);font-size:12.5px;color:var(--muted)">16 tablet<br>→ channel: 3,2,5…</div></div>
+          <div style="border:2px solid var(--ink);border-radius:8px;background:var(--panel);padding:6px;text-align:center"><div style="font-weight:900;font-size:14px">BE-2</div><div style="font-family:var(--mono);font-size:12.5px;color:var(--muted)">16 tablet<br>→ channel: 1,4,2…</div></div>
+          <div style="border:2px solid var(--ink);border-radius:8px;background:var(--panel);padding:6px;text-align:center"><div style="font-weight:900;font-size:14px">BE-3</div><div style="font-family:var(--mono);font-size:12.5px;color:var(--muted)">16 tablet<br>→ channel: 0,6,1…</div></div>
+          <div style="border:2px solid var(--ink);border-radius:8px;background:var(--panel);padding:6px;text-align:center"><div style="font-weight:900;font-size:14px">BE-4</div><div style="font-family:var(--mono);font-size:12.5px;color:var(--muted)">16 tablet<br>→ channel: 5,0,3…</div></div>
+        </div>
+        <div style="text-align:center;font-size:14px;color:var(--muted)">每台先把「自己那份」聚合到只剩 channel 數量的列（局部聚合）——網路只傳小結果</div>
+      </div>
+      <div style="flex:0.55;display:flex;flex-direction:column;justify-content:center;gap:6px">
+        <div style="border:2px solid var(--teal);border-radius:10px;background:var(--teal-soft);padding:8px 12px;text-align:center">
+          <div style="font-weight:900;color:var(--teal);font-size:15px">Fragment 0（coordinator）</div>
+          <div style="font-size:13.5px;margin-top:2px">收各 BE 的局部結果 → 再聚合一次 → 排序回傳</div>
+        </div>
+        <div style="text-align:center;font-size:15px;color:var(--muted)">這是「scatter（散出去算）→ gather（收回來合）」，串不起來的部分才需要 shuffle</div>
+      </div>
+    </div>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>把運算<b>推到資料所在</b>，只讓「縮小過的結果」在網路上跑：先局部聚合再彙整，是 MPP 資料庫壓低網路量的基本招——100 億列也是每人算 1.5 億列，而不是搬 100 億列。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>GROUP BY 的 key 若在某台特別多（<b>傾斜 key</b>，例如「預設渠道 = 空字串」佔一半），那台會變長尾：大家等它。pipeline 的 local shuffle 能緩解，根治要靠業務上把熱 key 拆散。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p><span class="code">SELECT COUNT(*)</span> 通常幾百 ms：每台數自己的份數，回報 4 個數字就結束。反例：<span class="code">ORDER BY global_seq</span> 這種需要「把全世界排在一起」的查詢，就是 MPP 最貴的型態——所有資料要集中到一端。</p></div>
+  </div>
+  <div class="take teal"><span class="tk">TAKEAWAY</span><span>看 EXPLAIN 的 Fragment 編排，先問兩句：<b>「每台各自算完再合併」了嗎？哪些步驟逼著資料集中？</b>——集中越多，越慢。</span></div>
+</section>
+
+<section class="slide" id="s19">
+  <div class="meta"><span class="part">05 · 查詢引擎</span><span class="num">19</span></div>
+  <h2 class="h2">3.0 起唯一的執行引擎：<strong>Pipeline</strong>——執行緒由 CPU 決定，不是由併發查詢數決定</h2>
+  <div class="diag">
+    <div class="dtitle">火山模型（1 查詢 N 執行緒）→ Pipeline（固定執行緒池，跑「可讓位」的任務）</div>
+    <div style="display:grid;grid-template-columns:1.02fr 1fr;gap:16px;align-items:stretch">
+      <div class="mini">
+        <div class="row x"><span class="dot"></span><b>舊火山模型的痛</b>：每個 fragment instance 一條 OS 執行緒 → 100 個併發 × 每查詢幾十條 = 幾千條執行緒互相卡 IO</div>
+        <div class="row t"><span class="dot"></span><b>Pipeline 做法</b>：fragment 拆成 DAG 狀的 pipeline（源頭 Source → 終點 Sink），每條 pipeline 開 N 個 <b>PipelineTask</b>，丟進<b>固定大小執行緒池</b>（照 CPU 數）</div>
+        <div class="row t"><span class="dot"></span><b>讓位不阻塞</b>：任務卡 IO 或時間片到（預設約 100ms）就 yield，執行緒立刻接下一件——執行緒永不空等</div>
+        <div class="row"><span class="dot"></span>join / 聚合 / 排序會拆成「Sink 先建 hash table → Source 再 probe」兩段，用 <b>Dependency</b> 通知「準備好了」</div>
+      </div>
+      <div>
+        <div style="border:2px solid var(--ink);border-radius:12px;background:var(--panel);padding:10px 14px;font-size:15.5px;line-height:1.55">
+          <div style="font-weight:900">傾斜救星：Local Shuffle</div>
+          <div style="color:var(--muted);margin-top:4px">掃描端某 bucket 特別大時，BE 內部先<b>本地重打散</b>再餵給下游，把 (7, 1, 1) 變成 (3, 3, 3)——不經網路就撫平長尾</div>
+        </div>
+        <div style="border:2px solid var(--teal);border-radius:12px;background:var(--teal-soft);padding:10px 14px;font-size:15.5px;line-height:1.55;margin-top:10px">
+          <div style="font-weight:900;color:var(--teal)">別混淆：向量化是「另一層」</div>
+          <div style="color:var(--muted);margin-top:4px">向量化決定「一個 operator 對一坨列做什麼」（4096 列 block、欄式迴圈）；pipeline 決定「這些批次怎麼排上核心」——兩者正交、一起運作</div>
+        </div>
+        <div style="border:2px solid var(--line-strong);border-radius:12px;background:var(--panel-warm);padding:10px 14px;font-size:15.5px;line-height:1.55;margin-top:10px">
+          <div style="font-weight:900">主要旋鈕</div>
+          <div style="font-family:var(--mono);font-size:14px;color:var(--muted);margin-top:4px">parallel_pipeline_task_num（預設 0 = 半數核心）——通常不用動</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>同時解三個洞：<b>執行緒爆炸</b>（改由 CPU 預算決定）、<b>核心閒置</b>（傾斜與阻塞不再綁死一條執行緒）、<b>調參靠猜</b>（不用再逐 instance 設併發）。3.0 起火山模型已刪除，pipeline 是唯一引擎。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>pipeline 不是加速器，是「<b>別浪費核心</b>」的排程器：單查詢變快有限，真正的加速仍靠少掃、少交換、少傾斜；且超輕量點查（單 key 幾千 QPS）不值得走完整規劃 → Doris 另有「高併發點查」短路徑。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p>網路上舊文章教你開 <span class="code">enable_pipeline_engine</span>——那是 2.x 的實驗開關，<b>3.0+ 已是 no-op</b>。看到舊調優文章先看版本，這類知識半衰期很短。</p></div>
+  </div>
+  <div class="take"><span class="tk">TAKEAWAY</span><span>Pipeline = 把查詢切成「<b>可讓位的小任務</b>」跑在固定執行緒池上：併發再高，執行緒數都鎖在 CPU 預算內——這是 Doris 扛高併發 OLAP 的引擎底氣。</span></div>
+</section>
+
+<section class="slide" id="s20">
+  <div class="meta"><span class="part">05 · 查詢引擎</span><span class="num">20</span></div>
+  <h2 class="h2">JOIN 的四種資料流：<strong>分桶鍵對齊就能「本地 join」——最貴的 shuffle 是可以被設計掉的</strong></h2>
+  <div class="diag">
+    <div class="dtitle">orders ⋈ users（都按 user_id 分桶 16）→ 四種做法 vs 網路代價</div>
+    <table class="tbl">
+      <tr><th style="width:230px">Join 型態</th><th>怎麼搬資料</th><th style="width:330px">什麼時候會出現</th></tr>
+      <tr class="hl"><td class="k">Colocate Join</td><td><b>完全不搬</b>：兩表同分桶鍵、同 bucket 數、且 tablet 被排在同一台 → 各自本地 join 完再合</td><td>建表就約定好分桶＋colocate 屬性——最省、最快</td></tr>
+      <tr><td class="k">Bucket Shuffle</td><td>只搬一邊：orders 已按 user_id 分桶，把另一邊 hash 後對齊餵過去</td><td>一張表的分桶鍵剛好等於 join 鍵</td></tr>
+      <tr><td class="k">Shuffle Join</td><td>兩邊都按 join 鍵 hash 重排到各 BE</td><td>join 鍵 ≠ 任一分桶鍵（預設命運）</td></tr>
+      <tr><td class="k">Broadcast Join</td><td>小表整張複製到每個掃描端</td><td>一方很小（預設幾百 MB 內）——網路傳小表比傳大表划算</td></tr>
+    </table>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>網路 shuffle 是 MPP 最貴的動作。Doris 用「<b>分桶鍵設計</b>」讓 join 盡可能變成資料本地運算；小表則直接廣播——「少搬資料」是 join 調優的第一定律。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>colocate 條件嚴格（分桶鍵、bucket 數、副本數都要一致），且<b>改分桶就要重建</b>；join 鍵跟分桶鍵天生不合的查詢只能 shuffle——此時<b>資料傾斜</b>會讓單台 hash table 爆記憶體。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p>EXPLAIN 看 <span class="code">join op</span> 欄位寫的是 colocate / bucket / shuffle / broadcast——若出現 shuffle 且兩表可改分桶，這是「<b>建表期欠的債，查詢期每天還</b>」的訊號。另外 build 端（右表）產生的 <b>Runtime Filter</b> 會下推去 scan 端提早濾 probe 資料。</p></div>
+  </div>
+  <div class="take teal"><span class="tk">TAKEAWAY</span><span>建表分桶鍵不只是「怎麼存」——它是<b>join 的戶籍制度</b>：兩張常 join 的表，分桶鍵與 bucket 數一致，就等於預約了零搬運的 colocate join。</span></div>
+</section>
+
+<section class="slide" id="s21">
+  <div class="meta"><span class="part">05 · 查詢引擎</span><span class="num">21</span></div>
+  <h2 class="h2">把前面全部變現：<strong>慢查詢看 Query Profile 的四層漏斗</strong>，別再瞎猜</h2>
+  <div class="diag">
+    <div class="dtitle">一層層問「資料在哪裡被吃掉／被省掉」</div>
+    <div class="flow" style="flex-wrap:wrap;row-gap:8px">
+      <div class="fnode x" style="flex:0 0 200px"><div class="ft">① 掃描層</div><div class="fd">讀了多少列／多少磁碟 bytes？</div></div>
+      <div class="arr sm">→</div>
+      <div class="fnode" style="flex:0 0 260px"><div class="ft">② 過濾層（索引有沒做功）</div><div class="fd">RowsKeyRangeFiltered / ZoneMap / BloomFilter … RowsReturned 差多少</div></div>
+      <div class="arr sm">→</div>
+      <div class="fnode" style="flex:0 0 250px"><div class="ft">③ 交換層</div><div class="fd">EXCHANGE 傳了多少 bytes？哪種 join？（colocate=0）</div></div>
+      <div class="arr sm">→</div>
+      <div class="fnode t" style="flex:0 0 250px"><div class="ft">④ 運算層</div><div class="fd">hash table 多大、哪個 task 最慢（長尾）、記憶體有沒有爆</div></div>
+    </div>
+    <div style="text-align:center;margin-top:8px;font-size:17px;color:var(--muted)">在 FE 開 <b>set enable_profile = true</b> 或看 audit log → 拿到該查詢的 profile 逐層看</div>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>Profile 把引擎「<b>每一層的輸入輸出列數與時間</b>」攤開——資料在哪一層被大量讀入、又在哪一層被大量濾掉、哪台 BE 是長尾，全部有數字可對，調優從「猜」變「驗」。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>Profile 只能告訴你「<b>現在怎麼跑的</b>」，不會告訴你「該怎麼改」——要不要換排序鍵、要不要加索引、分桶要不要重做，仍要對照 06–11 頁的原理自己下判斷。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p>掃描讀了 5,000 萬列、最後只回 500 列 → 過濾沒在底層做掉：檢查 WHERE 條件有沒有命中排序鍵前綴／索引，或條件根本沒下推。反之若 ① 就只讀 500 列 → 索引與剪枝運作正常，問題在 ③④。</p></div>
+  </div>
+  <div class="take"><span class="tk">TAKEAWAY</span><span>慢查詢的標準動作：<b>開 profile → 依 ① 掃描 ② 過濾 ③ 交換 ④ 運算 逐層對數字</b>——90% 的「為什麼慢」在四層內就有答案，剩下 10% 才是系統層問題。</span></div>
+</section>
+
+<section class="slide" id="s22">
+  <div class="meta"><span class="part">06 · 副本、一致與維運</span><span class="num">22</span></div>
+  <h2 class="h2">副本是「<strong>活的保險</strong>」：FE 盯版本、落後就補、壞了就重建、太擠就搬家</h2>
+  <div class="diag">
+    <div class="dtitle">FE 對每個 tablet 的每份 replica 都記得「它在哪台、版本到哪」</div>
+    <div style="display:grid;grid-template-columns:1.15fr 1fr;gap:16px;align-items:stretch">
+      <div class="flow" style="flex-direction:column;gap:8px">
+        <div class="frow">
+          <div class="fnode t" style="flex:0 0 120px"><div class="ft">tablet X</div><div class="fd">3 副本</div></div>
+          <div class="fnode" style="background:var(--panel)"><div class="ft">replica A · BE-1</div><div class="fd">version 88 ✅ 健康</div></div>
+          <div class="arr sm">｜</div>
+          <div class="fnode" style="background:var(--panel)"><div class="ft">replica B · BE-2</div><div class="fd">version 88 ✅ 健康</div></div>
+          <div class="arr sm">｜</div>
+          <div class="fnode g"><div class="ft">replica C · BE-3</div><div class="fd">version 85 ⚠️ 落後（剛重啟）</div></div>
+        </div>
+        <div class="frow">
+          <div class="fnode bare" style="flex:0 0 120px"><div class="fd">FE 的反應</div></div>
+          <div class="fnode t"><div class="ft">① 寫入照常走 A、B（多數派）</div><div class="fd">C 不在 quorum 內也不擋路</div></div>
+          <div class="arr sm">→</div>
+          <div class="fnode x"><div class="ft">② 背景 clone 修復</div><div class="fd">從 A 補版本 86–88 給 C</div></div>
+          <div class="arr sm">→</div>
+          <div class="fnode"><div class="ft">③ 壞 BE 太久 → 重建</div><div class="fd">在其他機器 clone 新 replica 補滿 3 份</div></div>
+        </div>
+        <div style="font-size:15.5px;color:var(--muted);line-height:1.5">另有 <b>balance</b>：磁碟／節點使用不均時，FE 把 tablet 從滿的搬到空的（也吃 IO，可設限速）</div>
+      </div>
+      <div class="mini">
+        <div class="row t"><span class="dot"></span><b>寫入要「多數副本確認」</b>（3 副本至少 2 份成功）→ 掛 1 台 BE 不丟資料、不停寫</div>
+        <div class="row"><span class="dot"></span>查詢由 FE 只派給<b>健康且版本足夠</b>的 replica——不會讀到落後副本的舊資料</div>
+        <div class="row g"><span class="dot"></span>副本落後 → <b>clone 補資料</b>（背景、有限速）；壞節點超過時限 → 別的機器<b>重建副本</b></div>
+        <div class="row x"><span class="dot"></span>代價：clone 與 balance 都吃<b>網路與磁碟 IO</b>；一次滾動重啟太多 BE，會瞬間製造大量 clone 任務互相搶頻寬</div>
+      </div>
+    </div>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>單機硬碟會壞、機器會掛，OLAP 不能停擺。多副本 + FE 的「<b>版本帳本</b>」讓故障變成背景事件：少數副本落後不影響讀寫，壞了自動重建——資料庫自己會療傷。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>副本數是<b>乘法成本</b>：3 副本 = 3 倍儲存 + 3 倍寫入壓力（每筆要寫多份）；「極端耐用」（跨機房、跨叢集災難）單靠副本做不到——那是你們另一份 Doris HA deck 的主題（CCR／雙寫）。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p>半夜一台 BE 掛了，早上你發現叢集「有點慢」：很可能是它那幾百個 tablet 正在別的機器 clone 補副本。所以<b>滾動升級要一台一台來</b>，給 clone 時間消化，別一次重啟半個叢集。</p></div>
+  </div>
+  <div class="take teal"><span class="tk">TAKEAWAY</span><span>副本機制 = <b>用「版本」做健康檢查</b>：FE 不需要知道硬碟死活，只要看到 replica 版本落後或心跳消失，就自動進入「補齊／重建」流程——維運的標準動作是「一台一台來，讓保險自己生效」。</span></div>
+</section>
+
+<section class="slide" id="s23">
+  <div class="meta"><span class="part">06 · 副本、一致與維運</span><span class="num">23</span></div>
+  <h2 class="h2">改表結構也有「貴與便宜」：<strong>加欄位很便宜，動排序鍵／分桶很貴</strong></h2>
+  <div class="diag">
+    <div class="dtitle">Schema Change 兩條路：light（只改元資料）vs 重寫（搬全部資料）</div>
+    <table class="tbl">
+      <tr><th style="width:260px">你的 ALTER</th><th>底層發生的事</th><th style="width:320px">成本與注意</th></tr>
+      <tr class="hl"><td class="k">ADD / DROP 欄位<br>（light schema change）</td><td>只更新 FE 的 schema 版本 → 新資料直接帶新欄位；舊 segment 讀取時「補預設值／忽略」</td><td><b>秒級、不搬資料</b>；日常加欄位放心做</td></tr>
+      <tr><td class="k">改排序鍵／分桶／欄位型別等</td><td>產生重寫任務：按新結構把資料<b>重新排序、重新分桶、寫成新 tablet</b>，完成後原子切換</td><td><b>要搬全部資料</b>（吃 IO／空間／時間）；會跟 compaction、查詢搶資源，選離峰做</td></tr>
+      <tr><td class="k">改 bucket 數（分桶）</td><td>資料要按新 hash 全部重新分配</td><td>重寫等級——所以 bucket 數與分桶鍵「建表就要想清楚」</td></tr>
+    </table>
+    <div style="margin-top:10px;font-size:16px;color:var(--muted);line-height:1.55">另兩個「結構性加速」記一下：<b>同步物化視圖</b>＝用另一組列順序多存一份 → 等於多一組前綴索引（Duplicate 表常用）；<b>AUTO bucket</b>＝沒指定 bucket 數時依資料量自動選，降低「建表選錯數」的風險</div>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>解決的瓶頸</h4><p>資料模型在演化（加欄位、加字典欄是常態）。light schema change 讓「<b>結構演進</b>」不必每次都付出全量重寫的代價——加欄位變成改一行元資料的事。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>「便宜」只涵蓋特定操作；<b>會改變資料物理排列的修改</b>（排序鍵、分桶、型別）永遠是重寫等級。輕重之分不會隨版本消失，因為資料已經照舊結構排好了——物理排序無法免費重排。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p>「加個 user_name 欄」→ ALTER 秒回；「把 user_id 從排序鍵第 2 位移到第 1 位」→ 全表重排，幾 TB 表可能要跑幾小時。前者隨時做，後者等於是「改表的物理設計」，做完記得驗證前綴索引命中。</p></div>
+  </div>
+  <div class="take"><span class="tk">TAKEAWAY</span><span>區分兩種 ALTER：<b>「加東西」便宜（light）、「重排東西」昂貴（copy）</b>。排序鍵、分桶鍵與 bucket 數屬於後者——它們是建表期就要下對的決定。</span></div>
+</section>
+
+<section class="slide" id="s24">
+  <div class="meta"><span class="part">收尾</span><span class="num">24</span></div>
+  <h2 class="h2">把 Doris 想成一座「<strong>會自我整理的分散式帳本工廠</strong>」——全圖回顧</h2>
+  <div class="diag">
+    <div class="dtitle">25 頁濃縮成一座工廠</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+      <div style="border:2px solid var(--line-strong);border-radius:12px;background:var(--panel);padding:12px 14px">
+        <div style="font-weight:900;font-size:17px;color:var(--teal)">① 接單與設計（FE）</div>
+        <div style="font-size:15px;color:var(--muted);margin-top:5px;line-height:1.5">SQL 被編譯成藍圖（fragment），元資料是 BDBJE 同步的帳本；所有寫入由 FE 開 transaction 協調</div>
+      </div>
+      <div style="border:2px solid var(--line-strong);border-radius:12px;background:var(--panel);padding:12px 14px">
+        <div style="font-weight:900;font-size:17px;color:var(--terra)">② 進料（寫入）</div>
+        <div style="font-size:15px;color:var(--muted);margin-top:5px;line-height:1.5">memtable 吸收 → 順序落成 rowset → publish 一次開閘；刪改只記標記，物理清理交給 compaction</div>
+      </div>
+      <div style="border:2px solid var(--line-strong);border-radius:12px;background:var(--panel);padding:12px 14px">
+        <div style="font-weight:900;font-size:17px;color:#7c6118">③ 倉儲（儲存）</div>
+        <div style="font-size:15px;color:var(--muted);margin-top:5px;line-height:1.5">tablet = 最小單位，3 副本分散放；segment 一欄欄排，排序鍵＋前綴索引＋zonemap/bloom/倒排負責跳過不該讀的</div>
+      </div>
+      <div style="border:2px solid var(--line-strong);border-radius:12px;background:var(--panel);padding:12px 14px">
+        <div style="font-weight:900;font-size:17px;color:var(--teal)">④ 出貨（查詢）</div>
+        <div style="font-size:15px;color:var(--muted);margin-top:5px;line-height:1.5">fragment 派到各 BE，pipeline 在固定執行緒池平行跑、向量化批次運算；colocate 讓 join 不出貨（零搬運）</div>
+      </div>
+      <div style="border:2px solid var(--line-strong);border-radius:12px;background:var(--panel);padding:12px 14px">
+        <div style="font-weight:900;font-size:17px;color:var(--terra)">⑤ 定期盤點（compaction）</div>
+        <div style="font-size:15px;color:var(--muted);margin-top:5px;line-height:1.5">score 高的 tablet 優先：小檔併大檔、清墓碑、去重預聚合——讓查詢永遠只面對少數幾路</div>
+      </div>
+      <div style="border:2px solid var(--line-strong);border-radius:12px;background:var(--panel);padding:12px 14px">
+        <div style="font-weight:900;font-size:17px;color:#7c6118">⑥ 保險（副本修復）</div>
+        <div style="font-size:15px;color:var(--muted);margin-top:5px;line-height:1.5">FE 用版本盯每個 replica：落後就 clone 補、壞了就重建、不均就搬家——機器故障是背景事件</div>
+      </div>
+    </div>
+  </div>
+  <div class="cards">
+    <div class="card solve"><h4><span class="ic">解</span>看懂底層 = 預測行為</h4><p>現在你能解釋：為什麼少 SELECT * 快、為什麼 key 順序重要、為什麼小批次寫入會害了 compaction、為什麼 join 慢可能是建表欠債——<b>每個「為什麼」都能對回某一頁</b>。</p></div>
+    <div class="card limit"><h4><span class="ic">限</span>仍沒解決</h4><p>這份 deck 沒覆蓋的角落：跨機房 HA／CCR（另有專屬 deck）、存算分離模式（3.0+ 可選，把儲存搬上物件儲存）、湖倉一體查詢外表、以及 Workload Group 資源隔離——需要時再看官方文件。</p></div>
+    <div class="card example"><h4><span class="ic">例</span>例子</h4><p>把知識轉成三個「檢查動作」：新表上線前看 <b>EXPLAIN</b>（join 是不是 colocate、掃描有沒有剪枝）；慢查詢開 <b>profile</b> 對四層漏斗；每週瞄一眼<b>compaction score</b> 與 rowset 數量趨勢。</p></div>
+  </div>
+  <div class="take teal"><span class="tk">TAKEAWAY</span><span>Doris 的效能不是靠單一黑魔法，而是「<b>每層省一點</b>」：列存省 I/O、索引省掃描、pipeline 省執行緒、colocate 省網路、副本省停機。把每一層的省法用對，就是 90 分以上的 Doris 使用者。</span></div>
+</section>
+
+<section class="slide" id="s25">
+  <div class="meta"><span class="part">附錄 · 隨時回來查</span><span class="num">25</span></div>
+  <h2 class="h2">名詞速查：<strong>一份能貼在牆上的 Doris 辭典</strong></h2>
+  <div class="diag" style="padding:14px 22px">
+    <table class="tbl" style="font-size:15.5px">
+      <tr><th style="width:210px">名詞</th><th>一句話</th><th style="width:120px">在哪頁</th></tr>
+      <tr><td class="k">FE / BE</td><td>大腦（規劃＋元資料＋協調）／手腳（儲存＋執行）</td><td>03</td></tr>
+      <tr><td class="k">BDBJE</td><td>FE 之間同步元資料「帳本」的日誌複製庫</td><td>04</td></tr>
+      <tr><td class="k">Partition / Bucket</td><td>時間剪枝單位／hash 打散單位（hash % 固定數）</td><td>06</td></tr>
+      <tr><td class="k">Tablet / Replica</td><td>最小資料＋版本＋平衡單位／它的副本（預設 3）</td><td>06–07</td></tr>
+      <tr><td class="k">Rowset / Segment</td><td>一次寫入的資料（含 1~N 檔）／檔內一欄欄排的列存單元</td><td>07–08</td></tr>
+      <tr><td class="k">排序鍵 / 前綴索引</td><td>資料物理排列順序（唯一）／每 block 記 ≤36B 前綴、常駐記憶體</td><td>09</td></tr>
+      <tr><td class="k">Zonemap / Bloom / 倒排</td><td>每頁 min/max 跳頁／「不存在」快篩／非前綴等值與搜尋</td><td>10</td></tr>
+      <tr><td class="k">Dup / Agg / Unique</td><td>不去重／同 key 聚合／主鍵更新（MOW：寫時標刪舊版本）</td><td>11</td></tr>
+      <tr><td class="k">Memtable / Publish</td><td>BE 記憶體寫入緩衝／FE 一次開閘讓資料可見（版本發布）</td><td>12–14</td></tr>
+      <tr><td class="k">Delete rowset / bitmap</td><td>只記刪除謂詞的標記／MOW 標記被取代舊版本的位元圖</td><td>15</td></tr>
+      <tr><td class="k">Compaction Score</td><td>查詢要合併的路數＝tablet 健康分數（越高越該整理）</td><td>16</td></tr>
+      <tr><td class="k">Fragment / Pipeline</td><td>FE 切出的執行單位／BE 內讓位式平行執行（3.0+ 唯一引擎）</td><td>17–19</td></tr>
+      <tr><td class="k">Colocate / Broadcast / Shuffle</td><td>零搬運 join／小表複製／兩邊重排</td><td>20</td></tr>
+      <tr><td class="k">Runtime Filter</td><td>先算 join build 端，把熱門值下推去 scan 提早濾</td><td>20</td></tr>
+      <tr><td class="k">Clone / Balance</td><td>副本落後補齊／tablet 搬家平衡磁碟</td><td>22</td></tr>
+      <tr><td class="k">Light Schema Change</td><td>加減欄位只改元資料（秒級）；重排排序鍵＝全量重寫</td><td>23</td></tr>
+    </table>
+  </div>
+  <div class="take"><span class="tk">TAKEAWAY</span><span>讀完這份 deck，你手上應該有兩樣東西：一套「<b>資料從寫入到讀出的完整心智模型</b>」，以及一本「<b>慢在哪一層的診斷手冊</b>」——接下來，打開你的 Query Profile，開始驗證。</span></div>
+</section>
+
+</main>
+</div>
+
+<script>
+/* ============================================================
+   SLIDE CONTROLLER：hash #sN、鍵盤、滑鼠區域、觸控、總覽、說明
+   ============================================================ */
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  var current = 0;
+  var countEl = null, hintEl = null;
+
+  function el(tag, cls, html){
+    var e = document.createElement(tag);
+    if(cls) e.className = cls;
+    if(html != null) e.innerHTML = html;
+    return e;
+  }
+
+  /* counter + hint */
+  countEl = el('div', null, '<b>1</b> / ' + total);
+  countEl.id = 'count';
+  document.body.appendChild(countEl);
+  hintEl = el('div', null, '<span>⬅️ ➡️ / 空白鍵 換頁</span><span>🗺️ O 總覽</span><span>❓ 說明</span>');
+  hintEl.id = 'hint';
+  document.body.appendChild(hintEl);
+
+  /* prev/next buttons */
+  function mkBtn(id, label, fn){
+    var b = el('button', null, label);
+    b.id = id; b.setAttribute('aria-label', label === '‹' ? '上一頁' : '下一頁');
+    b.addEventListener('click', function(e){ e.stopPropagation(); fn(); });
+    document.body.appendChild(b);
+  }
+  mkBtn('prevB', '‹', prev);
+  mkBtn('nextB', '›', next);
+
+  /* overview overlay */
+  var ov = el('div', 'ovl');
+  var ovPanel = el('div', 'ov-panel');
+  ovPanel.appendChild(el('h2', 'ov-title', 'Doris 運作原理 · 章節總覽'));
+  ovPanel.appendChild(el('p', 'ov-sub', '25 頁 · 骨架 → 資料切分 → 儲存與索引 → 寫入 → 查詢引擎 → 副本維運 → 附錄'));
+  var grid = el('div'); grid.id = 'ovgrid';
+  slides.forEach(function(s, i){
+    var t = s.querySelector('h2') ? s.querySelector('h2').textContent.replace(/\s+/g,' ').trim() : (s.querySelector('h1') ? s.querySelector('h1').textContent.trim() : '頁面');
+    var n = s.querySelector('.num');
+    var numTxt = n ? n.textContent.trim() : String(i+1).padStart(2,'0');
+    var b = el('button', null, '');
+    b.appendChild(el('span', 'oi', numTxt));
+    b.appendChild(el('span', 'ot', t.slice(0, 44)));
+    b.addEventListener('click', function(){ show(i, false); closeOv(); });
+    grid.appendChild(b);
+  });
+  ovPanel.appendChild(grid);
+  ov.appendChild(ovPanel);
+  ov.addEventListener('click', function(e){ if(e.target === ov) closeOv(); });
+  document.body.appendChild(ov);
+
+  /* help overlay */
+  var hp = el('div', 'ovl');
+  var hpPanel = el('div', 'ov-panel help-panel');
+  hpPanel.appendChild(el('h2', 'ov-title', '操作說明'));
+  hpPanel.appendChild(el('p', 'ov-sub', '這是閱讀型簡報：每頁 = 一張圖 + 三張註解卡 + 一句 takeaway。'));
+  var rows = [
+    ['⬅️➡️', '上一頁 / 下一頁', '方向鍵、PageUp/Down、空白鍵，或點左右兩側；手機左右滑動'],
+    ['🗺️', '總覽', '按 O（或點下方提示）跳到任何一頁'],
+    ['⛶', '全螢幕', '按 F 切換'],
+    ['❓', '本說明', '按 ? 隨時開啟'],
+    ['#sN', '直達網址', '例如網址加上 #s12 直接開第 12 頁，方便貼給同事 review 單頁']
+  ];
+  rows.forEach(function(r){
+    var row = el('div', 'hrow');
+    row.appendChild(el('div', 'hic', r[0]));
+    var box = el('div', null, '');
+    box.appendChild(el('div', 'hk', r[1]));
+    box.appendChild(el('div', 'hd', r[2]));
+    row.appendChild(box);
+    hpPanel.appendChild(row);
+  });
+  hp.appendChild(hpPanel);
+  hp.addEventListener('click', function(e){ if(e.target === hp) closeOv(); });
+  document.body.appendChild(hp);
+
+  function closeOv(){ ov.classList.remove('open'); hp.classList.remove('open'); }
+
+  function show(i, pushHash){
+    current = Math.max(0, Math.min(i, total - 1));
+    slides.forEach(function(s, k){ s.classList.toggle('is-active', k === current); });
+    countEl.innerHTML = '<b>' + (current + 1) + '</b> / ' + total;
+    var btns = grid.querySelectorAll('button');
+    btns.forEach(function(b, k){ b.classList.toggle('cur', k === current); });
+    if(pushHash !== false){
+      try{ history.replaceState(null, '', '#s' + (current + 1)); }catch(e){}
+    }
+  }
+  function next(){ show(current + 1); }
+  function prev(){ show(current - 1); }
+
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && (ov.classList.contains('open') || hp.classList.contains('open'))){ closeOv(); return; }
+    switch(e.key){
+      case 'ArrowRight': case 'ArrowDown': case 'PageDown': case ' ': next(); e.preventDefault(); break;
+      case 'ArrowLeft': case 'ArrowUp': case 'PageUp': prev(); e.preventDefault(); break;
+      case 'Home': show(0); e.preventDefault(); break;
+      case 'End': show(total - 1); e.preventDefault(); break;
+      case 'o': case 'O': ov.classList.toggle('open'); e.preventDefault(); break;
+      case '?': hp.classList.toggle('open'); e.preventDefault(); break;
+      case 'f': case 'F': {
+        var de = document.documentElement;
+        var req = de.requestFullscreen || de.webkitRequestFullscreen;
+        var exit = document.exitFullscreen || document.webkitExitFullscreen;
+        var isFs = document.fullscreenElement || document.webkitFullscreenElement;
+        if(req){ if(isFs){ if(exit) exit.call(document); } else { var pr = req.call(de); if(pr && pr.catch) pr.catch(function(){}); } }
+        e.preventDefault(); break;
+      }
+    }
+  });
+
+  document.querySelector('.stage').addEventListener('click', function(e){
+    if(ov.classList.contains('open') || hp.classList.contains('open')) return;
+    var x = e.clientX / window.innerWidth;
+    if(x < 0.3) prev(); else if(x > 0.7) next();
+  });
+
+  var tx = null;
+  document.addEventListener('touchstart', function(e){ tx = e.changedTouches[0].clientX; }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    if(tx === null) return;
+    var dx = e.changedTouches[0].clientX - tx;
+    if(Math.abs(dx) > 60){ dx < 0 ? next() : prev(); }
+    tx = null;
+  }, {passive:true});
+
+  window.addEventListener('hashchange', function(){
+    var m = location.hash.match(/^#s(\d+)$/);
+    if(m) show(parseInt(m[1],10) - 1, false);
+  });
+  var m0 = location.hash.match(/^#s(\d+)$/);
+  show(m0 ? parseInt(m0[1],10) - 1 : 0, false);
+})();
+</script>
+
+</body>
+</html>
