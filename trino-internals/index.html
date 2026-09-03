@@ -1,0 +1,2093 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trino 底層運作原理：從一條 SQL 到結果</title>
+<meta name="description" content="給每天都在用 Trino 的資料工程師：架構、查詢生命週期、執行引擎、記憶體與容錯、Connector 讀取、效能診斷。以單一範例 SQL 貫穿，附自我測驗。">
+<style>
+
+/* ============================================================
+   EDITORIAL THEME — warm paper, fixed 1920×1080 stage
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@700;900&display=swap');
+:root{
+  color-scheme:light;
+  --paper:#f6f0e4; --paper-deep:#efe6d2; --panel:#fdfaf2; --panel-warm:#f9f1e0;
+  --ink:#2c2418; --muted:#6f6350; --faint:#a2967e;
+  --terra:#c0562e; --terra-soft:#f3e0d3; --teal:#1f7a70; --teal-soft:#dcece6;
+  --gold:#a87f22; --gold-soft:#f2e7c9; --green:#4d7c4f; --green-soft:#e0ecdc;
+  --red:#b0413e; --red-soft:#f4e0de;
+  --line:#e4d9c2; --shadow:#0000001c;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  display:grid;place-items:center;overflow:hidden;
+  background:radial-gradient(circle at 16% 12%,#efe6d2 0,#f6f0e4 42%,#eee3cb 100%);
+  font-family:"Noto Sans TC",ui-sans-serif,system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+  color:var(--ink);
+}
+a{color:var(--teal);text-decoration:underline;text-underline-offset:3px}
+a:hover{color:var(--terra)}
+h1,h2,h3,.h2,.kicker,.y{font-family:"Noto Serif TC",Georgia,"Songti TC",serif}
+
+/* ---- fixed stage ---- */
+.viewport{position:relative;width:100vw;height:100vh;overflow:hidden}
+.stage{
+  position:absolute;left:50%;top:50%;width:1920px;height:1080px;
+  transform:translate(-50%,-50%) scale(calc(100vw / 1920px));
+  transform-origin:center;
+  background:linear-gradient(135deg,#faf6ec,#f3ecd9 58%,#f6f0e4);
+  box-shadow:0 0 0 1px #0000000d,0 36px 120px #00000038;
+  overflow:hidden;
+}
+@media (min-aspect-ratio:16/9){
+  .stage{transform:translate(-50%,-50%) scale(calc(100vh / 1080px))}
+}
+.slide{position:relative;inset:auto;opacity:1;pointer-events:auto}
+html.js .slide{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  padding:50px 84px 40px;opacity:0;pointer-events:none;
+}
+html.js .slide.is-active{opacity:1;pointer-events:auto}
+.slide::before{
+  content:"";position:absolute;inset:0;
+  background:
+    radial-gradient(circle at 82% 14%,#f2e7c955,transparent 32%),
+    radial-gradient(circle at 12% 80%,#dcece655,transparent 34%);
+  z-index:-1;
+}
+
+/* ---- shared type ---- */
+.meta{display:flex;align-items:center;gap:18px;color:var(--muted);font-size:22px;letter-spacing:.08em;text-transform:uppercase}
+.num{color:var(--terra);font-weight:900}
+.part{color:var(--muted);font-weight:700}
+.kicker{font-size:28px;color:var(--terra);font-weight:900;letter-spacing:.1em;margin:0 0 12px}
+.h2{font-size:52px;line-height:1.18;margin:0;font-weight:900;letter-spacing:-.02em;max-width:1760px;color:var(--ink)}
+.h2 strong{color:var(--terra)}
+.sub{max-width:1620px;font-size:26px;line-height:1.5;color:var(--muted);margin:12px 0 0}
+.sub b{color:var(--ink)}
+.note{margin-top:12px;color:var(--muted);font-size:22px;line-height:1.55;max-width:1760px}
+.note b{color:var(--ink)}
+.take{
+  margin-top:14px;padding:12px 24px;border-left:7px solid var(--terra);
+  background:linear-gradient(90deg,#f9efdc,#f6f0e400);
+  font-size:23px;line-height:1.5;color:#7c4a20;font-weight:700;max-width:1780px;
+}
+.take b{color:var(--terra)}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;border-radius:999px;
+  padding:3px 14px;font-size:18px;font-weight:800;white-space:nowrap;
+}
+.chip.d{background:var(--teal-soft);color:#14554e}
+.chip.a{background:var(--terra-soft);color:#8a3b1d}
+.chip.g{background:var(--gold-soft);color:#7a5a12}
+
+/* ---- comparison axis bar: 讓每頁「在比較什麼」一眼可見 ---- */
+.cmpbar{
+  margin-top:14px;border-radius:14px;padding:10px 22px;
+  background:linear-gradient(90deg,var(--teal-soft),#fbf7ee 42%,var(--terra-soft));
+  border:1px solid var(--line);
+  display:flex;align-items:center;gap:18px;
+}
+.cmpbar .cbd{font-weight:900;font-size:19px;color:#14554e;white-space:nowrap}
+.cmpbar .cbq{flex:1;font-size:25px;font-weight:900;color:var(--ink);line-height:1.35;text-align:center}
+.cmpbar .cba{font-weight:900;font-size:19px;color:#8a3b1d;white-space:nowrap}
+
+/* ---- Agentic Lakehouse 展望 band ---- */
+.agenticband{
+  margin-top:16px;border-radius:16px;padding:15px 26px;
+  background:linear-gradient(135deg,#2c2418,#4a3a26);
+  color:#f6f0e4;display:flex;flex-direction:column;gap:6px;
+  box-shadow:0 14px 40px #00000022;
+}
+.agenticband .ab-flag{
+  align-self:flex-start;background:var(--terra);color:#fff;font-weight:900;
+  font-size:15px;letter-spacing:.14em;border-radius:999px;padding:2px 14px;
+}
+.agenticband .ab-main{font-size:24px;line-height:1.45;font-weight:800;color:#f6f0e4}
+.agenticband .ab-main b{color:#e9c778}
+.agenticband .ab-sub{font-size:18px;color:#d8cdb8;line-height:1.5}
+
+/* ---- diagram primitives ---- */
+.dg{display:flex;align-items:stretch;gap:14px;margin-top:20px}
+.dg.col{flex-direction:column;align-items:stretch}
+.dg.center{align-items:center}
+.dg.wrap{flex-wrap:wrap}
+.node{
+  background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  padding:16px 20px;min-width:0;text-align:center;
+  display:flex;flex-direction:column;justify-content:center;gap:5px;
+  box-shadow:0 10px 30px #00000010;
+}
+.node .t{font-size:23px;font-weight:900;color:var(--ink);line-height:1.3}
+.node .s{font-size:18px;color:var(--muted);line-height:1.45}
+.node.hl{border-color:#1f7a7055;background:linear-gradient(160deg,#eef6f1,#fdfaf2)}
+.node.warn{border-color:#c0562e55;background:linear-gradient(160deg,#f9efe6,#fdfaf2)}
+.node.ok{border-color:#4d7c4f55;background:linear-gradient(160deg,#eef5ec,#fdfaf2)}
+.arrow{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  color:var(--terra);font-size:30px;font-weight:900;flex:0 0 auto;padding:0 2px;line-height:1;
+}
+.arrow .lbl{font-size:15px;color:var(--muted);font-weight:700;white-space:nowrap;line-height:1.2;text-align:center}
+
+/* 2-col comparison cards */
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.card{
+  background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  padding:17px 22px;box-shadow:0 10px 30px #0000000c;
+  display:flex;flex-direction:column;gap:7px;
+}
+.card h4{font-size:24px;font-weight:900;margin:0;line-height:1.3}
+.card h4.d{color:var(--teal)}
+.card h4.a{color:var(--terra)}
+.card .ct{font-size:16.5px;color:var(--faint);font-weight:800;letter-spacing:.04em}
+.card ul{margin:0;padding-left:19px;font-size:18.5px;line-height:1.5;color:var(--muted)}
+.card ul li{margin-top:3px}
+.card ul b{color:var(--ink)}
+.pband{
+  margin-top:11px;border-radius:12px;padding:10px 20px;font-size:20px;line-height:1.5;
+  display:flex;gap:14px;align-items:baseline;
+}
+.pband .pbl{flex:0 0 auto;font-weight:900;font-size:19px}
+.pband.same{background:var(--teal-soft);border:1px solid #1f7a7044}
+.pband.same .pbl{color:#14554e}
+.pband.new{background:var(--red-soft);border:1px solid #b0413e44}
+.pband.new .pbl{color:#8a2f2d}
+.pband.cur{background:var(--gold-soft);border:1px solid #a87f2244}
+.pband.cur .pbl{color:#7a5a12}
+.pband.borrow{background:var(--green-soft);border:1px solid #4d7c4f44}
+.pband.borrow .pbl{color:#2f5a31}
+.pband b{color:var(--ink)}
+.pairflow{display:flex;align-items:stretch;gap:7px;margin-top:11px}
+.pfnode{
+  flex:1;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:10px 14px;box-shadow:0 6px 18px #0000000a;
+}
+.pfnode .ft{font-size:18px;font-weight:900;color:var(--terra);line-height:1.25}
+.pfnode .fd{font-size:15px;color:var(--muted);line-height:1.45;margin-top:3px}
+.pfnode .fd b{color:var(--ink)}
+
+/* Ops lifecycle loops */
+.ops-cycles{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:16px}
+.opcycle{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:15px 18px 12px;box-shadow:0 10px 30px #0000000c}
+.opcycle .ophead{display:flex;justify-content:space-between;align-items:baseline;gap:14px;margin-bottom:6px}
+.opcycle .opname{font-size:24px;font-weight:900;line-height:1.25}
+.opcycle.data .opname{color:var(--teal)}
+.opcycle.ai .opname{color:var(--terra)}
+.opcycle .opscope{font-size:15px;color:var(--faint);font-weight:800;letter-spacing:.04em;text-align:right}
+.opcycle svg{display:block;width:100%;height:238px;overflow:visible}
+.opcycle .ring{fill:none;stroke-width:7;stroke-linecap:round}
+.opcycle.data .ring{stroke:var(--teal)}
+.opcycle.ai .ring{stroke:var(--terra)}
+.opcycle .step{fill:var(--panel);stroke-width:2.5}
+.opcycle.data .step{stroke:var(--teal)}
+.opcycle.ai .step{stroke:var(--terra)}
+.opcycle .st{font:700 17px "Noto Sans TC",sans-serif;fill:var(--ink);text-anchor:middle;dominant-baseline:middle}
+.opcycle .center-main{font:900 23px "Noto Serif TC",serif;fill:var(--ink);text-anchor:middle}
+.opcycle .center-sub{font:700 15px "Noto Sans TC",sans-serif;fill:var(--muted);text-anchor:middle}
+.opcycle .opnote{font-size:17px;line-height:1.45;color:var(--muted);text-align:center}
+.opcycle .opnote b{color:var(--ink)}
+
+/* method flow */
+.method{display:flex;align-items:stretch;gap:8px;margin-top:24px}
+.mnode{
+  flex:1;background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  padding:15px 17px;box-shadow:0 8px 24px #0000000a;
+  display:flex;flex-direction:column;gap:6px;
+}
+.mnode .mn{font-size:30px;font-weight:950;color:#2c241815;line-height:1}
+.mnode .mt{font-size:22px;font-weight:900;color:var(--terra);line-height:1.25}
+.mnode .md{font-size:16px;color:var(--muted);line-height:1.5}
+.mnode .md b{color:var(--ink)}
+.mnode.hot{background:linear-gradient(160deg,#fbf1e3,#fdfaf2);border-color:#c0562e55}
+
+/* dual timeline with arrowheads per row */
+.tl{margin-top:26px;padding:0 14px}
+.tl-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;position:relative;padding:0 30px}
+.tl-row::before{
+  content:"";position:absolute;left:66px;right:88px;top:12px;height:5px;border-radius:5px;z-index:0;
+}
+.tl-row::after{
+  content:"";position:absolute;right:64px;top:5px;width:0;height:0;
+  border-left:17px solid transparent;border-right:0 solid transparent;
+  border-top:9px solid transparent;border-bottom:9px solid transparent;z-index:1;
+}
+.tl-row.d::before{background:linear-gradient(90deg,#1f7a70,#4d7c4f)}
+.tl-row.d::after{border-left-color:#4d7c4f}
+.tl-row.a::before{background:linear-gradient(90deg,#c0562e,#a87f22)}
+.tl-row.a::after{border-left-color:#a87f22}
+.tl-row.bot{margin-top:40px}
+.tl-cap{font-size:21px;font-weight:900;letter-spacing:.1em;margin:0 0 14px}
+.tl-cap.d{color:var(--teal)}
+.tl-cap.a{color:var(--terra)}
+.tln{display:flex;flex-direction:column;align-items:center;gap:8px}
+.tln .dot{width:24px;height:24px;border-radius:999px;background:var(--paper);border:5px solid var(--teal);z-index:2;position:relative}
+.tln.hot .dot{border-color:var(--terra);box-shadow:0 0 0 7px #c0562e1f}
+.tln .y{font-size:22px;font-weight:900;color:var(--teal);letter-spacing:.02em}
+.tln.hot .y{color:var(--terra)}
+.tln .l{font-size:17px;line-height:1.45;color:var(--muted);text-align:center;max-width:260px}
+.tln .l b{color:var(--ink)}
+.tl-row.a .tln .dot{border-color:var(--terra)}
+.tl-row.bot .tln .dot{background:var(--panel)}
+
+/* overview map table */
+.map{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.maprow{
+  display:grid;grid-template-columns:1.0fr 1.15fr 1.45fr 1.4fr;gap:14px;align-items:center;
+  background:var(--panel);border:1px solid var(--line);border-radius:11px;
+  padding:9px 18px;box-shadow:0 5px 16px #00000008;
+}
+.maprow.head{background:transparent;border:none;box-shadow:none;padding:2px 18px}
+.maprow.head .mc{font-size:16px;color:var(--faint);font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+.maprow .mc{font-size:17.5px;line-height:1.4;color:var(--muted);min-width:0}
+.maprow .mc b{color:var(--ink)}
+.maprow .mc.d{font-weight:800;color:#14554e}
+.maprow .mc.a{font-weight:800;color:#8a3b1d}
+.maprow .mc.new{color:var(--red)}
+
+/* extract overview rows */
+.extrows{display:flex;flex-direction:column;gap:11px;margin-top:16px}
+.extrow{
+  display:grid;grid-template-columns:1.25fr 2.1fr 1.5fr;gap:16px;align-items:center;
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:11px 18px;box-shadow:0 6px 18px #00000009;
+}
+.extrow .en{font-size:22px;font-weight:900;color:var(--terra);line-height:1.3}
+.extrow .ea{font-size:17.5px;color:var(--muted);line-height:1.5}
+.extrow .ea b{color:var(--ink)}
+.extrow .ec{font-size:17.5px;color:var(--ink);line-height:1.5}
+.extrow .ec b{color:var(--terra)}
+.extrow .en .no{display:block;font-size:15px;color:var(--faint);font-weight:800;letter-spacing:.06em}
+
+/* transfer rows */
+.transfer{display:flex;flex-direction:column;gap:9px;margin-top:16px}
+.trow{
+  display:grid;grid-template-columns:1.35fr 2.1fr 92px 76px;gap:14px;align-items:center;
+  padding:9px 16px;border:1px solid var(--line);border-radius:12px;background:var(--panel);
+  box-shadow:0 5px 16px #00000008;
+}
+.trow .tn{font-weight:900;font-size:19.5px;line-height:1.3}
+.trow .td{font-size:16.5px;color:var(--muted);line-height:1.45}
+.trow .td b{color:var(--ink)}
+.trow .tst{text-align:center;font-weight:900;font-size:15.5px;border-radius:999px;padding:4px 8px}
+.trow .tpr{text-align:center;font-weight:900;font-size:16px;color:var(--muted)}
+.st.ok{background:var(--green-soft);color:#2f5a31}
+.st.part{background:var(--gold-soft);color:#7a5a12}
+.st.no{background:var(--red-soft);color:#8a2f2d}
+.st.na{background:#e9e2d2;color:#6f6350}
+
+/* roadmap bands */
+.bands{display:flex;flex-direction:column;gap:13px;margin-top:18px}
+.band{display:grid;grid-template-columns:210px 1fr;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel);box-shadow:0 8px 24px #0000000b}
+.band .when{display:flex;flex-direction:column;justify-content:center;gap:4px;padding:16px 20px;font-weight:900;font-size:24px}
+.band .when .wd{font-size:15px;color:var(--muted);font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.band .items{padding:13px 20px;font-size:19px;line-height:1.6;color:var(--muted);display:flex;flex-direction:column;justify-content:center}
+.band .items b{color:var(--ink)}
+.band.d30 .when{background:var(--teal-soft);color:#14554e}
+.band.d90 .when{background:var(--gold-soft);color:#7a5a12}
+.band.dp .when{background:var(--terra-soft);color:#8a3b1d}
+
+/* closing */
+.closing{display:flex;flex-direction:column;gap:16px;margin-top:26px}
+.closing .cl{font-size:25px;line-height:1.6;color:var(--muted);max-width:1720px}
+.closing .cl b{color:var(--ink)}
+.closing .cl strong{color:var(--terra)}
+
+/* ---- chrome ---- */
+.nav{position:absolute;right:46px;bottom:34px;display:flex;gap:10px;z-index:5}
+.navbtn{
+  width:46px;height:46px;border-radius:999px;border:1px solid var(--line);
+  background:var(--panel);color:var(--ink);font-size:22px;font-weight:900;cursor:pointer;
+  box-shadow:0 6px 18px #00000014;transition:transform 120ms ease,background 120ms ease;
+}
+.navbtn:hover{background:var(--panel-warm);transform:translateY(-2px)}
+.progress{position:absolute;left:0;bottom:0;height:7px;background:#0000000a;z-index:6;width:100%}
+.progress-bar{height:100%;width:16.66%;background:linear-gradient(90deg,var(--teal),var(--gold));transition:width 300ms ease}
+.counter{
+  position:absolute;right:108px;bottom:46px;font-size:17px;color:var(--faint);
+  font-weight:800;letter-spacing:.12em;z-index:5;
+}
+.hint{
+  position:absolute;left:46px;bottom:40px;z-index:5;
+  display:inline-flex;align-items:center;gap:10px;
+  background:var(--panel);border:1px solid var(--line);border-radius:999px;
+  padding:7px 18px;font-size:16px;color:var(--muted);font-weight:700;
+  box-shadow:0 6px 18px #00000010;
+}
+.hint .hsep{color:var(--line);font-weight:400}
+#overview{
+  position:absolute;inset:0;background:#2c2418f2;z-index:50;display:none;
+  overflow:auto;padding:54px 64px;
+}
+#overview.open{display:block}
+#overview h2{color:#f6f0e4;font-size:34px;margin:0 0 26px;font-weight:900}
+.ovgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.ovbtn{
+  background:#ffffff10;border:1px solid #ffffff22;border-radius:12px;color:#f6f0e4;
+  padding:16px 14px;text-align:left;cursor:pointer;font-family:inherit;
+}
+.ovbtn:hover{background:#ffffff1c;border-color:#f4b23d88}
+.ovbtn .on{font-size:14px;color:#f4b23d;font-weight:900;letter-spacing:.1em}
+.ovbtn .ot{font-size:17px;font-weight:800;line-height:1.4;margin-top:6px;color:#efe6d2}
+#help{
+  position:absolute;right:34px;bottom:100px;width:560px;
+  background:var(--ink);color:var(--paper);
+  border-radius:22px;padding:22px 26px;z-index:60;display:none;
+  box-shadow:0 24px 70px #00000066;
+}
+#help.open{display:block}
+.help-title{font-size:22px;font-weight:900;color:#f4b23d;margin-bottom:14px;letter-spacing:.04em}
+.help-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hcard{
+  display:flex;align-items:center;gap:12px;background:#ffffff0f;
+  border:1px solid #ffffff1c;border-radius:14px;padding:10px 14px;
+}
+.hcard .hicon{font-size:24px;line-height:1}
+.hcard .hkey{font-weight:900;font-size:16px;color:#f6f0e4;white-space:nowrap}
+.hcard .hkey kbd{
+  background:#ffffff1a;border-radius:7px;padding:2px 10px;font-family:inherit;
+  border:1px solid #ffffff2a;font-size:14px;
+}
+.hcard .hdesc{font-size:14px;color:#c9bda6;margin-left:auto;white-space:nowrap}
+
+/* reduced motion */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none !important;scroll-behavior:auto !important}
+}
+
+/* ---- mobile portrait: readable scroll mode ---- */
+@media (max-width:900px) and (orientation:portrait){
+  body{display:block;overflow:auto;background:var(--paper)}
+  .viewport{height:auto;overflow:visible}
+  .stage{position:relative;left:auto;top:auto;width:100%;height:auto;transform:none;box-shadow:none;background:var(--paper)}
+  html.js .slide{position:relative;inset:auto;opacity:1;pointer-events:auto;display:flex;flex-direction:column;
+    height:auto;padding:26px 20px;margin-bottom:18px;border-bottom:2px solid var(--line)}
+  .slide::before{display:none}
+  .nav,.counter,.hint,.progress{display:none}
+  .meta{font-size:15px;gap:10px}
+  .kicker{font-size:18px;margin-bottom:8px}
+  .h2{font-size:28px}
+  .sub{font-size:19px}
+  .note{font-size:18px}
+  .take{font-size:17px;padding:10px 16px;border-left-width:5px}
+  .dg{flex-direction:column;align-items:stretch}
+  .node .t{font-size:19px}
+  .node .s{font-size:16px}
+  .cols2{grid-template-columns:1fr;gap:12px}
+  .cmpbar{flex-direction:column;align-items:stretch;gap:3px}
+  .cmpbar .cbq{text-align:left;font-size:20px}
+  .cmpbar .cbd,.cmpbar .cba{font-size:16px}
+  .agenticband .ab-main{font-size:19px}
+  .agenticband .ab-sub{font-size:16px}
+  .ops-cycles{grid-template-columns:1fr;gap:12px}
+  .opcycle{min-width:0}
+  .opcycle svg{max-width:100%;height:auto}
+  .pband{flex-direction:column;gap:2px;padding:10px 14px}
+  .pairflow{flex-direction:column;gap:5px}
+  .method{flex-direction:column;gap:6px}
+  .tl-row{grid-template-columns:1fr 1fr;gap:18px 10px;padding:0}
+  .tl-row::before,.tl-row::after{display:none}
+  .tl-row.bot{margin-top:24px}
+  .tln .l{font-size:14px;max-width:none}
+  .tl-cap{font-size:16px}
+  .maprow{grid-template-columns:1fr 1fr;gap:3px 8px;padding:10px 14px}
+  .maprow.head{display:none}
+  .maprow .mc.d{grid-column:1/2}
+  .maprow .mc.a{grid-column:2/3}
+  .maprow .mc.mid{grid-column:1/3}
+  .maprow .mc.new{grid-column:1/3}
+  .extrow{grid-template-columns:1fr;gap:4px;padding:12px 14px}
+  .trow{grid-template-columns:1fr;gap:4px;padding:10px 14px}
+  .trow .tst,.trow .tpr{justify-self:start;text-align:left}
+  .band{grid-template-columns:1fr}
+  .closing .cl{font-size:19px}
+  .node .s,.card ul,.pfnode .fd,.extrow .ea,.extrow .ec,.trow .td,.maprow .mc,.mnode .md{overflow-wrap:anywhere}
+  #overview{position:fixed;padding:28px 18px}
+  .ovgrid{grid-template-columns:1fr 1fr}
+  #help{position:fixed;left:16px;right:16px;bottom:16px;width:auto;padding:18px}
+}
+
+/* ============================================================
+   TRINO-INTERNALS EXTENSIONS — warm editorial, same palette
+   ============================================================ */
+
+/* divider (chapter) slides */
+.divider{justify-content:center;align-items:flex-start}
+.divider .dnum{font-size:210px;line-height:.9;font-weight:900;color:#c0562e18;position:absolute;right:70px;bottom:10px;letter-spacing:-.04em}
+.divider .dchap{display:inline-flex;align-items:center;gap:14px;font-size:20px;font-weight:900;letter-spacing:.3em;color:var(--teal);text-transform:uppercase}
+.divider .dchap .dno{background:var(--teal);color:#fff;border-radius:999px;padding:4px 16px;letter-spacing:.1em}
+.divider h2{font-size:64px;line-height:1.22;margin:18px 0 0;font-weight:900;color:var(--ink);max-width:1500px}
+.divider .dsub{font-size:25px;line-height:1.6;color:var(--muted);margin-top:16px;max-width:1500px}
+.divider .dsub b{color:var(--ink)}
+.divider .dmap{display:flex;gap:9px;margin-top:34px;flex-wrap:wrap;max-width:1500px}
+.divider .dm{font-size:16.5px;font-weight:800;color:var(--muted);border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:5px 15px}
+.divider .dm.on{color:#8a3b1d;background:var(--terra-soft);border-color:#c0562e55}
+.divider .dm.next{color:#14554e;background:var(--teal-soft);border-color:#1f7a7044}
+
+/* code blocks (SQL / EXPLAIN) */
+.code{
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  box-shadow:0 8px 24px #0000000c;margin-top:14px;overflow:hidden;
+}
+.code .chead{display:flex;align-items:center;gap:8px;padding:6px 16px;border-bottom:1px solid var(--line);
+  background:linear-gradient(90deg,#f9f1e0,#f6f0e400);font-size:14.5px;font-weight:900;letter-spacing:.14em;color:#a87f22}
+.code .chead .cdot{width:10px;height:10px;border-radius:999px;background:var(--gold-soft);border:1px solid #a87f2244}
+.code pre{margin:0;padding:13px 18px;font-size:18px;line-height:1.5;overflow:hidden;white-space:pre-wrap;
+  font-family:ui-monospace,"Cascadia Mono",Consolas,"Noto Sans Mono CJK TC",monospace;color:#3d3425}
+.code pre b{color:var(--terra)}
+.code pre .k{color:#14554e;font-weight:700}
+.code pre .cm{color:#a2967e}
+.code pre .g{color:#2f5a31;font-weight:700}
+.code.small pre{font-size:15.5px;line-height:1.42}
+.code.tiny pre{font-size:13.8px;line-height:1.4}
+
+/* running-example query band */
+.qb{
+  margin-top:14px;border-radius:13px;background:var(--ink);color:#f6f0e4;
+  padding:10px 18px;display:flex;align-items:center;gap:14px;box-shadow:0 12px 34px #0000002e;
+}
+.qb .qtag{flex:0 0 auto;background:var(--terra);border-radius:8px;font-size:13px;font-weight:900;
+  letter-spacing:.12em;padding:3px 10px;color:#fff}
+.qb pre{margin:0;font-size:14.6px;line-height:1.4;white-space:pre-wrap;flex:1;min-width:0;
+  font-family:ui-monospace,"Cascadia Mono",Consolas,monospace}
+.qb .qnote{flex:0 0 auto;font-size:14px;color:#d8cdb8;max-width:300px;line-height:1.4}
+
+/* definition chip rows (term → meaning) */
+.defs{display:flex;flex-direction:column;gap:9px;margin-top:16px}
+.def{display:grid;grid-template-columns:300px 1fr;gap:18px;align-items:baseline;
+  border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:10px 18px;
+  box-shadow:0 6px 18px #00000009}
+.def .dt{font-family:"Noto Sans TC",sans-serif;font-size:19.5px;font-weight:900;color:var(--terra);line-height:1.3}
+.def .dt small{display:block;font-size:12.5px;color:var(--faint);font-weight:800;letter-spacing:.08em}
+.def .dd{font-size:17.5px;color:var(--muted);line-height:1.5}
+.def .dd b{color:var(--ink)}
+.def.alt .dt{color:var(--teal)}
+.def.alt{background:linear-gradient(160deg,#f6fbf9,#fdfaf2)}
+
+/* symptom rows (diagnosis mapping) */
+.srow{
+  display:grid;grid-template-columns:1.35fr 2.3fr 2.15fr 120px;gap:16px;align-items:center;
+  border:1px solid var(--line);border-radius:12px;background:var(--panel);
+  padding:9px 18px;box-shadow:0 5px 16px #00000008;
+}
+.srow .sn{font-weight:900;font-size:19px;line-height:1.35}
+.srow .sm{font-size:16.5px;color:var(--muted);line-height:1.5}
+.srow .sm b{color:var(--ink)}
+.srow .sa{font-size:16.5px;color:var(--ink);line-height:1.5}
+.srow .sa b{color:var(--terra)}
+.srow .sl{justify-self:end;font-weight:900;font-size:14.5px;border-radius:999px;padding:4px 12px;white-space:nowrap}
+.sl.lv1{background:var(--teal-soft);color:#14554e}
+.sl.lv2{background:var(--gold-soft);color:#7a5a12}
+.sl.lv3{background:var(--red-soft);color:#8a2f2d}
+
+/* quiz cards */
+.quiz{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+.qcard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 20px;
+  box-shadow:0 8px 24px #0000000a;display:flex;flex-direction:column;gap:8px}
+.qcard .qn{font-size:15px;font-weight:900;color:var(--terra);letter-spacing:.1em}
+.qcard .qt{font-size:18.5px;font-weight:800;line-height:1.45;color:var(--ink)}
+.qcard .qopts{display:flex;flex-direction:column;gap:4px;margin-top:2px}
+.qcard .qo{font-size:15.8px;line-height:1.4;color:var(--muted)}
+.qcard .qo b{color:var(--ink);font-weight:800}
+.qcard .qo.codeq{font-family:ui-monospace,Consolas,monospace;font-size:14.6px}
+
+/* answers */
+.anslist{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.ans{display:grid;grid-template-columns:52px 1fr;gap:14px;align-items:start;
+  border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:8px 18px}
+.ans .an{font-weight:900;font-size:17px;color:var(--faint);padding-top:1px}
+.ans .at{font-size:16.5px;color:var(--muted);line-height:1.5}
+.ans .at b{color:var(--ink)}
+.ans.ok{background:linear-gradient(90deg,#eef5ec,#fdfaf2);border-color:#4d7c4f44}
+.ans.ok .an{color:var(--green)}
+.ans .aopt{color:#14554e;font-weight:900}
+
+/* glossary */
+.gloss{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.gterm{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 16px;
+  box-shadow:0 5px 16px #00000007;display:flex;flex-direction:column;gap:2px}
+.gterm .gt{font-size:17px;font-weight:900;color:var(--teal)}
+.gterm .gd{font-size:14.6px;color:var(--muted);line-height:1.45}
+.gterm .gd b{color:var(--ink)}
+
+/* big-number fact strip */
+.facts{display:flex;gap:14px;margin-top:16px;flex-wrap:wrap}
+.fact{flex:1;min-width:250px;background:linear-gradient(150deg,#2c2418,#4a3a26);color:#f6f0e4;
+  border-radius:16px;padding:14px 20px;box-shadow:0 12px 32px #00000026}
+.fact .fv{font-size:30px;font-weight:900;color:#e9c778;font-family:"Noto Serif TC",serif;line-height:1.1}
+.fact .fl{font-size:15px;color:#d8cdb8;line-height:1.5;margin-top:5px}
+.fact .fl b{color:#f6f0e4}
+.fact .fv small{font-size:17px;color:#d8cdb8;font-weight:700}
+
+/* horizontal mini-progress for divider chapter maps (reuse .dm) */
+
+/* icon row under headers */
+.icrow{display:flex;align-items:center;gap:12px;margin-top:6px}
+
+/* term pill inside prose */
+.pill{display:inline-block;border-radius:7px;background:var(--teal-soft);color:#14554e;
+  font-weight:800;font-size:.86em;padding:0 8px;line-height:1.7}
+
+/* generic vertical spacer helpers */
+.gap6{margin-top:6px}.gap8{margin-top:8px}.gap10{margin-top:10px}.gap12{margin-top:12px}
+.gap16{margin-top:16px}.gap18{margin-top:18px}.gap20{margin-top:20px}.gap24{margin-top:24px}
+.mx{max-width:1720px}
+.cent{text-align:center}
+
+/* small label above diagram zones */
+.zone{font-size:14.5px;font-weight:900;letter-spacing:.18em;color:var(--faint);text-transform:uppercase;margin:0}
+.zone.terra{color:var(--terra)}
+
+/* keep table-like rows from shrinking */
+.flexrow{display:flex;gap:14px;align-items:stretch}
+.flexrow>*{flex-shrink:0}
+
+/* mobile portrait additions */
+@media (max-width:900px) and (orientation:portrait){
+  .divider .dnum{font-size:110px;right:16px;bottom:8px}
+  .divider h2{font-size:32px}
+  .divider .dsub{font-size:19px}
+  .divider .dmap{gap:6px;margin-top:18px}
+  .divider .dm{font-size:14px;padding:4px 11px}
+  .qb{flex-direction:column;align-items:flex-start;gap:8px;padding:12px 14px}
+  .qb pre{font-size:13px;max-width:100%}
+  .qb .qnote{font-size:13px;max-width:100%}
+  .code pre{font-size:14px;overflow-x:auto;white-space:pre}
+  .code.small pre{font-size:13px}
+  .code.tiny pre{font-size:11.5px}
+  .def{grid-template-columns:1fr;gap:4px;padding:10px 14px}
+  .def .dt{font-size:16.5px}
+  .def .dd{font-size:15.5px}
+  .srow{grid-template-columns:1fr;gap:4px;padding:10px 14px}
+  .srow .sl{justify-self:start}
+  .quiz{grid-template-columns:1fr;gap:12px}
+  .ans{grid-template-columns:34px 1fr;padding:8px 12px}
+  .gloss{grid-template-columns:1fr 1fr;gap:10px}
+  .facts{flex-direction:column}
+  .flexrow{flex-direction:column}
+  .gterm .gd{overflow-wrap:anywhere}
+  .qcard .qo,.qcard .qt{overflow-wrap:anywhere}
+  .def .dd,.srow .sm,.srow .sa,.ans .at{overflow-wrap:anywhere}
+}
+
+/* quiz compaction (overflow fix pass) */
+.quiz{gap:11px;margin-top:10px}
+.qcard{padding:9px 15px;gap:5px}
+.qcard .qn{font-size:13px;margin-bottom:-1px}
+.qcard .qt{font-size:16px;line-height:1.32}
+.qcard .qopts{gap:2px;margin-top:0}
+.qcard .qo{font-size:13.8px;line-height:1.3}
+.qcard .qo b{font-weight:800}
+
+/* divider ghost numeral: anchor top-right, never affects scroll metrics */
+.divider .dnum{bottom:auto;top:34px}
+/* mobile: keep grid children from forcing page overflow (s19 code card etc.) */
+@media (max-width:900px) and (orientation:portrait){
+  .cols2>*,.quiz>*,.gloss>*{min-width:0;max-width:100%}
+  .card{overflow:hidden}
+}
+
+</style>
+</head>
+<body>
+<script>document.documentElement.classList.add('js')</script>
+<div class="viewport">
+<div class="stage" id="stage">
+<!-- ============ 01 COVER ============ -->
+<section class="slide" id="s1" aria-labelledby="s1t">
+  <p class="meta"><span class="num">01</span><span class="part">TRINO 467 · DATA PLATFORM · 內部教材</span><span class="part">資料工程師進修</span></p>
+  <h2 class="h2" id="s1t" style="font-size:84px;margin-top:88px">Trino 底層運作原理：<br><strong>從一條 SQL 到結果</strong></h2>
+  <p class="sub" style="font-size:29px;margin-top:30px">給<b>每天都在用 Trino</b> 的資料工程師。不是操作手冊——是把「你送出查詢之後，<br>叢集裡到底發生了什麼事」講到你能<b>解釋給別人聽</b>。</p>
+  <div class="dg center" style="margin-top:40px;flex-wrap:wrap;gap:10px">
+    <span class="chip d">Coordinator / Worker</span><span class="chip a">Stage / Task / Driver</span>
+    <span class="chip d">Page / Exchange</span><span class="chip a">CBO / Dynamic Filter</span>
+    <span class="chip d">Connector / Pushdown</span><span class="chip a">Spill / Task Retry</span>
+  </div>
+  <div class="facts" style="margin-top:52px">
+    <div class="fact"><div class="fv">1 條 SQL</div><div class="fl">貫穿全場的範例查詢：<b>join × group by × order by × limit</b>，每一章都用它示範</div></div>
+    <div class="fact"><div class="fv">7 章 · 42 頁</div><div class="fl">架構 → 生命週期 → 執行引擎 → 記憶體／容錯 → Connector → 診斷 → 驗收測驗</div></div>
+    <div class="fact"><div class="fv">90+ 分目標</div><div class="fl">每個關鍵機制都對到 <b>Trino 467 官方文件</b>，可反覆研讀、可被驗證</div></div>
+  </div>
+  <div class="take" style="margin-top:34px">看完這份，你看到 <b>EXPLAIN ANALYZE、記憶體爆掉的 error、慢查詢</b>，都能講出「為什麼」——而不只是「重跑一次」。</div>
+</section>
+
+<!-- ============ 02 HOW TO STUDY ============ -->
+<section class="slide" id="s2" aria-labelledby="s2t">
+  <p class="meta"><span class="num">02</span><span class="part">這份教材怎麼用</span></p>
+  <h2 class="h2" id="s2t">設計成可以<strong>反覆 review</strong>：順讀、對照、驗收、測驗</h2>
+  <div class="method">
+    <div class="mnode"><div class="mn">①</div><div class="mt">先順讀一次</div><div class="md">40 分鐘整份跑完，<b>不懂的先跳過</b>——後面的章節會回頭解釋前面的名詞</div></div>
+    <div class="arrow">→</div>
+    <div class="mnode"><div class="mn">②</div><div class="mt">動手對照</div><div class="md">用<b>第 04 頁的範例 SQL</b>在測試環境跑 <span class="pill">EXPLAIN</span> 與 <span class="pill">EXPLAIN ANALYZE</span>，把真實輸出對到書上的圖</div></div>
+    <div class="arrow">→</div>
+    <div class="mnode hot"><div class="mn">③</div><div class="mt">每章驗收</div><div class="md">每一章結尾都有一句「<b>驗收點</b>」——能用自己的話回答，才進下一章</div></div>
+    <div class="arrow">→</div>
+    <div class="mnode"><div class="mn">④</div><div class="mt">最後測驗</div><div class="md">第 44–46 頁有<b>20 題自我測驗＋解答</b>；錯的題目，回去翻對應章節重看</div></div>
+  </div>
+  <div class="map" style="margin-top:22px">
+    <div class="maprow head"><div class="mc">章節</div><div class="mc">核心問題</div><div class="mc">你將能回答</div><div class="mc">關鍵機制</div></div>
+    <div class="maprow"><div class="mc d">1 · 定位與架構</div><div class="mc mid">Trino 是什麼？誰在負責什麼？</div><div class="mc">Coordinator 為何不碰資料</div><div class="mc new">Coordinator · Worker · Connector</div></div>
+    <div class="maprow"><div class="mc d">2 · 查詢生命週期</div><div class="mc mid">一條 SQL 怎麼變成執行計畫？</div><div class="mc">planner 在哪裡呼叫資料來源</div><div class="mc new">Parse · Analyze · CBO · Pushdown</div></div>
+    <div class="maprow"><div class="mc d">3 · 執行引擎</div><div class="mc mid">計畫怎麼被平行執行？</div><div class="mc">Stage/Task/Driver 差在哪</div><div class="mc new">Split · Operator · Page · Exchange</div></div>
+    <div class="maprow"><div class="mc d">4 · 記憶體與容錯</div><div class="mc mid">為什麼 query 會被 kill？</div><div class="mc">讀懂記憶體錯誤訊息</div><div class="mc new">Memory pool · Spill · Task Retry</div></div>
+    <div class="maprow"><div class="mc d">5 · Connector</div><div class="mc mid">Iceberg 的資料是怎麼被讀的？</div><div class="mc">哪些動作決定讀多少 bytes</div><div class="mc new">Split · Parquet pruning · Commit</div></div>
+    <div class="maprow"><div class="mc d">6 · 效能診斷</div><div class="mc mid">慢查詢怎麼歸因？</div><div class="mc">症狀 → 機制 → 動作</div><div class="mc new">EXPLAIN ANALYZE · 成本模型</div></div>
+    <div class="maprow"><div class="mc d">7 · 驗收</div><div class="mc mid">我真的懂了嗎？</div><div class="mc">20 題測驗 15/20 以上</div><div class="mc new">名詞速查 · 測驗解答</div></div>
+  </div>
+  <div class="take">這份是 <b>reference 教材不是投影片</b>：第一遍順讀建立地圖，之後遇到慢查詢、error、調參數，回來查對應章節。</div>
+</section>
+
+<!-- ============ 03 MENTAL MODEL ============ -->
+<section class="slide" id="s3" aria-labelledby="s3t">
+  <p class="meta"><span class="num">03</span><span class="part">先給總地圖</span></p>
+  <h2 class="h2" id="s3t">整份教材只講一件事：<strong>SQL 如何被拆成可平行的小工作，資料如何流動</strong></h2>
+  <svg viewBox="0 0 1720 470" style="width:100%;height:auto;margin-top:16px" role="img" aria-label="Trino 總體心智模型：SQL 世界、工作世界、資料世界">
+    <defs>
+      <marker id="mzArrow" markerWidth="12" markerHeight="12" refX="9" refY="3.5" orient="auto"><path d="M0,0 L0,7 L11,3.5 z" fill="#c0562e"/></marker>
+      <marker id="mzArrowT" markerWidth="12" markerHeight="12" refX="9" refY="3.5" orient="auto"><path d="M0,0 L0,7 L11,3.5 z" fill="#1f7a70"/></marker>
+    </defs>
+    <!-- lane 1: SQL world -->
+    <rect x="14" y="10" width="1692" height="120" rx="18" fill="#fdfaf2" stroke="#e4d9c2"/>
+    <text x="40" y="50" font-size="20" font-weight="900" fill="#14554e" font-family="Noto Sans TC,sans-serif">① SQL 世界（Coordinator · 只做計畫，不碰資料）</text>
+    <g font-family="Noto Sans TC,sans-serif" font-size="19" font-weight="800">
+      <rect x="40" y="66" width="196" height="46" rx="12" fill="#eef6f1" stroke="#1f7a7055"/><text x="138" y="95" text-anchor="middle" fill="#2c2418">解析 SQL</text>
+      <text x="252" y="95" font-size="24" fill="#c0562e">→</text>
+      <rect x="268" y="66" width="196" height="46" rx="12" fill="#eef6f1" stroke="#1f7a7055"/><text x="366" y="95" text-anchor="middle" fill="#2c2418">查 metadata</text>
+      <text x="480" y="95" font-size="24" fill="#c0562e">→</text>
+      <rect x="496" y="66" width="246" height="46" rx="12" fill="#eef6f1" stroke="#1f7a7055"/><text x="619" y="95" text-anchor="middle" fill="#2c2418">規劃＋最佳化</text>
+      <text x="758" y="95" font-size="24" fill="#c0562e">→</text>
+      <rect x="774" y="66" width="266" height="46" rx="12" fill="#eef6f1" stroke="#1f7a7055"/><text x="907" y="95" text-anchor="middle" fill="#2c2418">拆成 stage＋split</text>
+      <text x="1056" y="95" font-size="24" fill="#c0562e">→</text>
+      <rect x="1072" y="66" width="196" height="46" rx="12" fill="#eef6f1" stroke="#1f7a7055"/><text x="1170" y="95" text-anchor="middle" fill="#2c2418">分派給 worker</text>
+      <text x="1284" y="95" font-size="24" fill="#c0562e">→</text>
+      <rect x="1300" y="66" width="380" height="46" rx="12" fill="#f9f1e0" stroke="#a87f2255"/><text x="1490" y="95" text-anchor="middle" fill="#2c2418">監控進度 → 結果回 client</text>
+    </g>
+    <!-- vertical arrows to workers -->
+    <line x1="400" y1="130" x2="400" y2="170" stroke="#c0562e" stroke-width="3" marker-end="url(#mzArrow)"/>
+    <line x1="920" y1="130" x2="920" y2="170" stroke="#c0562e" stroke-width="3" marker-end="url(#mzArrow)"/>
+    <line x1="1330" y1="130" x2="1330" y2="170" stroke="#c0562e" stroke-width="3" marker-end="url(#mzArrow)"/>
+    <text x="560" y="160" font-size="16" font-weight="800" fill="#8a3b1d" font-family="Noto Sans TC,sans-serif">split（小工作）＋執行計畫</text>
+    <!-- lane 2: work world -->
+    <rect x="14" y="176" width="1692" height="146" rx="18" fill="#f6f0e4" stroke="#e4d9c2"/>
+    <text x="40" y="214" font-size="20" font-weight="900" fill="#8a3b1d" font-family="Noto Sans TC,sans-serif">② 工作世界（Workers × N · 每個 worker 同時跑很多查詢的 task）</text>
+    <g font-family="Noto Sans TC,sans-serif" font-size="17">
+      <rect x="40" y="232" width="380" height="74" rx="14" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="60" y="258" font-size="18" font-weight="900" fill="#2c2418">Task（一個 split 一份工）</text>
+      <text x="60" y="286" fill="#6f6350">Driver 流水線：讀 split → 過濾 → 聚合 → 輸出 page</text>
+      <rect x="460" y="232" width="380" height="74" rx="14" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="480" y="258" font-size="18" font-weight="900" fill="#2c2418">Task（一個 split 一份工）</text>
+      <text x="480" y="286" fill="#6f6350">Driver 流水線：join 小表 → 聚合 → 輸出 page</text>
+      <rect x="880" y="232" width="380" height="74" rx="14" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="900" y="258" font-size="18" font-weight="900" fill="#2c2418">Task（一個 split 一份工）</text>
+      <text x="900" y="286" fill="#6f6350">Driver 流水線：讀 split → 過濾 → 輸出 page</text>
+      <text x="1278" y="252" fill="#6f6350" font-size="19">⇄ 資料以 page（columnar）</text>
+      <text x="1278" y="278" fill="#6f6350" font-size="19">在 worker 之間交換</text>
+    </g>
+    <!-- connector reading arrows -->
+    <line x1="140" y1="322" x2="140" y2="352" stroke="#1f7a70" stroke-width="3" marker-end="url(#mzArrowT)"/>
+    <line x1="700" y1="322" x2="700" y2="352" stroke="#1f7a70" stroke-width="3" marker-end="url(#mzArrowT)"/>
+    <text x="250" y="344" font-size="16" font-weight="800" fill="#14554e" font-family="Noto Sans TC,sans-serif">Connector 產生 split、把外部資料讀成 page</text>
+    <!-- lane 3: data world -->
+    <rect x="14" y="356" width="1692" height="104" rx="18" fill="#fdfaf2" stroke="#e4d9c2"/>
+    <text x="40" y="394" font-size="20" font-weight="900" fill="#1f7a70" font-family="Noto Sans TC,sans-serif">③ 資料世界（Connector 後面：儲存與中繼資料都在 Trino 之外）</text>
+    <g font-family="Noto Sans TC,sans-serif" font-size="18">
+      <rect x="40" y="410" width="300" height="40" rx="10" fill="#e0ecdc" stroke="#4d7c4f55"/><text x="190" y="436" text-anchor="middle" font-weight="800" fill="#2f5a31">Iceberg 表（HMS catalog）</text>
+      <rect x="380" y="410" width="300" height="40" rx="10" fill="#e0ecdc" stroke="#4d7c4f55"/><text x="530" y="436" text-anchor="middle" font-weight="800" fill="#2f5a31">Parquet 檔案（S3／MinIO）</text>
+      <rect x="720" y="410" width="300" height="40" rx="10" fill="#e0ecdc" stroke="#4d7c4f55"/><text x="870" y="436" text-anchor="middle" font-weight="800" fill="#2f5a31">Kafka topic</text>
+      <rect x="1060" y="410" width="300" height="40" rx="10" fill="#e0ecdc" stroke="#4d7c4f55"/><text x="1210" y="436" text-anchor="middle" font-weight="800" fill="#2f5a31">PostgreSQL／其他</text>
+      <rect x="1400" y="406" width="280" height="48" rx="12" fill="#2c2418"/><text x="1540" y="437" text-anchor="middle" font-size="17" font-weight="800" fill="#e9c778">同一個 SQL 語法，接不同資料</text>
+    </g>
+  </svg>
+  <div class="cols2" style="margin-top:14px">
+    <div class="card"><h4 class="d">三個世界的分工</h4><ul>
+      <li><b>Coordinator</b>：把 SQL 變成計畫與 split——<b>不做資料搬運</b>（第 1–2 章）</li>
+      <li><b>Worker</b>：執行 task、交換 page——真正的算力所在（第 3 章）</li>
+      <li><b>Connector</b>：Trino 與外部世界的翻譯層（第 5 章）</li></ul></div>
+    <div class="card"><h4 class="a">三個貫穿全場的關鍵字</h4><ul>
+      <li><b>Split</b>：最小工作單位，決定平行度</li>
+      <li><b>Task / Driver</b>：怎麼執行一份工作</li>
+      <li><b>Page</b>：資料在 node 間流動的格式</li></ul></div>
+  </div>
+  <div class="take">一句話記住 Trino：<b>把 SQL 拆成可平行的小工作（split／task），資料以 columnar page 在 node 間流動；Coordinator 只負責計畫與調度</b>。</div>
+</section>
+
+<!-- ============ 04 RUNNING EXAMPLE ============ -->
+<section class="slide" id="s4" aria-labelledby="s4t">
+  <p class="meta"><span class="num">04</span><span class="part">貫穿範例</span></p>
+  <h2 class="h2" id="s4t">一條 SQL 走到底：<strong>範例查詢 Q</strong>（後面每一章都用它示範）</h2>
+  <div class="code" style="margin-top:18px">
+    <div class="chead"><span class="cdot"></span>範例查詢 Q —— 找出 2025 年各國 GMV 前五名</div>
+    <pre><span class="k">SELECT</span> n.name AS nation, count(*) AS order_cnt, round(sum(o.totalprice), 2) AS gmv
+<span class="k">FROM</span> wh.tpch.orders   o
+<span class="k">JOIN</span> wh.tpch.customer c <span class="k">ON</span> o.custkey  = c.custkey
+<span class="k">JOIN</span> wh.tpch.nation   n <span class="k">ON</span> c.nationkey = n.nationkey
+<span class="k">WHERE</span> o.orderdate &gt;= <span class="g">DATE '2025-01-01'</span> <span class="k">AND</span> o.orderdate &lt; <span class="g">DATE '2026-01-01'</span>
+<span class="k">GROUP BY</span> n.name
+<span class="k">ORDER BY</span> gmv <span class="k">DESC</span>
+<span class="k">LIMIT</span> 5</pre>
+  </div>
+  <div class="defs" style="margin-top:14px">
+    <div class="def"><div class="dt">假設資料集<small>WH · 教材假設，非實際 Production 數字</small></div><div class="dd"><b>orders</b>：1.5 億列、約 600 GB Parquet、以 <span class="pill">orderdate 月份</span>分區（Iceberg，catalog 掛在 HMS，檔案在物件儲存）｜<b>customer</b>：150 萬列｜<b>nation</b>：25 列——<b>一大、一中、一極小</b>三種尺寸</div></div>
+    <div class="def alt"><div class="dt">為什麼選它<small>涵蓋面</small></div><div class="dd">一次涵蓋完整機制：<b>WHERE → 分區剪枝／pushdown</b>、<b>JOIN（大小表策略不同）</b>、<b>GROUP BY → 兩階段聚合</b>、<b>ORDER BY + LIMIT</b>、以及背後的 <b>split 產生、exchange shuffle、記憶體與容錯</b></div></div>
+  </div>
+  <div class="take">你在 Production 寫的每一條查詢，走的都是同一條路。<b>看懂 Q 在每一章被怎麼處理，就等於看懂所有查詢</b>。</div>
+</section>
+
+<!-- ============ 05 DIVIDER PART 1 ============ -->
+<section class="slide divider" id="s5" aria-labelledby="s5t">
+  <span class="dnum">01</span>
+  <p class="dchap"><span class="dno">PART 1</span>定位與架構</p>
+  <h2 id="s5t">Trino 不是資料庫：<strong>它是不擁有資料的 SQL 執行層</strong></h2>
+  <p class="dsub">先搞清楚誰是 Coordinator、誰是 Worker、Connector 在哪裡——<b>後面所有機制都是這張分工圖的延伸</b>。</p>
+  <div class="dmap">
+    <span class="dm on">01 · 架構圖</span><span class="dm next">02 · Coordinator vs Worker</span><span class="dm">03 · Connector 初識</span><span class="dm">04 · 引擎定位對照</span>
+  </div>
+  <div class="take" style="margin-top:34px">驗收點：<b>為什麼 Coordinator 不碰資料、卻能知道每個查詢的進度？</b>（答不出來就重看 06–07 頁）</div>
+</section>
+
+<!-- ============ 06 ARCHITECTURE ============ -->
+<section class="slide" id="s6" aria-labelledby="s6t">
+  <p class="meta"><span class="num">06</span><span class="part">PART 1 · 定位與架構 ①</span></p>
+  <h2 class="h2" id="s6t">三種角色：<strong>Coordinator 計畫，Worker 執行，Connector 翻譯</strong></h2>
+  <svg viewBox="0 0 1720 480" style="width:100%;height:auto;margin-top:14px" role="img" aria-label="Trino 系統架構圖">
+    <defs>
+      <marker id="ar6" markerWidth="12" markerHeight="12" refX="9" refY="3.5" orient="auto"><path d="M0,0 L0,7 L11,3.5 z" fill="#c0562e"/></marker>
+      <marker id="ar6t" markerWidth="12" markerHeight="12" refX="9" refY="3.5" orient="auto"><path d="M0,0 L0,7 L11,3.5 z" fill="#1f7a70"/></marker>
+    </defs>
+    <!-- client -->
+    <rect x="40" y="60" width="230" height="120" rx="16" fill="#fdfaf2" stroke="#e4d9c2"/>
+    <text x="155" y="95" text-anchor="middle" font-size="20" font-weight="900" fill="#2c2418" font-family="Noto Sans TC,sans-serif">Client</text>
+    <text x="155" y="124" text-anchor="middle" font-size="16" fill="#6f6350" font-family="Noto Sans TC,sans-serif">trino CLI / JDBC</text>
+    <text x="155" y="148" text-anchor="middle" font-size="16" fill="#6f6350" font-family="Noto Sans TC,sans-serif">Superset / BI / API</text>
+    <text x="155" y="172" text-anchor="middle" font-size="15" fill="#a2967e" font-family="Noto Sans TC,sans-serif">HTTP 協定</text>
+    <!-- coordinator -->
+    <rect x="420" y="30" width="420" height="170" rx="18" fill="#eef6f1" stroke="#1f7a7055"/>
+    <text x="630" y="66" text-anchor="middle" font-size="23" font-weight="900" fill="#14554e" font-family="Noto Sans TC,sans-serif">Coordinator</text>
+    <text x="630" y="96" text-anchor="middle" font-size="16.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">parser → analyzer → planner → optimizer → scheduler</text>
+    <text x="630" y="122" text-anchor="middle" font-size="16.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">metadata 查詢（connector）· 產生 splits · 分派工作</text>
+    <text x="630" y="148" text-anchor="middle" font-size="16.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">監控 task 進度 · 把結果串流回 client</text>
+    <rect x="470" y="162" width="320" height="30" rx="9" fill="#fdfaf2" stroke="#1f7a7044"/>
+    <text x="630" y="182" text-anchor="middle" font-size="15.5" fill="#14554e" font-family="Noto Sans TC,sans-serif">Discovery service：節點註冊、心跳、彼此發現</text>
+    <!-- client -> coordinator arrows -->
+    <line x1="272" y1="120" x2="414" y2="120" stroke="#c0562e" stroke-width="3.5" marker-end="url(#ar6)"/>
+    <line x1="414" y1="150" x2="272" y2="150" stroke="#c0562e" stroke-width="3.5" stroke-dasharray="7 6" marker-end="url(#ar6)"/>
+    <text x="343" y="108" text-anchor="middle" font-size="15.5" font-weight="800" fill="#8a3b1d" font-family="Noto Sans TC,sans-serif">提交 SQL</text>
+    <text x="343" y="178" text-anchor="middle" font-size="15.5" font-weight="800" fill="#8a3b1d" font-family="Noto Sans TC,sans-serif">結果串流</text>
+    <!-- coordinator -> workers -->
+    <line x1="600" y1="200" x2="600" y2="252" stroke="#c0562e" stroke-width="3.5" marker-end="url(#ar6)"/>
+    <line x1="700" y1="200" x2="700" y2="252" stroke="#c0562e" stroke-width="3.5" marker-end="url(#ar6)"/>
+    <text x="766" y="232" font-size="16" font-weight="800" fill="#8a3b1d" font-family="Noto Sans TC,sans-serif">分派 split · 收集進度（HTTP）</text>
+    <!-- workers -->
+    <g>
+      <rect x="420" y="258" width="262" height="150" rx="16" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="551" y="292" text-anchor="middle" font-size="19" font-weight="900" fill="#2c2418" font-family="Noto Sans TC,sans-serif">Worker 1</text>
+      <text x="551" y="320" text-anchor="middle" font-size="15.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">task × N（同時跑很多查詢）</text>
+      <text x="551" y="346" text-anchor="middle" font-size="15.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">driver 流水線執行 split</text>
+      <text x="551" y="372" text-anchor="middle" font-size="15.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">與其他 worker 交換 page</text>
+      <rect x="460" y="382" width="182" height="20" rx="8" fill="#f9f1e0"/>
+      <text x="551" y="397" text-anchor="middle" font-size="13.5" fill="#7a5a12" font-weight="800" font-family="Noto Sans TC,sans-serif">node 記憶體：task 共用</text>
+      <rect x="712" y="258" width="262" height="150" rx="16" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="843" y="292" text-anchor="middle" font-size="19" font-weight="900" fill="#2c2418" font-family="Noto Sans TC,sans-serif">Worker 2 …</text>
+      <text x="843" y="320" text-anchor="middle" font-size="15.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">task × N</text>
+      <rect x="752" y="382" width="182" height="20" rx="8" fill="#f9f1e0"/>
+      <text x="843" y="397" text-anchor="middle" font-size="13.5" fill="#7a5a12" font-weight="800" font-family="Noto Sans TC,sans-serif">node 記憶體：task 共用</text>
+      <rect x="1004" y="258" width="262" height="150" rx="16" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="1135" y="292" text-anchor="middle" font-size="19" font-weight="900" fill="#2c2418" font-family="Noto Sans TC,sans-serif">Worker N</text>
+      <text x="1135" y="320" text-anchor="middle" font-size="15.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">task × N</text>
+      <rect x="1044" y="382" width="182" height="20" rx="8" fill="#f9f1e0"/>
+      <text x="1135" y="397" text-anchor="middle" font-size="13.5" fill="#7a5a12" font-weight="800" font-family="Noto Sans TC,sans-serif">node 記憶體：task 共用</text>
+    </g>
+    <!-- worker-to-worker exchange -->
+    <line x1="682" y1="330" x2="712" y2="330" stroke="#c0562e" stroke-width="3"/>
+    <line x1="974" y1="330" x2="1004" y2="330" stroke="#c0562e" stroke-width="3"/>
+    <text x="860" y="448" font-size="15" fill="#a2967e" text-anchor="middle" font-family="Noto Sans TC,sans-serif">（page 交換直接走 worker↔worker，不經過 coordinator；資料從 storage 直接被 worker 讀）</text>
+    <!-- catalogs -->
+    <rect x="1300" y="60" width="380" height="140" rx="18" fill="#f3e0d3" stroke="#c0562e55"/>
+    <text x="1490" y="94" text-anchor="middle" font-size="22" font-weight="900" fill="#8a3b1d" font-family="Noto Sans TC,sans-serif">Catalog（設定檔）</text>
+    <text x="1490" y="124" text-anchor="middle" font-size="16" fill="#6f6350" font-family="Noto Sans TC,sans-serif">每個 catalog = 一個 Connector 實例</text>
+    <text x="1490" y="150" text-anchor="middle" font-size="16" fill="#6f6350" font-family="Noto Sans TC,sans-serif">iceberg.properties → Iceberg Connector</text>
+    <text x="1490" y="176" text-anchor="middle" font-size="16" fill="#6f6350" font-family="Noto Sans TC,sans-serif">hive.properties / kafka.properties …</text>
+    <line x1="1490" y1="200" x2="1490" y2="240" stroke="#1f7a70" stroke-width="3.5" marker-end="url(#ar6t)"/>
+    <!-- storage -->
+    <rect x="1290" y="246" width="400" height="162" rx="18" fill="#e0ecdc" stroke="#4d7c4f55"/>
+    <text x="1490" y="280" text-anchor="middle" font-size="20" font-weight="900" fill="#2f5a31" font-family="Noto Sans TC,sans-serif">外部世界（Trino 不管）</text>
+    <text x="1490" y="310" text-anchor="middle" font-size="16" fill="#4a5a3f" font-family="Noto Sans TC,sans-serif">HMS 4（中繼資料）· Iceberg 1.5.2</text>
+    <text x="1490" y="334" text-anchor="middle" font-size="16" fill="#4a5a3f" font-family="Noto Sans TC,sans-serif">物件儲存（S3／MinIO）</text>
+    <text x="1490" y="358" text-anchor="middle" font-size="16" fill="#4a5a3f" font-family="Noto Sans TC,sans-serif">Kafka / 其他資料源</text>
+    <text x="1490" y="388" text-anchor="middle" font-size="15" fill="#4a5a3f" font-weight="800" font-family="Noto Sans TC,sans-serif">資料從 storage 直接被 worker 讀，不走 coordinator</text>
+  </svg>
+  <div class="take" style="margin-top:12px">架構關鍵：<b>coordinator 與 worker 都不「擁有」資料</b>；資料在 Connector 後面。要加算力＝加 worker，與資料搬不搬家無關。</div>
+</section>
+
+<!-- ============ 07 COORDINATOR VS WORKER ============ -->
+<section class="slide" id="s7" aria-labelledby="s7t">
+  <p class="meta"><span class="num">07</span><span class="part">PART 1 · 定位與架構 ②</span></p>
+  <h2 class="h2" id="s7t">Coordinator 是「大腦」，Worker 是「肌肉」——<strong>資料永遠不經過大腦</strong></h2>
+  <div class="cols2" style="margin-top:16px">
+    <div class="card">
+      <h4 class="d">Coordinator：計畫與調度</h4>
+      <div class="ct">每條查詢都先在這裡「想清楚」</div>
+      <ul>
+        <li><b>Parse → Analyze → Plan → Optimize</b>：把 SQL 變成執行計畫（耗 CPU 的階段都在這）</li>
+        <li>問 Connector 要 metadata（表結構、分區、統計值），把計畫最佳化</li>
+        <li>把計畫拆成 stage，產生 split，<b>分派給 worker</b> 並持續收進度</li>
+        <li>執行結束後把結果串流回 Client；<b>查詢狀態存在 coordinator 記憶體</b></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 class="a">Worker：真正的執行者</h4>
+      <div class="ct">每顆 worker 同時服務很多條查詢</div>
+      <ul>
+        <li>接收分派來的 split，在 <b>task／driver 流水線</b>裡執行（第 3 章）</li>
+        <li>需要時<b>直接從 Connector 讀資料</b>（S3／MinIO／Kafka……），不經過 coordinator</li>
+        <li>與其他 worker 之間以 <b>exchange 交換資料</b>（join 的 shuffle 就是這種）</li>
+        <li>定期回報 task 進度；記憶體、spill 都在 worker 這一層發生</li>
+      </ul>
+    </div>
+  </div>
+  <div class="pband cur" style="margin-top:14px"><span class="pbl">分工的結果</span>要加算力就<b>加 worker</b>（水平擴展）；查詢變多、變複雜時先忙起來的是 <b>coordinator 的 CPU</b>（規劃＋調度＋metadata 呼叫）。</div>
+  <div class="pband same" style="margin-top:11px"><span class="pbl">故障語義</span>worker 掛掉 → 它身上的 task 失敗（第 4 章 retry 會接手）；<b>coordinator 掛掉 → 執行中的查詢全部中止</b>——所以 coordinator 只做「輕量決策」，重活全在 worker。</div>
+  <div class="facts" style="margin-top:13px">
+    <div class="fact"><div class="fv">Coordinator 的 CPU 熱點</div><div class="fl">parse／analyze／最佳化／切 splits／排程＋metadata 呼叫——<b>小查詢大量發生時最先滿載</b></div></div>
+    <div class="fact"><div class="fv">Worker 的 CPU 熱點</div><div class="fl">讀檔、過濾、join、聚合、page 交換、spill——<b>真正的大數運算都在這</b></div></div>
+    <div class="fact"><div class="fv">擴展方向不同</div><div class="fl">加算力＝<b>水平加 worker</b>；升級 coordinator 只救「想」的瓶頸，救不了執行</div></div>
+  </div>
+  <div class="take" style="margin-top:13px">看查詢問題先分邊：<b>「計畫階段」慢還是「執行階段」慢</b>——前者多半在 coordinator（第 2 章），後者在 worker／資料（第 3、5 章）。</div>
+</section>
+
+<!-- ============ 08 CONNECTOR INTRO ============ -->
+<section class="slide" id="s8" aria-labelledby="s8t">
+  <p class="meta"><span class="num">08</span><span class="part">PART 1 · 定位與架構 ③</span></p>
+  <h2 class="h2" id="s8t">Connector 是翻譯層：<strong>引擎不懂資料格式，Connector 懂</strong></h2>
+  <div class="code" style="margin-top:14px">
+    <div class="chead"><span class="cdot"></span>三層命名空間：catalog . schema . table</div>
+    <pre><span class="k">SELECT</span> * <span class="k">FROM</span> <b>wh.tpch.orders</b>   <span class="cm">-- wh = catalog（設定檔 wh.properties → Iceberg Connector）</span>
+                     <span class="cm">-- tpch = schema · orders = table（中繼資料在 HMS）</span></pre>
+  </div>
+  <div class="defs" style="margin-top:14px">
+    <div class="def"><div class="dt">Catalog<small>設定檔 → Connector 實例</small></div><div class="dd">一個 catalog 綁定一個 Connector 與它的目標系統：<b>wh = Iceberg Connector + HMS + 物件儲存</b>；也可以有 <span class="pill">hive</span>、<span class="pill">kafka</span>、<span class="pill">postgresql</span> 等 catalog。SQL 的第一段名字決定「由誰翻譯」</div></div>
+    <div class="def alt"><div class="dt">Connector 三大介面<small>第 5 章會展開</small></div><div class="dd"><b>① Metadata</b>：這張表存在嗎、有哪些欄位／分區／統計值？② <b>Split</b>：一張表可以被切成哪些獨立小工作？③ <b>Page source</b>：把外部資料讀成 Trino 的 page。引擎只會對著這三個介面寫程式</div></div>
+    <div class="def"><div class="dt">引擎與 Connector 的默契<small>最佳化不是引擎單方面決定</small></div><div class="dd">Connector 會<b>主動宣告自己支援什麼</b>（能不能把 WHERE 推下去、能不能只讀部分欄位）；引擎把能推的都推下去，不能推的才自己處理——<b>推得越多，搬回引擎的資料越少</b></div></div>
+  </div>
+  <div class="facts" style="margin-top:13px">
+    <div class="fact"><div class="fv">自家：wh catalog</div><div class="fl">etc/wh.properties → <b>Iceberg Connector</b>（HMS 4 管中繼資料、Iceberg 1.5.2 表格式）</div></div>
+    <div class="fact"><div class="fv">自家：資料在引擎外</div><div class="fl">Parquet 檔案在物件儲存（S3／MinIO）；Trino 只負責「讀得懂＋算得快」</div></div>
+    <div class="fact"><div class="fv">自家：入口還有 Gateway</div><div class="fl">Trino Proxy＋OPA 先做權限／路由——<b>這是查詢進來前的關卡，不是引擎的一部分</b></div></div>
+  </div>
+  <div class="take" style="margin-top:13px">寫 SQL 時看到的第一段名字（catalog）不是裝飾——<b>它決定了整條查詢的 metadata 從哪來、split 怎麼切、資料怎麼讀</b>。</div>
+</section>
+
+<!-- ============ 09 ENGINE POSITIONING ============ -->
+<section class="slide" id="s9" aria-labelledby="s9t">
+  <p class="meta"><span class="num">09</span><span class="part">PART 1 · 定位與架構 ④</span></p>
+  <h2 class="h2" id="s9t">Trino 的本質定位：<strong>「不擁有資料的 SQL 執行層」——與 DB、Spark 各司其職</strong></h2>
+  <div class="map" style="margin-top:18px">
+    <div class="maprow head"><div class="mc">系統</div><div class="mc">本質</div><div class="mc">資料歸屬／執行單位</div><div class="mc">最適合拿來做</div></div>
+    <div class="maprow"><div class="mc d">RDBMS（PostgreSQL／MySQL）</div><div class="mc mid">資料庫：儲存＋計算綁在一起</div><div class="mc">自己管檔案與 transaction；單機（複本）執行</div><div class="mc new">交易、強一致性、小資料精確更新</div></div>
+    <div class="maprow"><div class="mc d" style="color:#8a3b1d;font-weight:900">Trino</div><div class="mc mid" style="font-weight:800;color:var(--ink)">SQL 查詢引擎：<b>不存資料</b>、無狀態</div><div class="mc">用 Connector 讀<b>外部</b>資料（Iceberg／HMS／S3）；MPP：task + page</div><div class="mc new">ad-hoc 分析、BI、跨資料源 join、同一份 Iceberg 的互動查詢</div></div>
+    <div class="maprow"><div class="mc d">Spark</div><div class="mc mid">分散式<b>運算框架</b>：程式（也吃 SQL）</div><div class="mc">也不存資料；stage 由 shuffle 依賴串起來的批次 Job</div><div class="mc new">ETL／批次管線、複雜程式邏輯、大規模寫入（自家 ingestion 就是它）</div></div>
+    <div class="maprow"><div class="mc d">資料庫式 MPP（Doris／ClickHouse）</div><div class="mc mid">分散式資料庫：儲存＋計算綁一起、但能平行</div><div class="mc">自己管理複本與資料分布；節點＝資料＋算力</div><div class="mc new">高併發低延遲的固定報表／儀表板（自家 Doris HA 那條線）</div></div>
+  </div>
+  <div class="pband cur" style="margin-top:14px"><span class="pbl">選型的關鍵</span>問一個問題：<b>資料「屬於」誰？</b>資料在 Iceberg／HMS → 用 Trino 或 Spark（誰算都行）；資料在引擎自己肚子裡 → 那是 DB／MPP DB 的場子。</div>
+  <div class="take">同一份 Iceberg 資料，<b>Spark 跑批次 ETL、Trino 跑互動查詢</b>——引擎可以換，資料不動；這就是 storage 與 compute 分離的紅利。</div>
+</section>
+
+<!-- ============ 10 DIVIDER PART 2 ============ -->
+<section class="slide divider" id="s10" aria-labelledby="s10t">
+  <span class="dnum">02</span>
+  <p class="dchap"><span class="dno">PART 2</span>查詢的生命週期</p>
+  <h2 id="s10t">SQL 先被「想清楚」，才開始動工：<strong>生命週期 8 步</strong></h2>
+  <p class="dsub">從你按下執行到結果回來，中間有兩段截然不同的工作：<b>規劃（coordinator 的 CPU）</b>與<b>執行（worker 的 CPU）</b>。這一章走完前半段：解析、metadata、最佳化、切 stage。</p>
+  <div class="dmap">
+    <span class="dm on">01 · 生命週期總覽</span><span class="dm next">02 · Parse 與 Analyze</span><span class="dm">03 · 邏輯計畫</span><span class="dm">04 · 最佳化：RBO＋CBO</span><span class="dm">05 · Join 策略</span><span class="dm">06 · Dynamic Filter</span>
+  </div>
+  <div class="take" style="margin-top:34px">驗收點：<b>為什麼「規劃」必須要 metadata 與統計值？規劃階段的 CPU 燒在誰身上？</b>（答不出來就重看 11–17 頁）</div>
+</section>
+
+<!-- ============ 11 LIFECYCLE OVERVIEW ============ -->
+<section class="slide" id="s11" aria-labelledby="s11t">
+  <p class="meta"><span class="num">11</span><span class="part">PART 2 · 生命週期 ①</span></p>
+  <h2 class="h2" id="s11t">一條查詢的八步：<strong>前六步在 Coordinator 腦中，後兩步才真正碰資料</strong></h2>
+  <div class="dg" style="margin-top:16px;gap:8px">
+    <div class="node" style="flex:1;padding:12px 10px"><div class="t" style="font-size:19px">① 提交 SQL</div><div class="s">client → coordinator（HTTP）</div></div>
+    <div class="arrow" style="font-size:20px">→</div>
+    <div class="node" style="flex:1;padding:12px 10px"><div class="t" style="font-size:19px">② Parse</div><div class="s">ANTLR 文法 → 語法樹；<b>語法錯</b>在此失敗</div></div>
+    <div class="arrow" style="font-size:20px">→</div>
+    <div class="node" style="flex:1;padding:12px 10px"><div class="t" style="font-size:19px">③ Analyze</div><div class="s">問 connector 要 metadata，綁定<b>表／欄位／型別</b></div></div>
+    <div class="arrow" style="font-size:20px">→</div>
+    <div class="node" style="flex:1;padding:12px 10px"><div class="t" style="font-size:19px">④ 邏輯計畫</div><div class="s">把 SQL 轉成一棵<b>計畫樹</b>（TableScan／Join／Aggregate…）</div></div>
+    <div class="arrow" style="font-size:20px">→</div>
+    <div class="node hl" style="flex:1;padding:12px 10px"><div class="t" style="font-size:19px">⑤ 最佳化</div><div class="s">RBO 規則＋CBO（要<b>統計值</b>）→ 決定 join 順序／分布</div></div>
+    <div class="arrow" style="font-size:20px">→</div>
+    <div class="node warn" style="flex:1;padding:12px 10px"><div class="t" style="font-size:19px">⑥ 切 stage＋split</div><div class="s">計畫切成 stage；問 connector 要 <b>split 清單</b></div></div>
+  </div>
+  <div class="dg" style="margin-top:10px;gap:8px">
+    <div class="arrow" style="font-size:20px;flex:0 0 40px">⬇</div>
+    <div class="node" style="flex:1;padding:12px 10px;border-color:#4d7c4f55;background:linear-gradient(160deg,#eef5ec,#fdfaf2)"><div class="t" style="font-size:19px">⑦ 排程執行</div><div class="s">coordinator 把 split 分派給 worker；worker 以 <b>task／driver</b> 執行（第 3 章）</div></div>
+    <div class="arrow" style="font-size:20px;flex:0 0 40px">→</div>
+    <div class="node" style="flex:1;padding:12px 10px;border-color:#4d7c4f55;background:linear-gradient(160deg,#eef5ec,#fdfaf2)"><div class="t" style="font-size:19px">⑧ 串流結果</div><div class="s">coordinator 從 worker 收結果、串流回 client；進度持續更新到完成</div></div>
+    <div class="arrow" style="font-size:20px;flex:0 0 40px">⬇</div>
+  </div>
+  <div class="defs" style="margin-top:12px">
+    <div class="def"><div class="dt">誰的 CPU？<small>分邊看問題</small></div><div class="dd">①–⑥ 全部在 <b>coordinator</b>（解析、metadata 呼叫、最佳化、切 stage）——所以大量小查詢會先壓垮 coordinator；⑦–⑧ 才是 <b>worker</b> 主場</div></div>
+    <div class="def alt"><div class="dt">connector 被呼叫的時機<small>metadata 不止一次</small></div><div class="dd">③ Analyze 要表結構／欄位；⑤ 要<b>統計值</b>；⑥ 要 <b>split 清單</b>——connector 在「想」的階段就被問了三次，不只是執行時才出場</div></div>
+    <div class="def"><div class="dt">在哪裡觀察每個階段<small>工具對照</small></div><div class="dd"><b>EXPLAIN ANALYZE 第一行</b>直接列出 Queued／Analysis／Planning／Execution 時間（37 頁）；Web UI 的 query 狀態機則能看到 QUEUED→PLANNING→RUNNING…（23 頁）</div></div>
+  </div>
+  <div class="take">查詢慢先分階段：<b>planning 慢是 coordinator 的事（小查詢大量發生時最常見），執行慢是 worker 與資料的事</b>——對症下藥前先看 EXPLAIN ANALYZE 第一行的 Queued／Analysis／Planning／Execution。</div>
+</section>
+
+<!-- ============ 12 PARSE / ANALYZE ============ -->
+<section class="slide" id="s12" aria-labelledby="s12t">
+  <p class="meta"><span class="num">12</span><span class="part">PART 2 · 生命週期 ②</span></p>
+  <h2 class="h2" id="s12t">Parse 只是「唸得出來」，Analyze 才真正「看懂」——<strong>兩者都要問 Connector</strong></h2>
+  <div class="cols2" style="margin-top:16px">
+    <div class="card">
+      <h4 class="d">② Parse：文法檢查</h4>
+      <div class="ct">ANTLR GRAMMAR · SQL → AST</div>
+      <ul>
+        <li>用 Trino 的 SQL 文法（ANTLR）把文字拆成<b>抽象語法樹（AST）</b></li>
+        <li>只檢查「唸不唸得通」：關鍵字、括號、逗點、字面值</li>
+        <li>範例：<span class="pill">SELECT</span> 拼成 <span class="pill">SELEC</span>、少一個括號 → 這裡就失敗，<b>不會浪費任何執行資源</b></li>
+        <li>還不知道任何表存不存在</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 class="a">③ Analyze：語意解析＋查 metadata</h4>
+      <div class="ct">ANALYZER · METADATA LOOKUP</div>
+      <ul>
+        <li>把 AST 的每個名字<b>綁定到真實物件</b>：<span class="pill">wh.tpch.orders</span> 存在嗎？欄位與型別是什麼？</li>
+        <li>型別檢查與隱式轉型：<span class="pill">orderdate &gt;= DATE '2025-01-01'</span> 型別合不合法</li>
+        <li>展開 view、解析函式簽名、權限檢查（若啟用）</li>
+        <li>「unknown column」「table not found」都在這一階段報錯</li>
+      </ul>
+    </div>
+  </div>
+  <div class="code" style="margin-top:14px">
+    <div class="chead"><span class="cdot"></span>Q 的 Analyze：每一段名字都要問 Iceberg Connector</div>
+    <pre><span class="k">FROM</span> wh.tpch.orders o   <span class="cm">→ catalog wh（iceberg.properties）→ HMS：表存在？欄位？型別？分區鍵？</span>
+<span class="cm">o.custkey = c.custkey   → 兩邊都是 bigint？欄位真的存在？</span>
+<span class="cm">n.name AS nation        → GROUP BY／ORDER BY 用的別名解析</span></pre>
+  </div>
+  <div class="pband cur" style="margin-top:12px"><span class="pbl">成本含義</span>Analyze 要打 metadata（對 Iceberg 是 HMS／目錄服務）。<b>查詢數量 × 每查詢的表數</b>決定這裡的延遲；大量小查詢時，metadata 服務的延遲會直接出現在「Analysis 時間」。</div>
+  <div class="take">語法錯、欄位錯、型別錯——<b>全都在真正動工前就被攔下</b>；你看到的報錯訊息，就是這兩個階段的產物。</div>
+</section>
+
+<!-- ============ 13 LOGICAL PLAN ============ -->
+<section class="slide" id="s13" aria-labelledby="s13t">
+  <p class="meta"><span class="num">13</span><span class="part">PART 2 · 生命週期 ③</span></p>
+  <h2 class="h2" id="s13t">④ 邏輯計畫：SQL 被翻譯成一棵<strong>「操作樹」</strong>——葉子讀表，根吐結果</h2>
+  <div class="code" style="margin-top:14px">
+    <div class="chead"><span class="cdot"></span>Q 的邏輯計畫（示意樹：真實節點與順序以 EXPLAIN 為準；CBO 可能重排 join）</div>
+    <pre><b>Output</b>                                  <span class="cm">← 最後只吐 5 列給 client</span>
+└─ <b>Limit(5)</b>
+   └─ <b>Sort[gmv DESC]</b>                      <span class="cm">← ORDER BY</span>
+      └─ <b>Aggregate[GROUP BY n.name]</b>       <span class="cm">← count／sum 在這裡算（之後會拆兩階段）</span>
+         └─ <b>InnerJoin[o.custkey = c.custkey]</b>
+            ├─ <b>InnerJoin[c.nationkey = n.nationkey]</b>
+            │  ├─ <b>TableScan[wh.tpch.customer]</b>   <span class="cm">葉子：讀表</span>
+            │  └─ <b>TableScan[wh.tpch.nation]</b>     <span class="cm">葉子：讀表</span>
+            └─ <b>Filter[orderdate ∈ 2025]</b>         <span class="cm">WHERE 條件</span>
+               └─ <b>TableScan[wh.tpch.orders]</b>     <span class="cm">葉子：讀表（資料量最大的那一片）</span></pre>
+  </div>
+  <div class="cols2" style="margin-top:14px">
+    <div class="card"><h4 class="d">這棵樹的意義</h4><ul>
+      <li>每個節點 = 一個「<b>操作</b>」：掃描、過濾、join、聚合、排序、限量</li>
+      <li>資料方向：<b>葉子（讀表）→ 根（結果）</b>，下一層的輸出是上一層的輸入</li>
+      <li>之後每個節點會變成 <b>operator</b>（第 3 章），葉子的讀表會變成 <b>split 清單</b>（第 5 章）</li></ul></div>
+    <div class="card"><h4 class="a">你怎麼看到它</h4><ul>
+      <li><span class="pill">EXPLAIN SELECT …</span>：印出<b>最佳化後</b>的邏輯計畫（樹狀文字）</li>
+      <li>看 join 順序、filter 掛在哪個 scan 下面、有沒有被推下去——<b>這是你判斷計畫好壞的第一張圖</b></li>
+      <li>真實節點名會更細（ScanFilterProject、HashAggregation…），概念一樣</li></ul></div>
+  </div>
+  <div class="take">邏輯計畫是「<b>要做什麼</b>」的藍圖；接下來兩步（最佳化、切 stage）決定它「<b>怎麼做、多快做</b>」。</div>
+</section>
+
+<!-- ============ 14 OPTIMIZER RBO PUSHDOWN ============ -->
+<section class="slide" id="s14" aria-labelledby="s14t">
+  <p class="meta"><span class="num">14</span><span class="part">PART 2 · 生命週期 ④</span></p>
+  <h2 class="h2" id="s14t">⑤ 最佳化第一層（RBO）：<strong>把操作往下搬、往小搬——最好連引擎都別碰資料</strong></h2>
+  <svg viewBox="0 0 1720 320" style="width:100%;height:auto;margin-top:12px" role="img" aria-label="規則最佳化與 pushdown 兩層示意">
+    <defs><marker id="rboA" markerWidth="11" markerHeight="11" refX="8" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#c0562e"/></marker></defs>
+    <rect x="30" y="20" width="1660" height="118" rx="16" fill="#fdfaf2" stroke="#e4d9c2"/>
+    <text x="56" y="54" font-size="19" font-weight="900" fill="#8a3b1d" font-family="Noto Sans TC,sans-serif">RBO（規則驅動，不看資料大小）——把計畫往「讀更少、算更早」的方向改</text>
+    <g font-family="Noto Sans TC,sans-serif" font-size="17.5">
+      <rect x="56" y="72" width="356" height="50" rx="12" fill="#f9f1e0" stroke="#a87f2255"/>
+      <text x="234" y="93" text-anchor="middle" font-weight="800" fill="#2c2418">Filter 往葉子搬</text>
+      <text x="234" y="114" text-anchor="middle" fill="#6f6350" font-size="15">條件盡量先過濾（搬進 join 之下）</text>
+      <rect x="452" y="72" width="356" height="50" rx="12" fill="#f9f1e0" stroke="#a87f2255"/>
+      <text x="630" y="93" text-anchor="middle" font-weight="800" fill="#2c2418">Projection 只留要的欄</text>
+      <text x="630" y="114" text-anchor="middle" fill="#6f6350" font-size="15">SELECT 沒用的欄位不要讀</text>
+      <rect x="848" y="72" width="356" height="50" rx="12" fill="#f9f1e0" stroke="#a87f2255"/>
+      <text x="1026" y="93" text-anchor="middle" font-weight="800" fill="#2c2418">Limit 往下推</text>
+      <text x="1026" y="114" text-anchor="middle" fill="#6f6350" font-size="15">能早點少算就早點少算</text>
+      <rect x="1244" y="72" width="420" height="50" rx="12" fill="#f9f1e0" stroke="#a87f2255"/>
+      <text x="1454" y="93" text-anchor="middle" font-weight="800" fill="#2c2418">常數折疊／無用 join 消除…</text>
+      <text x="1454" y="114" text-anchor="middle" fill="#6f6350" font-size="15">1=1、永遠 false 的條件直接拿掉</text>
+    </g>
+    <line x1="860" y1="138" x2="860" y2="170" stroke="#c0562e" stroke-width="3" marker-end="url(#rboA)"/>
+    <text x="915" y="162" font-size="16" font-weight="800" fill="#8a3b1d" font-family="Noto Sans TC,sans-serif">RBO 後接著 CBO（下一頁）；兩者都會把條件「推」向 connector</text>
+    <rect x="30" y="178" width="1660" height="128" rx="16" fill="#eef6f1" stroke="#1f7a7055"/>
+    <text x="56" y="212" font-size="19" font-weight="900" fill="#14554e" font-family="Noto Sans TC,sans-serif">Connector pushdown：引擎透過 SPI 問「你能自己吃掉多少？」（467 ConnectorMetadata 支援）</text>
+    <g font-family="Noto Sans TC,sans-serif" font-size="17">
+      <rect x="56" y="228" width="250" height="62" rx="12" fill="#fdfaf2" stroke="#1f7a7044"/>
+      <text x="181" y="254" text-anchor="middle" font-weight="800" fill="#14554e">applyFilter</text>
+      <text x="181" y="278" text-anchor="middle" fill="#6f6350" font-size="14.5">WHERE 條件（分區剪枝、統計剪枝）</text>
+      <rect x="330" y="228" width="250" height="62" rx="12" fill="#fdfaf2" stroke="#1f7a7044"/>
+      <text x="455" y="254" text-anchor="middle" font-weight="800" fill="#14554e">applyProjection</text>
+      <text x="455" y="278" text-anchor="middle" fill="#6f6350" font-size="14.5">只讀哪些欄位</text>
+      <rect x="604" y="228" width="250" height="62" rx="12" fill="#fdfaf2" stroke="#1f7a7044"/>
+      <text x="729" y="254" text-anchor="middle" font-weight="800" fill="#14554e">applyLimit／TopN</text>
+      <text x="729" y="278" text-anchor="middle" fill="#6f6350" font-size="14.5">只要前 N 筆</text>
+      <rect x="878" y="228" width="330" height="62" rx="12" fill="#f9f1e0" stroke="#a87f2255"/>
+      <text x="1043" y="250" text-anchor="middle" font-weight="800" fill="#7a5a12">connector 回 Optional.empty()</text>
+      <text x="1043" y="276" text-anchor="middle" fill="#6f6350" font-size="14.5">＝「這個我不會吃」，引擎才自己處理</text>
+      <rect x="1232" y="228" width="436" height="62" rx="12" fill="#eef5ec" stroke="#4d7c4f55"/>
+      <text x="1450" y="250" text-anchor="middle" font-weight="800" fill="#2f5a31">資料層效果（第 5 章）</text>
+      <text x="1450" y="276" text-anchor="middle" fill="#4a5a3f" font-size="14.5">Iceberg：分區剪枝／metadata 剪枝／Parquet row-group</text>
+    </g>
+  </svg>
+  <div class="qb">
+    <span class="qtag">Q</span>
+    <pre><span class="k">WHERE</span> o.orderdate &gt;= <span class="g">DATE '2025-01-01'</span> …  <span class="k">→ applyFilter 推給 Iceberg → 只讀 2025 年的月分區</span></pre>
+    <span class="qnote">查詢只碰 12 個分區，而不是全部歷史</span>
+  </div>
+  <div class="take" style="margin-top:12px">最佳化的核心邏輯只有一句：<b>資料能在越靠近儲存的地方被丟掉，就越省</b>——引擎推、connector 接，推不動的條件才把資料搬回來過濾。</div>
+</section>
+
+<!-- ============ 15 CBO ============ -->
+<section class="slide" id="s15" aria-labelledby="s15t">
+  <p class="meta"><span class="num">15</span><span class="part">PART 2 · 生命週期 ⑤</span></p>
+  <h2 class="h2" id="s15t">CBO：<strong>用「統計值」估成本，決定 join 順序與分布</strong>——統計爛，計畫就爛</h2>
+  <div class="dg center" style="margin-top:14px;gap:10px">
+    <div class="node" style="min-width:300px"><div class="t">輸入① 計畫樹</div><div class="s">要 join 什麼、filter 在哪</div></div>
+    <div class="node warn" style="min-width:300px"><div class="t">輸入② Table statistics</div><div class="s">列數、大小、欄位 distinct 值…<br><b>由 connector 提供</b>（Iceberg／Hive 用 ANALYZE 收集）</div></div>
+    <div class="arrow">＋</div>
+    <div class="node hl" style="min-width:340px"><div class="t">成本模型</div><div class="s">對每個候選計畫估 CPU／記憶體／網路成本</div></div>
+    <div class="arrow">→</div>
+    <div class="node ok" style="min-width:360px"><div class="t">輸出：最佳計畫</div><div class="s">join 順序（哪張先 join）<br>join 分布（broadcast 或 partitioned）</div></div>
+  </div>
+  <div class="code" style="margin-top:14px">
+    <div class="chead"><span class="cdot"></span>官方文件怎麼說（467 optimizer/cost-based-optimizations）</div>
+    <pre><span class="g">AUTOMATIC</span>（預設）＝ 完整自動 join 列舉，挑成本最低的 join 順序；
+若<b>統計值不可用</b>或成本算不出來 → 自動退回 ELIMINATE_CROSS_JOINS（消 cross join，其餘照語法順序）。</pre>
+  </div>
+  <div class="facts" style="margin-top:12px">
+    <div class="fact"><div class="fv">ANALYZE</div><div class="fl">對 Iceberg／Hive 表執行 <b>ANALYZE wh.tpch.orders</b> 才會收集統計值</div></div>
+    <div class="fact"><div class="fv">default: true</div><div class="fl">Iceberg <b>extended statistics</b> 啟用；<b>collect-on-write</b> 預設也開（寫入時一併收集）</div></div>
+    <div class="fact"><div class="fv">統計過期 → 壞計畫</div><div class="fl">資料長大後沒重跑 ANALYZE，CBO 用舊數字決策——<b>定期對常用大表 ANALYZE</b> 是最便宜的最佳化</div></div>
+  </div>
+  <div class="pband cur" style="margin-top:13px"><span class="pbl">怎麼驗證計畫的選擇</span>EXPLAIN（不帶 ANALYZE）印出最佳化後的樹：看 <b>join 順序</b>、Join 節點的 Distribution、scan 節點有沒有 filterPredicate／dynamicFilters——計畫怪、統計舊，就先 ANALYZE 再重看。</div>
+  <div class="take">「為什麼 join 順序長這樣？」的答案通常在統計值裡。<b>先檢查統計新不新，再懷疑 CBO</b>。</div>
+</section>
+
+<!-- ============ 16 JOIN STRATEGIES ============ -->
+<section class="slide" id="s16" aria-labelledby="s16t">
+  <p class="meta"><span class="num">16</span><span class="part">PART 2 · 生命週期 ⑥</span></p>
+  <h2 class="h2" id="s16t">Join 只有兩種分布：<strong>Broadcast（複製小表）或 Partitioned（兩邊都打散）</strong>——選錯就是災難</h2>
+  <div class="cols2" style="margin-top:16px">
+    <div class="card">
+      <h4 class="d">Partitioned join（大表對大表）</h4>
+      <div class="ct">兩邊都照 join key 打散 → 每個 worker 只 join 自己那一份</div>
+      <ul>
+        <li><b>優點</b>：沒有單點記憶體上限，多大都能 join</li>
+        <li><b>代價</b>：兩邊都要重新分布（<b>shuffle 網路成本</b>），通常比 broadcast 慢</li>
+        <li>適用：build 側大到每台 node 放不下</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 class="a">Broadcast join（小表配大表）</h4>
+      <div class="ct">把 build 側「複製到每一台 node」→ probe 側就地 join，零 shuffle</div>
+      <ul>
+        <li><b>優點</b>：快——但 <b>build 表必須能放進每台 node 的記憶體</b>（filter 後）</li>
+        <li><b>代價</b>：複製成本＋每 node 記憶體佔用；太多 query 同時 broadcast = 記憶體壓力</li>
+        <li>適用：build 側很小（維度表）</li>
+      </ul>
+    </div>
+  </div>
+  <div class="pband cur" style="margin-top:13px"><span class="pbl">誰決定</span><b>join-distribution-type = AUTOMATIC</b>（預設）：CBO 用統計值逐個 join 選擇；並可用 <span class="pill">join.max-broadcast-table-size</span> 設上限，官方預設 <b>100MB</b>（超過就別 broadcast，避免壞計畫拖垮整個叢集）。</div>
+  <div class="defs" style="margin-top:12px">
+    <div class="def"><div class="dt">名詞：build 側／probe 側</div><div class="dd">Trino join 是 hash join：先拿<b>一邊</b>建 hash table（<b>build</b>），另一邊一行行來查（<b>probe</b>）。build 通常選較小／過濾後較少的那邊</div></div>
+    <div class="def alt"><div class="dt">回到範例 Q</div><div class="dd"><b>nation（25 列）</b>：必 broadcast；<b>orders（1.5 億列）</b>：必 partitioned；<b>customer（150 萬列）</b>：CBO 依估算與 100MB cap 決定要 broadcast 給 orders 還是 partitioned——<b>用 EXPLAIN 看 Join 節點的 Distribution 就知道實際選了哪種</b></div></div>
+  </div>
+  <div class="take">看到慢 join，先問一句：<b>這是一個 broadcast 太大（記憶體／複製），還是 partitioned（shuffle）的 join？</b>——兩種解法完全不同。</div>
+</section>
+
+<!-- ============ 17 DYNAMIC FILTERING ============ -->
+<section class="slide" id="s17" aria-labelledby="s17t">
+  <p class="meta"><span class="num">17</span><span class="part">PART 2 · 生命週期 ⑦</span></p>
+  <h2 class="h2" id="s17t">Dynamic Filter：<strong>把「執行中才知道的 join 條件」變成掃描端的 filter</strong>——省下整段沒用的讀取</h2>
+  <div class="code" style="margin-top:12px">
+    <div class="chead"><span class="cdot"></span>典型場景：事實表 ⋈「先被 WHERE 過濾」的維度表（Q 的 WHERE 在事實表自己身上，所以 Q 用不到；這是另一種 pattern）</div>
+    <pre><span class="k">SELECT</span> count(*) <span class="k">FROM</span> wh.tpch.store_sales ss
+<span class="k">JOIN</span> wh.tpch.date_dim   d <span class="k">ON</span> ss.sale_date_key = d.date_key
+<span class="k">WHERE</span> d.year = <span class="g">2025</span> <span class="k">AND</span> d.is_holiday = <span class="g">'Y'</span>   <span class="cm">← 過濾在維度表（build 側）</span></pre>
+  </div>
+  <svg viewBox="0 0 1720 300" style="width:100%;height:auto;margin-top:10px" role="img" aria-label="Dynamic filtering 流程">
+    <defs><marker id="dfA" markerWidth="11" markerHeight="11" refX="8" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#c0562e"/></marker></defs>
+    <rect x="30" y="18" width="430" height="150" rx="16" fill="#fdfaf2" stroke="#e4d9c2"/>
+    <text x="245" y="50" text-anchor="middle" font-size="18" font-weight="900" fill="#14554e" font-family="Noto Sans TC,sans-serif">① build 側（date_dim）掃描</text>
+    <text x="245" y="78" text-anchor="middle" font-size="15.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">WHERE year=2025 … 先過濾</text>
+    <text x="245" y="104" text-anchor="middle" font-size="15.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">邊算邊收集通過的 date_key</text>
+    <rect x="110" y="120" width="270" height="36" rx="9" fill="#f3e0d3" stroke="#c0562e55"/>
+    <text x="245" y="143" text-anchor="middle" font-size="15" font-weight="800" fill="#8a3b1d" font-family="Noto Sans TC,sans-serif">→ 產生 dynamic filter（key 集合）</text>
+    <line x1="460" y1="90" x2="560" y2="90" stroke="#c0562e" stroke-width="3" marker-end="url(#dfA)"/>
+    <rect x="566" y="30" width="560" height="126" rx="16" fill="#f9f1e0" stroke="#a87f2255"/>
+    <text x="846" y="62" text-anchor="middle" font-size="18" font-weight="900" fill="#7a5a12" font-family="Noto Sans TC,sans-serif">② filter 兵分三路（467 官方動態過濾文件）</text>
+    <text x="846" y="94" text-anchor="middle" font-size="15.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">a. 同 worker：直接推給 probe 側 scan（broadcast join）</text>
+    <text x="846" y="118" text-anchor="middle" font-size="15.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">b. 回 coordinator：列舉 splits 時用（= <b>dynamic partition pruning</b>）</text>
+    <text x="846" y="142" text-anchor="middle" font-size="15.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">c. partitioned join：coordinator 分發給各 worker 的 probe scan</text>
+    <line x1="1126" y1="90" x2="1226" y2="90" stroke="#c0562e" stroke-width="3" marker-end="url(#dfA)"/>
+    <rect x="1232" y="18" width="458" height="150" rx="16" fill="#eef5ec" stroke="#4d7c4f55"/>
+    <text x="1461" y="52" text-anchor="middle" font-size="18" font-weight="900" fill="#2f5a31" font-family="Noto Sans TC,sans-serif">③ probe 側（store_sales）</text>
+    <text x="1461" y="82" text-anchor="middle" font-size="15.5" fill="#4a5a3f" font-family="Noto Sans TC,sans-serif">照 filter 跳過讀不到的資料：</text>
+    <text x="1461" y="106" text-anchor="middle" font-size="15.5" fill="#4a5a3f" font-family="Noto Sans TC,sans-serif">Hive/Parquet 可做 row-group 剪枝；</text>
+    <text x="1461" y="130" text-anchor="middle" font-size="15.5" fill="#4a5a3f" font-family="Noto Sans TC,sans-serif">Iceberg split 產生最多等 1s 等 filter</text>
+    <text x="1461" y="154" text-anchor="middle" font-size="15.5" fill="#4a5a3f" font-family="Noto Sans TC,sans-serif">（iceberg.dynamic-filtering.wait-timeout）</text>
+  </svg>
+  <div class="defs" style="margin-top:10px">
+    <div class="def"><div class="dt">什麼時候會生效</div><div class="dd">預設開啟（enable-dynamic-filtering）。支援 inner／right join 的 =／&lt;／&lt;=／&gt;／&gt;=／IS NOT DISTINCT FROM，與 semi join（IN）；<b>build 側過濾後要夠窄</b>才有意義</div></div>
+    <div class="def alt"><div class="dt">怎麼確認有沒有效</div><div class="dd">EXPLAIN 看 join 節點的 <span class="pill">dynamicFilterAssignments</span>、scan 節點的 <span class="pill">dynamicFilters = {…}</span>；沒看到＝planner 沒產生 DF（條件不支援或統計說不值得）</div></div>
+  </div>
+  <div class="take">DF 是「<b>用執行中學到的資訊，回頭省讀取</b>」——效果等同把 join 條件變成分區／檔案剪枝條件。EXPLAIN 沒出現 dynamicFilters，就別期待它幫你。</div>
+</section>
+
+<!-- ============ 18 DIVIDER PART 3 ============ -->
+<section class="slide divider" id="s18" aria-labelledby="s18t">
+  <span class="dnum">03</span>
+  <p class="dchap"><span class="dno">PART 3</span>執行引擎</p>
+  <h2 id="s18t">計畫落地之後：<strong>Stage → Task → Driver → Operator</strong>，資料以 Page 流動</h2>
+  <p class="dsub">這是 Trino 平行度的四層階梯，也是看懂 <b>EXPLAIN (TYPE DISTRIBUTED)</b> 與<b>所有執行期現象</b>（skew、backpressure、記憶體）的鑰匙。</p>
+  <div class="dmap">
+    <span class="dm on">01 · Stage 與 Q 的分布計畫</span><span class="dm next">02 · Task／Driver／Operator</span><span class="dm">03 · Page：columnar 資料單位</span><span class="dm">04 · Exchange：跨 node 資料流</span><span class="dm">05 · 排程與平行度</span>
+  </div>
+  <div class="take" style="margin-top:34px">驗收點：<b>Stage、Task、Driver、Split 四個詞各自的定義？一條 SQL 怎麼變成上百個並行單位？</b>（答不出來就重看 19–23 頁）</div>
+</section>
+
+<!-- ============ 19 STAGES ============ -->
+<section class="slide" id="s19" aria-labelledby="s19t">
+  <p class="meta"><span class="num">19</span><span class="part">PART 3 · 執行引擎 ①</span></p>
+  <h2 class="h2" id="s19t">⑥ 計畫切成 stage：<strong>每一段「可以平行」的計畫，就是一顆樹枝</strong>——Q 會長成這樣</h2>
+  <div class="cols2" style="gap:14px;margin-top:14px">
+    <div class="card" style="padding:12px 14px">
+      <h4 class="d" style="font-size:20px">Q 的 stage 樹（示意，真實以 EXPLAIN 為準）</h4>
+      <div class="dg col" style="gap:6px;margin-top:8px">
+        <div class="node" style="padding:7px 10px;border-color:#a87f2255;background:linear-gradient(160deg,#f9f1e0,#fdfaf2)"><div class="t" style="font-size:16px">Stage 0（root）Sort＋Limit＋Output</div><div class="s" style="font-size:14px">單節點收尾，結果回 coordinator</div></div>
+        <div class="arrow" style="font-size:15px;padding:0">⇅ exchange</div>
+        <div class="node" style="padding:7px 10px"><div class="t" style="font-size:16px">Stage 1　Final Aggregate（GROUP BY nation）</div><div class="s" style="font-size:14px">全 cluster 只剩少數 group，單節點也夠</div></div>
+        <div class="arrow" style="font-size:15px;padding:0">⇅ exchange（hash by custkey）</div>
+        <div class="node" style="padding:7px 10px"><div class="t" style="font-size:16px">Stage 2　Join orders × customer（partitioned）＋ Partial Aggregate</div><div class="s" style="font-size:14px">每台 worker 各 join 自己分到的 custkey 區段</div></div>
+        <div class="arrow" style="font-size:15px;padding:0">⇅</div>
+        <div class="node hl" style="padding:7px 10px"><div class="t" style="font-size:16px">Stage 3＋4　SOURCE：掃描 orders（2025 filter）／customer</div><div class="s" style="font-size:14px">從 connector 拿 splits，每台 worker 平行讀</div></div>
+      </div>
+    </div>
+    <div class="card" style="padding:12px 14px">
+      <h4 class="a" style="font-size:20px">官方 EXPLAIN (TYPE DISTRIBUTED) 長相（467 文件範例，截錄）</h4>
+      <div class="code tiny" style="margin-top:8px">
+        <div class="chead"><span class="cdot"></span>EXPLAIN (TYPE DISTRIBUTED) SELECT regionkey, count(*) FROM nation GROUP BY 1</div>
+        <pre>Fragment 0 [SINGLE]                     <span class="cm">← 單節點 stage（收尾）</span>
+  Output[regionkey, _col1]
+  └─ RemoteSource[1]                     <span class="cm">← 從 fragment 1 收資料</span>
+Fragment 1 [HASH]                        <span class="cm">← 可平行 stage（每 node 一份）</span>
+  Aggregate(FINAL)[regionkey]
+  └─ LocalExchange[HASH]…                <span class="cm">← 同 node 內重新分配</span>
+     └─ RemoteSource[2]
+Fragment 2 [SOURCE]                      <span class="cm">← 讀資料的 stage</span>
+  Aggregate(PARTIAL)[regionkey]          <span class="cm">← 每 worker 先算自己的部分</span>
+  └─ TableScan[nation]</pre>
+      </div>
+      <ul style="font-size:16px;margin-top:8px;line-height:1.45">
+        <li><b>[SOURCE]</b>＝讀 connector；<b>[HASH]</b>＝hash 打散執行；<b>[SINGLE]</b>＝單節點</li>
+        <li>stage 之間 = <b>exchange 邊界</b>；資料要跨 node 才需要一個 stage 分界</li>
+        <li>Partial → Final 兩階段聚合：先各自算、再合併——GROUP BY 大表的基本招</li>
+      </ul>
+    </div>
+  </div>
+  <div class="take" style="margin-top:10px">看分布計畫先數 stage：<b>stage 越多、exchange 越多＝shuffle 越多</b>；SOURCE stage 的平行度＝splits 數，最下層永遠是並行主戰場。</div>
+</section>
+
+<!-- ============ 20 TASK DRIVER OPERATOR ============ -->
+<section class="slide" id="s20" aria-labelledby="s20t">
+  <p class="meta"><span class="num">20</span><span class="part">PART 3 · 執行引擎 ②</span></p>
+  <h2 class="h2" id="s20t">⑦ 執行四階層：<strong>Stage 是藍圖，Task 是工人，Driver 是流水線，Operator 是工站</strong></h2>
+  <svg viewBox="0 0 1720 470" style="width:100%;height:auto;margin-top:10px" role="img" aria-label="stage-task-driver-operator 階層圖">
+    <defs><marker id="tdA" markerWidth="11" markerHeight="11" refX="8" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#c0562e"/></marker></defs>
+    <rect x="30" y="16" width="500" height="110" rx="16" fill="#eef6f1" stroke="#1f7a7055"/>
+    <text x="280" y="48" text-anchor="middle" font-size="20" font-weight="900" fill="#14554e" font-family="Noto Sans TC,sans-serif">Stage（計畫的一段）</text>
+    <text x="280" y="76" text-anchor="middle" font-size="15.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">只存在 coordinator 的模型裡（官方定義）</text>
+    <text x="280" y="100" text-anchor="middle" font-size="15.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">「stage 本身不執行」——靠下面這些分身</text>
+    <line x1="280" y1="126" x2="280" y2="152" stroke="#1f7a70" stroke-width="3" marker-end="url(#tdA)"/>
+    <rect x="30" y="158" width="500" height="150" rx="16" fill="#fdfaf2" stroke="#e4d9c2"/>
+    <text x="280" y="188" text-anchor="middle" font-size="20" font-weight="900" fill="#2c2418" font-family="Noto Sans TC,sans-serif">Task × N（stage 的執行分身）</text>
+    <text x="280" y="214" text-anchor="middle" font-size="15.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">一個 stage 被切成很多 task，分散在各 worker（官方：「work horse」）</text>
+    <text x="280" y="238" text-anchor="middle" font-size="15.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">每個 task 有 input 與 output；處理一個或多個 split</text>
+    <rect x="60" y="252" width="440" height="46" rx="10" fill="#f3e0d3" stroke="#c0562e55"/>
+    <text x="280" y="272" text-anchor="middle" font-size="15" font-weight="800" fill="#8a3b1d" font-family="Noto Sans TC,sans-serif">Worker 1</text>
+    <text x="280" y="291" text-anchor="middle" font-size="13.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">task A｜task B｜task C（同時也服務其他查詢的 task）</text>
+    <line x1="540" y1="230" x2="600" y2="230" stroke="#c0562e" stroke-width="3" marker-end="url(#tdA)"/>
+    <text x="568" y="224" font-size="14" font-weight="800" fill="#8a3b1d" text-anchor="middle" font-family="Noto Sans TC,sans-serif">放大</text>
+    <rect x="606" y="150" width="1090" height="160" rx="16" fill="#fdfaf2" stroke="#e4d9c2"/>
+    <text x="1150" y="180" text-anchor="middle" font-size="19" font-weight="900" fill="#2c2418" font-family="Noto Sans TC,sans-serif">Task 內部 = Driver × N（官方：driver 是「最小平行單位」，一串 operator 實體）</text>
+    <g font-family="Noto Sans TC,sans-serif">
+      <rect x="630" y="196" width="990" height="100" rx="13" fill="#f6f0e4" stroke="#e4d9c2"/>
+      <text x="656" y="222" font-size="15" font-weight="900" fill="#14554e">driver 1：</text>
+      <rect x="742" y="204" width="150" height="34" rx="8" fill="#fdfaf2" stroke="#1f7a7044"/><text x="817" y="226" text-anchor="middle" font-size="14" font-weight="800" fill="#2c2418">PageSource</text>
+      <text x="906" y="226" font-size="17" fill="#c0562e">→</text>
+      <rect x="920" y="204" width="110" height="34" rx="8" fill="#fdfaf2" stroke="#1f7a7044"/><text x="975" y="226" text-anchor="middle" font-size="14" font-weight="800" fill="#2c2418">Filter</text>
+      <text x="1044" y="226" font-size="17" fill="#c0562e">→</text>
+      <rect x="1058" y="204" width="130" height="34" rx="8" fill="#fdfaf2" stroke="#1f7a7044"/><text x="1123" y="226" text-anchor="middle" font-size="14" font-weight="800" fill="#2c2418">Project</text>
+      <text x="1202" y="226" font-size="17" fill="#c0562e">→</text>
+      <rect x="1216" y="204" width="190" height="34" rx="8" fill="#fdfaf2" stroke="#1f7a7044"/><text x="1311" y="226" text-anchor="middle" font-size="14" font-weight="800" fill="#2c2418">Partial Aggregate</text>
+      <text x="1420" y="226" font-size="17" fill="#c0562e">→</text>
+      <rect x="1434" y="204" width="166" height="34" rx="8" fill="#f3e0d3" stroke="#c0562e55"/><text x="1517" y="226" text-anchor="middle" font-size="14" font-weight="800" fill="#8a3b1d">Exchange</text>
+      <text x="656" y="266" font-size="14.5" fill="#6f6350">driver 2：同型流水線跑另一段資料…（driver 數 = task.concurrency，見 23 頁）</text>
+      <text x="656" y="286" font-size="14.5" fill="#6f6350">每個 operator：吃進 page、吐出 page（Filter 只留符合的列，Aggregate 累加 group 狀態…）</text>
+    </g>
+  </svg>
+  <div class="defs" style="margin-top:12px">
+    <div class="def"><div class="dt">一個 split 對應一個 driver</div><div class="dd">SOURCE stage 的 task 從 connector 拿 split；driver 從 split 的第一列讀到最後一列，一路過 operator。driver 是「一次讀一份 split 的流水線」</div></div>
+    <div class="def alt"><div class="dt">官方定義速記</div><div class="dd">Stage＝計畫段落（coordinator 腦中）→ Task＝stage 在 worker 上的分身（work horse）→ Driver＝task 內平行流水線（最小平行單位）→ Operator＝吃 page 吐 page 的工站</div></div>
+  </div>
+  <div class="take">看到任何「平行度」問題，先定位在階層的哪一層：<b>splits 不夠多（資料切太粗）→ 平行上不去；task 太多（小檔案）→ 管理成本吃掉好處</b>。</div>
+</section>
+
+<!-- ============ 21 PAGE / BLOCK ============ -->
+<section class="slide" id="s21" aria-labelledby="s21t">
+  <p class="meta"><span class="num">21</span><span class="part">PART 3 · 執行引擎 ③</span></p>
+  <h2 class="h2" id="s21t">資料的最小流動單位是 <strong>Page：一包「同列數、逐欄分開」的 columnar 資料塊</strong></h2>
+  <svg viewBox="0 0 1720 380" style="width:100%;height:auto;margin-top:12px" role="img" aria-label="Page 與 Block 示意：列式資料轉成欄式 page">
+    <defs><marker id="pgA" markerWidth="11" markerHeight="11" refX="8" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#c0562e"/></marker></defs>
+    <text x="60" y="40" font-size="19" font-weight="900" fill="#14554e" font-family="Noto Sans TC,sans-serif">記憶中的原始資料（列式思考）</text>
+    <g font-family="ui-monospace,Consolas,monospace" font-size="15">
+      <rect x="60" y="54" width="470" height="196" rx="12" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="80" y="84" fill="#2c2418">orderkey  custkey  totalprice   orderdate</text>
+      <text x="80" y="108" fill="#6f6350">4001      9512      18234.5     2025-01-03</text>
+      <text x="80" y="132" fill="#6f6350">4002      1133      9921.0      2025-01-03</text>
+      <text x="80" y="156" fill="#6f6350">4003      7702      45210.75    2025-01-04</text>
+      <text x="80" y="180" fill="#6f6350">… 一列一列相鄰存放（對 CPU／IO 不友善）</text>
+    </g>
+    <line x1="540" y1="150" x2="620" y2="150" stroke="#c0562e" stroke-width="3.5" marker-end="url(#pgA)"/>
+    <text x="580" y="132" text-anchor="middle" font-size="16" font-weight="800" fill="#8a3b1d" font-family="Noto Sans TC,sans-serif">切成 Page</text>
+    <text x="60" y="330" font-size="19" font-weight="900" fill="#8a3b1d" font-family="Noto Sans TC,sans-serif">Trino 的 Page ＝ 每個欄位一個 Block（同列數、各自連續）</text>
+    <g font-family="ui-monospace,Consolas,monospace" font-size="14.5">
+      <rect x="620" y="54" width="1080" height="240" rx="16" fill="#eef6f1" stroke="#1f7a7055"/>
+      <rect x="648" y="80" width="230" height="130" rx="10" fill="#fdfaf2" stroke="#1f7a7044"/>
+      <text x="665" y="104" font-weight="900" fill="#14554e" font-size="15">Block: orderkey</text>
+      <text x="665" y="128" fill="#3d3425">4001 4002 4003…</text>
+      <text x="665" y="152" fill="#6f6350">連續整數陣列</text>
+      <rect x="900" y="80" width="230" height="130" rx="10" fill="#fdfaf2" stroke="#1f7a7044"/>
+      <text x="917" y="104" font-weight="900" fill="#14554e" font-size="15">Block: custkey</text>
+      <text x="917" y="128" fill="#3d3425">9512 1133 7702…</text>
+      <rect x="1152" y="80" width="240" height="130" rx="10" fill="#fdfaf2" stroke="#1f7a7044"/>
+      <text x="1169" y="104" font-weight="900" fill="#14554e" font-size="15">Block: totalprice</text>
+      <text x="1169" y="128" fill="#3d3425">18234.5 9921…</text>
+      <rect x="1414" y="80" width="258" height="130" rx="10" fill="#fdfaf2" stroke="#1f7a7044"/>
+      <text x="1431" y="104" font-weight="900" fill="#14554e" font-size="15">Block: orderdate</text>
+      <text x="1431" y="128" fill="#3d3425">2025-01-03…</text>
+      <text x="665" y="240" fill="#6f6350" font-size="14">同一個 Page 的所有 Block 列數相同</text>
+      <text x="665" y="266" fill="#6f6350" font-size="14">operator 之間、exchange 之間，都搬 Page</text>
+    </g>
+  </svg>
+  <div class="defs" style="margin-top:14px">
+    <div class="def"><div class="dt">為什麼 columnar 比較快</div><div class="dd">① 只把「要用的欄」放進記憶體與網路（Q 的 join 只需 custkey，不必載整列）；② 同型別連續存放 → CPU cache 友善、壓縮率高；③ operator 一次處理一整包，省掉逐列的 method call 開銷</div></div>
+    <div class="def alt"><div class="dt">跟 Parquet 的關係</div><div class="dd">Parquet 本身就是 columnar 檔案格式——connector 讀 Parquet 時，column chunk 直接餵成 Block，<b>格式對齊所以轉換成本低</b>；這也是 lakehouse 引擎的共通語言</div></div>
+  </div>
+  <div class="take">Page 是 Trino 的「貨幣」：<b>讀取、計算、傳輸、spill 全部以 page 為單位</b>——所以「少讀欄位、少傳資料」的效益會乘上整條管線。</div>
+</section>
+
+<!-- ============ 22 EXCHANGE ============ -->
+<section class="slide" id="s22" aria-labelledby="s22t">
+  <p class="meta"><span class="num">22</span><span class="part">PART 3 · 執行引擎 ④</span></p>
+  <h2 class="h2" id="s22t">Exchange 是 stage 之間的「水管」：<strong>有 backpressure 的水管——慢的 downstream 會回堵上游</strong></h2>
+  <svg viewBox="0 0 1720 340" style="width:100%;height:auto;margin-top:12px" role="img" aria-label="Remote exchange 與 backpressure">
+    <defs><marker id="exA" markerWidth="11" markerHeight="11" refX="8" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#c0562e"/></marker></defs>
+    <rect x="40" y="20" width="360" height="150" rx="16" fill="#fdfaf2" stroke="#e4d9c2"/>
+    <text x="220" y="54" text-anchor="middle" font-size="19" font-weight="900" fill="#2c2418" font-family="Noto Sans TC,sans-serif">Stage 1：producer task</text>
+    <text x="220" y="84" text-anchor="middle" font-size="15" fill="#6f6350" font-family="Noto Sans TC,sans-serif">每算出一批 page，塞進</text>
+    <text x="220" y="106" text-anchor="middle" font-size="15" fill="#6f6350" font-family="Noto Sans TC,sans-serif">自己的 <b>output buffer</b></text>
+    <rect x="90" y="120" width="260" height="38" rx="9" fill="#f9f1e0" stroke="#a87f2255"/>
+    <text x="220" y="144" text-anchor="middle" font-size="14.5" font-weight="800" fill="#7a5a12" font-family="Noto Sans TC,sans-serif">buffer 滿 → 上游暫停（backpressure）</text>
+    <line x1="400" y1="95" x2="560" y2="95" stroke="#c0562e" stroke-width="3.5" marker-end="url(#exA)"/>
+    <text x="480" y="78" text-anchor="middle" font-size="16" font-weight="900" fill="#8a3b1d" font-family="Noto Sans TC,sans-serif">HTTP</text>
+    <text x="480" y="126" text-anchor="middle" font-size="14.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">467 起內部通訊預設 HTTP/1.1</text>
+    <rect x="566" y="20" width="360" height="150" rx="16" fill="#fdfaf2" stroke="#e4d9c2"/>
+    <text x="746" y="54" text-anchor="middle" font-size="19" font-weight="900" fill="#2c2418" font-family="Noto Sans TC,sans-serif">Stage 1：consumer task</text>
+    <text x="746" y="84" text-anchor="middle" font-size="15" fill="#6f6350" font-family="Noto Sans TC,sans-serif">用 <b>exchange client</b> 拉 page</text>
+    <text x="746" y="106" text-anchor="middle" font-size="15" fill="#6f6350" font-family="Noto Sans TC,sans-serif">（RemoteSource operator）</text>
+    <rect x="596" y="120" width="300" height="38" rx="9" fill="#f3e0d3" stroke="#c0562e55"/>
+    <text x="746" y="144" text-anchor="middle" font-size="14.5" font-weight="800" fill="#8a3b1d" font-family="Noto Sans TC,sans-serif">吃得慢 → 對方 buffer 塞住 → 連鎖停等</text>
+    <rect x="966" y="20" width="714" height="150" rx="16" fill="#f9f1e0" stroke="#a87f2255"/>
+    <text x="1323" y="54" text-anchor="middle" font-size="19" font-weight="900" fill="#7a5a12" font-family="Noto Sans TC,sans-serif">誰需要 exchange（= shuffle 時機）</text>
+    <g font-family="Noto Sans TC,sans-serif" font-size="15">
+      <rect x="994" y="72" width="330" height="82" rx="11" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="1159" y="100" text-anchor="middle" font-weight="800" fill="#2c2418">join 的 partitioned 分布</text>
+      <text x="1159" y="124" text-anchor="middle" fill="#6f6350">照 join key hash 分給各 node</text>
+      <rect x="1340" y="72" width="320" height="82" rx="11" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="1500" y="100" text-anchor="middle" font-weight="800" fill="#2c2418">group by 的兩階段聚合</text>
+      <text x="1500" y="124" text-anchor="middle" fill="#6f6350">partial → final 之間打散</text>
+    </g>
+    <text x="1323" y="206" text-anchor="middle" font-size="15.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">同一台 node 內 driver 之間也有「LocalExchange」（EXPLAIN 常見）；跨 node 才是 RemoteExchange（HTTP）</text>
+  </svg>
+  <div class="cols2" style="margin-top:12px">
+    <div class="card"><h4 class="d">對查詢效能的意義</h4><ul>
+      <li>全 query 的完成時間 ≈ <b>最慢的那條 exchange 鏈</b>：一台 worker 慢（或 node 資源被別的 query 搶），上游全部等它——「長尾拖垮全場」</li>
+      <li>EXPLAIN ANALYZE 的 <b>Blocked</b> 時間就是在等 exchange／等待的證據</li></ul></div>
+    <div class="card"><h4 class="a">對成本模型的意義</h4><ul>
+      <li>exchange 搬的 bytes 是「<b>傳輸成本</b>」：broadcast 複製、partitioned 兩邊 shuffle、skew 造成單一 node 爆量</li>
+      <li>少搬＝改 join 分布／早點過濾／DF 生效——<b>傳得少比算得快更常是解藥</b></li></ul></div>
+  </div>
+  <div class="take">把 exchange 想成「有 buffer 的水管」：<b>任一節點吃不下，整條管線都會回堵</b>——所以單一慢 worker、傾斜的 key，會以「某個 task 卡住」的形式出現。</div>
+</section>
+
+<!-- ============ 23 SCHEDULING ============ -->
+<section class="slide" id="s23" aria-labelledby="s23t">
+  <p class="meta"><span class="num">23</span><span class="part">PART 3 · 執行引擎 ⑤</span></p>
+  <h2 class="h2" id="s23t">排程：Coordinator 照著 split 清單「發工作」，<strong>平行度由 splits 數 × 每台 worker 的並行能力決定</strong></h2>
+  <div class="dg" style="margin-top:14px;gap:8px">
+    <div class="node hl" style="flex:1.2"><div class="t" style="font-size:20px">Coordinator：split 排程器</div><div class="s">問 connector 拿整張表的 split 清單（p30）→ 依 node 狀態分派<br>（官方：coordinator 追蹤「哪台機器跑哪些 task、哪些 split 在哪些 task 手上」）</div></div>
+    <div class="arrow">→</div>
+    <div class="node" style="flex:1"><div class="t" style="font-size:20px">每台 worker 的胃口</div><div class="s">能同時跑多少 task／driver，由幾個預設值決定（右列數字）</div></div>
+    <div class="arrow">→</div>
+    <div class="node warn" style="flex:1"><div class="t" style="font-size:20px">執行中持續調度</div><div class="s">task 做完一個 split 就領下一個；leaf（讀資料）task 保證至少同時跑 3 個 split</div></div>
+  </div>
+  <div class="facts" style="margin-top:14px">
+    <div class="fact"><div class="fv">task.concurrency<small>（session: task_concurrency）</small></div><div class="fl">driver 平行度：預設＝<b>node 實體 CPU 數</b>（下限 2、上限 32，需 2 的次方）；<b>FTE 模式預設 8</b>（467 文件）</div></div>
+    <div class="fact"><div class="fv">task.max-worker-threads</div><div class="fl">worker 處理 splits 的執行緒數：預設 <b>node CPU × 2</b></div></div>
+    <div class="fact"><div class="fv">max-task-instances</div><div class="fl">leaf splits 同時運行目標數：預設 <b>worker-threads × 2</b>；每顆 leaf task 至少保證 3 個 running splits</div></div>
+  </div>
+  <div class="code" style="margin-top:12px">
+    <div class="chead"><span class="cdot"></span>查詢狀態機（Web UI 會看到）</div>
+    <pre>QUEUED → PLANNING → STARTING → RUNNING → FINISHING → FINISHED
+                        （隨時可被 CANCELED／FAILED／KILLED 打斷：使用者取消、資源不足、記憶體超限、worker 故障…）</pre>
+  </div>
+  <div class="pband cur" style="margin-top:11px"><span class="pbl">瓶頸在哪</span>splits 太少 → 一堆 worker 閒置（資料切太粗／小表）；splits 太多太小 → 排程與 task 管理成本吃掉好處（小檔案問題，第 5 章）。<b>所有平行度調整，都是在這兩個方向之間取平衡</b>。</div>
+  <div class="take">「為什麼沒用滿 cluster？」先查兩件事：<b>這張表被切成幾個 splits（夠不夠分），以及 worker 的並行設定</b>——多半是前者。</div>
+</section>
+
+<!-- ============ 24 DIVIDER PART 4 ============ -->
+<section class="slide divider" id="s24" aria-labelledby="s24t">
+  <span class="dnum">04</span>
+  <p class="dchap"><span class="dno">PART 4</span>記憶體・Spill・容錯</p>
+  <h2 id="s24t">查詢會死，是因為有人踩到資源紅線：<strong>記憶體怎麼分、滿了怎麼辦、掛了怎麼救</strong></h2>
+  <p class="dsub">join 的 hash table、group by 的狀態、排序的緩衝區都吃<b>記憶體</b>；Trino 用明確的預算管理它，用 <b>spill</b> 延後死亡，用 <b>retry</b> 收拾殘局。</p>
+  <div class="dmap">
+    <span class="dm on">01 · 記憶體分類與額度</span><span class="dm next">02 · Spill：把記憶體換成磁碟</span><span class="dm">03 · 記憶體爆掉會怎樣</span><span class="dm">04 · 容錯：retry-policy 三態</span>
+  </div>
+  <div class="take" style="margin-top:34px">驗收點：<b>user memory 與 revocable memory 差在哪？spill 為什麼「慢但不會死」？retry-policy=TASK 時為什麼 per-node 記憶體上限不適用？</b>（重看 25–28 頁）</div>
+</section>
+
+<!-- ============ 25 MEMORY MANAGEMENT ============ -->
+<section class="slide" id="s25" aria-labelledby="s25t">
+  <p class="meta"><span class="num">25</span><span class="part">PART 4 · 記憶體與容錯 ①</span></p>
+  <h2 class="h2" id="s25t">記憶體是一場「預算戰爭」：<strong>user 算的、可回收的、JVM 私藏的——各有額度，超標就殺</strong></h2>
+  <svg viewBox="0 0 1720 330" style="width:100%;height:auto;margin-top:12px" role="img" aria-label="記憶體分類圖">
+    <rect x="40" y="18" width="1640" height="40" rx="10" fill="#f6f0e4" stroke="#e4d9c2"/>
+    <text x="70" y="44" font-size="17" font-weight="900" fill="#6f6350" font-family="Noto Sans TC,sans-serif">單一 worker 的 JVM heap</text>
+    <g font-family="Noto Sans TC,sans-serif">
+      <rect x="40" y="66" width="1150" height="76" rx="12" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="70" y="94" font-size="18" font-weight="900" fill="#2c2418">User memory（可歸因於查詢的記憶體）</text>
+      <text x="70" y="122" font-size="15.5" fill="#6f6350">join 的 hash table、group by／排序的狀態（官方舉例）——每個 query 各算各的帳</text>
+      <rect x="1230" y="66" width="450" height="76" rx="12" fill="#f3e0d3" stroke="#c0562e55"/>
+      <text x="1260" y="94" font-size="18" font-weight="900" fill="#8a3b1d">Revocable memory</text>
+      <text x="1260" y="122" font-size="15.5" fill="#6f6350">「可以先欠著、隨時可被收回」的額度（spill 的對象，見 26 頁）</text>
+      <rect x="40" y="150" width="1640" height="64" rx="12" fill="#e9e2d2" stroke="#d8cdb8"/>
+      <text x="70" y="178" font-size="18" font-weight="900" fill="#4a3a26">Heap headroom（JVM 私藏）＋其他系統開銷</text>
+      <text x="70" y="202" font-size="15.5" fill="#6f6350">給 GC、connector 內部、Trino 框架自己用——預設 heap 的 30%（memory.heap-headroom-per-node）</text>
+      <rect x="40" y="236" width="1640" height="72" rx="14" fill="#eef6f1" stroke="#1f7a7055"/>
+      <text x="70" y="264" font-size="18" font-weight="900" fill="#14554e">額度規則（467 官方預設）</text>
+      <text x="70" y="292" font-size="16" fill="#3d5a53">單 query 每 node 的 user memory ≦ <b>JVM heap × 0.3</b>（query.max-memory-per-node）｜全 cluster user ≦ <b>20GB</b>（query.max-memory）｜含 revocable 的總量 ≦ <b>user × 2</b>（query.max-total-memory）</text>
+    </g>
+  </svg>
+  <div class="cols2" style="margin-top:12px">
+    <div class="card"><h4 class="d">超標會發生什麼</h4><ul>
+      <li>單 node 或全 cluster 超限 → <b>該 query 被 kill</b>，錯誤訊息例如 “Query exceeded per-node total memory limit …”</li>
+      <li>低記憶體時由 <b>low-memory-killer</b> 動手：預設 policy 殺「卡在已滿 node 上、又無法推進」的 query／task（total-reservation-on-blocked-nodes）</li></ul></div>
+    <div class="card"><h4 class="a">一個關鍵例外（常被誤解）</h4><ul>
+      <li>官方文件註明：per-node／total memory 上限<b>不適用於 retry-policy=TASK 的查詢</b>（25 頁那三個額度都是）</li>
+      <li>原因：TASK retry 把「單點記憶體爆掉」當成可重試的故障，用重跑取代預先設限</li>
+      <li>所以「為什麼開了 task retry 之後 query 反而能吃更多記憶體」——這是設計，不是 bug</li></ul></div>
+  </div>
+  <div class="take">記憶體錯誤＝預算戰爭的陣亡通知：<b>先看是哪條額度被踩（per-node？total？），再決定要縮查詢（少 broadcast、早過濾）還是開 spill</b>。</div>
+</section>
+
+<!-- ============ 26 SPILL ============ -->
+<section class="slide" id="s26" aria-labelledby="s26t">
+  <p class="meta"><span class="num">26</span><span class="part">PART 4 · 記憶體與容錯 ②</span></p>
+  <h2 class="h2" id="s26t">Spill：<strong>記憶體不夠時「分期付款」——把中間狀態寫去磁碟，慢，但不用死</strong></h2>
+  <svg viewBox="0 0 1720 300" style="width:100%;height:auto;margin-top:12px" role="img" aria-label="spill 流程">
+    <defs><marker id="spA" markerWidth="11" markerHeight="11" refX="8" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#c0562e"/></marker></defs>
+    <rect x="40" y="24" width="430" height="110" rx="16" fill="#fdfaf2" stroke="#e4d9c2"/>
+    <text x="255" y="58" text-anchor="middle" font-size="19" font-weight="900" fill="#2c2418" font-family="Noto Sans TC,sans-serif">operator 記憶體快滿</text>
+    <text x="255" y="88" text-anchor="middle" font-size="15.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">group by 的 group 太多／join 的 build 太大／排序資料太多…</text>
+    <line x1="470" y1="80" x2="600" y2="80" stroke="#c0562e" stroke-width="3.5" marker-end="url(#spA)"/>
+    <rect x="606" y="24" width="470" height="110" rx="16" fill="#f9f1e0" stroke="#a87f2255"/>
+    <text x="841" y="58" text-anchor="middle" font-size="19" font-weight="900" fill="#7a5a12" font-family="Noto Sans TC,sans-serif">把部分狀態寫到 node 本地磁碟</text>
+    <text x="841" y="86" text-anchor="middle" font-size="15.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">（spiller-spill-path，多顆磁碟可並寫）</text>
+    <text x="841" y="110" text-anchor="middle" font-size="15.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">官方：「讓大記憶體查詢過關，代價是變慢」</text>
+    <line x1="1076" y1="80" x2="1206" y2="80" stroke="#c0562e" stroke-width="3.5" marker-end="url(#spA)"/>
+    <rect x="1212" y="24" width="470" height="110" rx="16" fill="#eef5ec" stroke="#4d7c4f55"/>
+    <text x="1447" y="58" text-anchor="middle" font-size="19" font-weight="900" fill="#2f5a31" font-family="Noto Sans TC,sans-serif">需要時再讀回來合併</text>
+    <text x="1447" y="88" text-anchor="middle" font-size="15.5" fill="#4a5a3f" font-family="Noto Sans TC,sans-serif">排序：中繼排序結果分段寫出、最後 merge</text>
+    <text x="1447" y="112" text-anchor="middle" font-size="15.5" fill="#4a5a3f" font-family="Noto Sans TC,sans-serif">聚合：group 狀態溢出後分批處理</text>
+    <text x="255" y="180" text-anchor="middle" font-size="16.5" font-weight="900" fill="#14554e" font-family="Noto Sans TC,sans-serif">哪些 operator 支援 spill（467 文件）</text>
+    <g font-family="Noto Sans TC,sans-serif" font-size="16">
+      <rect x="60" y="196" width="380" height="52" rx="12" fill="#eef6f1" stroke="#1f7a7044"/><text x="250" y="220" text-anchor="middle" font-weight="800" fill="#14554e">Aggregation（group by）</text><text x="250" y="240" text-anchor="middle" fill="#6f6350" font-size="14">group 數太多時</text>
+      <rect x="456" y="196" width="380" height="52" rx="12" fill="#eef6f1" stroke="#1f7a7044"/><text x="646" y="220" text-anchor="middle" font-weight="800" fill="#14554e">Join（inner／outer）</text><text x="646" y="240" text-anchor="middle" fill="#6f6350" font-size="14">build 側放不下時</text>
+      <rect x="852" y="196" width="380" height="52" rx="12" fill="#eef6f1" stroke="#1f7a7044"/><text x="1042" y="220" text-anchor="middle" font-weight="800" fill="#14554e">Order by（排序）</text><text x="1042" y="240" text-anchor="middle" fill="#6f6350" font-size="14">中間結果分段落盤</text>
+      <rect x="1248" y="196" width="380" height="52" rx="12" fill="#eef6f1" stroke="#1f7a7044"/><text x="1438" y="220" text-anchor="middle" font-weight="800" fill="#14554e">Window functions</text><text x="1438" y="240" text-anchor="middle" fill="#6f6350" font-size="14">窗口太大時</text>
+    </g>
+    <rect x="60" y="262" width="1568" height="30" rx="9" fill="#fdfaf2" stroke="#e4d9c2"/>
+    <text x="844" y="282" text-anchor="middle" font-size="15" font-weight="800" fill="#6f6350" font-family="Noto Sans TC,sans-serif">開關：spill-enabled（預設 false）；壓縮 NONE（可選 LZ4／ZSTD）；單 query 每 node 上限 100GB；磁碟用量超過 0.9 就不選該路徑</text>
+  </svg>
+  <div class="defs" style="margin-top:10px">
+    <div class="def"><div class="dt">怎麼知道 spill 真的發生</div><div class="dd">EXPLAIN ANALYZE 的 operator 統計會出現 disk／spill 相關欄位，Web UI 也有 spill 計數；fragment 的 CPU 不高卻很慢＋磁碟 IO 高，就是 spill 在拖</div></div>
+  </div>
+  <div class="pband cur" style="margin-top:12px"><span class="pbl">spill vs kill 的分界</span>記憶體滿時：<b>該 operator 支援 spill 且 spill-enabled → 寫磁碟續命；否則 → 直接超限被 kill</b>。所以 spill 是「用時間換活命」的開關，不是效能加速器。</div>
+  <div class="take">EXPLAIN ANALYZE 看到 <b>spill 發生（或 disk 出現）＝查詢在記憶體邊緣求生</b>——治本是讓它不需要 spill（更早過濾、更小 broadcast、更多 worker），不是把 spill 調大。</div>
+</section>
+
+<!-- ============ 27 MEMORY FAILURE MODES ============ -->
+<section class="slide" id="s27" aria-labelledby="s27t">
+  <p class="meta"><span class="num">27</span><span class="part">PART 4 · 記憶體與容錯 ③</span></p>
+  <h2 class="h2" id="s27t">記憶體相關錯誤怎麼讀：<strong>先看訊息裡的關鍵字，對回上一頁的預算規則</strong></h2>
+  <div class="code small" style="margin-top:14px">
+    <div class="chead"><span class="cdot"></span>三個常見的記憶體錯誤（訊息模式）</div>
+    <pre><b>Query exceeded per-node total memory limit of 10GB</b>      <span class="cm">← 單 node 總額度被踩（user+revocable）</span>
+<b>Query exceeded total memory limit of 20GB</b>               <span class="cm">← 全 cluster 總額度被踩</span>
+<b>Query exceeded per-node user memory limit of 6GB</b>        <span class="cm">← 單 node user memory 被踩</span>
+（低記憶體時 system 主動殺）→ 查 Web UI／log：被 low-memory-killer 終止的 query／task</pre>
+  </div>
+  <div class="cols2" style="margin-top:14px">
+    <div class="card"><h4 class="d">先確認：誰吃掉的？</h4><ul>
+      <li>用 <b>EXPLAIN ANALYZE</b> 找吃記憶體最兇的 operator（join build、aggregation、排序）</li>
+      <li>broadcast join 的 build 表太大？group key 太多（基數高）？還是同時太多 query 在搶同一台 node？</li>
+      <li>被 low-memory-killer 殺的常常不是「最肥的」，而是「卡住不動、佔著茅坑」的那個</li></ul></div>
+    <div class="card"><h4 class="a">再決定：哪條路？</h4><ul>
+      <li>縮查詢：更早過濾、換 join 順序／分布、拆小查詢</li>
+      <li>開 spill（26 頁）：讓支援的 operator 寫磁碟續命——<b>治標</b></li>
+      <li>調額度或加 worker：這是平台設定，要跟平台負責人（我們）討論，不是 session 隨手改</li>
+      <li>retry-policy=TASK 的查詢不吃這套上限（25 頁例外）</li></ul></div>
+  </div>
+  <div class="pband cur" style="margin-top:13px"><span class="pbl">工程師的反射動作</span>看到 “exceeded … memory limit” 別急著把記憶體參數調大——<b>先問「這個查詢為什麼需要那麼多記憶體」</b>，答案通常是計畫形狀問題（join／aggregation），不是額度問題。</div>
+  <div class="take">記憶體錯誤是「症狀」不是「病因」：<b>訊息告訴你哪條線被踩，EXPLAIN ANALYZE 告訴你誰在吃</b>——兩個都要看。</div>
+</section>
+
+<!-- ============ 28 FAULT TOLERANCE ============ -->
+<section class="slide" id="s28" aria-labelledby="s28t">
+  <p class="meta"><span class="num">28</span><span class="part">PART 4 · 記憶體與容錯 ④</span></p>
+  <h2 class="h2" id="s28t">Worker 掛了怎麼辦：<strong>NONE 直接死、QUERY 整條重跑、TASK 只重跑受傷的那一塊</strong></h2>
+  <div class="cols2" style="gap:14px;margin-top:14px">
+    <div class="card" style="padding:12px 16px">
+      <h4 class="d" style="font-size:19px">retry-policy = NONE（467 預設）</h4>
+      <div class="ct">故障容忍關閉</div>
+      <ul style="font-size:16px">
+        <li>執行中 node 缺資源或失敗 → <b>整條 query 失敗，手動重跑</b>（官方原文）</li>
+        <li>query 跑越久，中獎機率越高——長查詢的痛點</li>
+      </ul>
+      <h4 class="d" style="font-size:19px;margin-top:8px">QUERY（適合短查詢、高併發）</h4>
+      <ul style="font-size:16px">
+        <li>node 層級錯誤 → <b>自動整條重跑</b>（最多 4 次，間隔 10s 起、每次 ×2 到上限 1m）</li>
+        <li>中繼資料不落盤，成本低；大查詢重跑成本高</li>
+      </ul>
+    </div>
+    <div class="card" style="padding:12px 16px">
+      <h4 class="a" style="font-size:19px">TASK（適合大型批次查詢）</h4>
+      <div class="ct">官方：「推薦給大型批次——重跑小 task 比重跑整條有效率」</div>
+      <ul style="font-size:16px">
+        <li>只<b>重跑失敗的那個 task</b>（每 task 最多 4 次）；其他 task 的產出繼續用</li>
+        <li>代價：stage 之間的中繼資料要 <b>spool 到外部儲存</b>（exchange manager：S3／HDFS 等），且預設加密（每 query 一把隨機鑰匙）</li>
+        <li>短查詢高量情境反而變慢（spooling 開銷）——官方建議<b>批次用專屬 TASK 叢集</b></li>
+        <li>啟用後自動切換「最佳實務」預設：task.concurrency → 8、per-node 記憶體上限不適用（25 頁）</li>
+      </ul>
+    </div>
+  </div>
+  <svg viewBox="0 0 1720 190" style="width:100%;height:auto;margin-top:10px" role="img" aria-label="三種 retry policy 示意">
+    <defs><marker id="ftA" markerWidth="11" markerHeight="11" refX="8" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#c0562e"/></marker></defs>
+    <g font-family="Noto Sans TC,sans-serif">
+      <rect x="40" y="16" width="520" height="120" rx="14" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="300" y="46" text-anchor="middle" font-size="16" font-weight="900" fill="#8a2f2d">NONE：worker 掛 → 整條失敗 ✗</text>
+      <text x="300" y="74" text-anchor="middle" font-size="14.5" fill="#6f6350">人類去重跑（或排程系統重試）</text>
+      <rect x="300" y="88" width="0" height="0" rx="0"/>
+      <line x1="300" y1="96" x2="300" y2="112" stroke="#8a2f2d" stroke-width="2" stroke-dasharray="4 4"/>
+      <text x="300" y="130" text-anchor="middle" font-size="13.5" fill="#a2967e">時間成本：整條 query × N</text>
+      <rect x="600" y="16" width="520" height="120" rx="14" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="860" y="46" text-anchor="middle" font-size="16" font-weight="900" fill="#7a5a12">QUERY：掛掉 → 整棵樹重播 ↺</text>
+      <text x="860" y="74" text-anchor="middle" font-size="14.5" fill="#6f6350">同一條 query 自動再跑一次（最多 4 次）</text>
+      <text x="860" y="130" text-anchor="middle" font-size="13.5" fill="#a2967e">適合：短查詢×高量（重跑便宜）</text>
+      <rect x="1160" y="16" width="520" height="120" rx="14" fill="#eef5ec" stroke="#4d7c4f55"/>
+      <text x="1420" y="46" text-anchor="middle" font-size="16" font-weight="900" fill="#2f5a31">TASK：只重跑失敗的 task 🔧</text>
+      <text x="1420" y="74" text-anchor="middle" font-size="14.5" fill="#4a5a3f">其他 task 的 spool 產出繼續用</text>
+      <text x="1420" y="130" text-anchor="middle" font-size="13.5" fill="#a2967e">適合：長查詢／批次（重跑成本高）</text>
+    </g>
+  </svg>
+  <div class="take" style="margin-top:10px">「開 fault-tolerant 就無敵」是誤解：<b>TASK 用「中繼資料落盤＋可重算」換穩定，代價是額外 IO 與短查詢延遲</b>——所以官方才建議批次與短查詢分叢集。</div>
+</section>
+
+<!-- ============ 29 DIVIDER PART 5 ============ -->
+<section class="slide divider" id="s29" aria-labelledby="s29t">
+  <span class="dnum">05</span>
+  <p class="dchap"><span class="dno">PART 5</span>Connector 與資料讀取</p>
+  <h2 id="s29t">效能天花板不在引擎，在 Connector：<strong>讀多少 bytes，從這裡決定</strong></h2>
+  <p class="dsub">同一句 SQL，Iceberg 表為什麼比另一張表快十倍？答案在 metadata 層怎麼被問、split 怎麼切、Parquet 怎麼讀。這一章把 <b>Iceberg（自家主力）</b>的讀取路徑拆開。</p>
+  <div class="dmap">
+    <span class="dm on">01 · Connector 三大介面</span><span class="dm next">02 · Iceberg 讀取堆疊</span><span class="dm">03 · Split 與平行度</span><span class="dm">04 · 寫入與 commit</span>
+  </div>
+  <div class="take" style="margin-top:34px">驗收點：<b>一條查詢在「規劃期」與「執行期」分別呼叫 connector 的哪些介面？Iceberg 讀取時哪些動作在省 bytes？</b>（重看 30–33 頁）</div>
+</section>
+
+<!-- ============ 30 CONNECTOR INTERFACES ============ -->
+<section class="slide" id="s30" aria-labelledby="s30t">
+  <p class="meta"><span class="num">30</span><span class="part">PART 5 · Connector ①</span></p>
+  <h2 class="h2" id="s30t">Connector 三大介面，對應查詢的三個時刻：<strong>Metadata 被問兩次、Splits 產生一次、PageSource 一直讀</strong></h2>
+  <svg viewBox="0 0 1720 360" style="width:100%;height:auto;margin-top:12px" role="img" aria-label="connector 介面與查詢生命週期對應">
+    <defs><marker id="cnA" markerWidth="11" markerHeight="11" refX="8" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#1f7a70"/></marker></defs>
+    <g font-family="Noto Sans TC,sans-serif">
+      <rect x="40" y="20" width="520" height="150" rx="16" fill="#eef6f1" stroke="#1f7a7055"/>
+      <text x="300" y="54" text-anchor="middle" font-size="20" font-weight="900" fill="#14554e">① Metadata 介面</text>
+      <text x="300" y="82" text-anchor="middle" font-size="15.5" fill="#3d5a53">表／欄位／型別、分區資訊、統計值、pushdown 支援</text>
+      <text x="300" y="106" text-anchor="middle" font-size="15.5" fill="#3d5a53">（applyFilter／applyProjection／applyLimit…）</text>
+      <rect x="110" y="120" width="380" height="40" rx="10" fill="#fdfaf2" stroke="#1f7a7044"/>
+      <text x="300" y="145" text-anchor="middle" font-size="15" font-weight="800" fill="#14554e">被呼叫：Analyze（③）＋ CBO（⑤）</text>
+      <rect x="600" y="20" width="520" height="150" rx="16" fill="#f9f1e0" stroke="#a87f2255"/>
+      <text x="860" y="54" text-anchor="middle" font-size="20" font-weight="900" fill="#7a5a12">② Split 介面（SplitManager）</text>
+      <text x="860" y="82" text-anchor="middle" font-size="15.5" fill="#6f6350">把一張表「能平行讀的部分」列出來</text>
+      <text x="860" y="106" text-anchor="middle" font-size="15.5" fill="#6f6350">每份工作＝一個 split（官方：資料集的片段）</text>
+      <rect x="670" y="120" width="380" height="40" rx="10" fill="#fdfaf2" stroke="#a87f2255"/>
+      <text x="860" y="145" text-anchor="middle" font-size="15" font-weight="800" fill="#7a5a12">被呼叫：切 stage 時（⑥），coordinator 側</text>
+      <rect x="1160" y="20" width="520" height="150" rx="16" fill="#eef5ec" stroke="#4d7c4f55"/>
+      <text x="1420" y="54" text-anchor="middle" font-size="20" font-weight="900" fill="#2f5a31">③ PageSource（讀）／寫入介面</text>
+      <text x="1420" y="82" text-anchor="middle" font-size="15.5" fill="#4a5a3f">給定 split＋要的欄位，把外部資料</text>
+      <text x="1420" y="106" text-anchor="middle" font-size="15.5" fill="#4a5a3f">讀成 Trino 的 Page（21 頁）</text>
+      <rect x="1230" y="120" width="380" height="40" rx="10" fill="#fdfaf2" stroke="#4d7c4f55"/>
+      <text x="1420" y="145" text-anchor="middle" font-size="15" font-weight="800" fill="#2f5a31">被呼叫：執行期（⑦），worker 側</text>
+    </g>
+    <text x="300" y="205" text-anchor="middle" font-size="15.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">connector 回 Optional.empty()＝「這個優化我吃不下去」</text>
+    <rect x="60" y="222" width="1600" height="118" rx="16" fill="#fdfaf2" stroke="#e4d9c2"/>
+    <text x="90" y="252" font-size="18" font-weight="900" fill="#2c2418" font-family="Noto Sans TC,sans-serif">用 Q 把三個時刻連起來</text>
+    <g font-family="Noto Sans TC,sans-serif" font-size="15.5">
+      <rect x="90" y="266" width="500" height="58" rx="11" fill="#eef6f1" stroke="#1f7a7044"/>
+      <text x="340" y="291" text-anchor="middle" font-weight="800" fill="#14554e">規劃期（coordinator）</text>
+      <text x="340" y="312" text-anchor="middle" fill="#6f6350">問 metadata：orders 的分區鍵、統計值（12、15 頁）</text>
+      <rect x="620" y="266" width="500" height="58" rx="11" fill="#f9f1e0" stroke="#a87f2255"/>
+      <text x="870" y="291" text-anchor="middle" font-weight="800" fill="#7a5a12">切 stage 時（coordinator）</text>
+      <text x="870" y="312" text-anchor="middle" fill="#6f6350">SplitManager 依 filter 給 2025 年分區的檔案 splits（14 頁）</text>
+      <rect x="1150" y="266" width="480" height="58" rx="11" fill="#eef5ec" stroke="#4d7c4f55"/>
+      <text x="1390" y="291" text-anchor="middle" font-weight="800" fill="#2f5a31">執行期（worker）</text>
+      <text x="1390" y="312" text-anchor="middle" fill="#6f6350">PageSource 開檔讀 Parquet → 吐 page 進 driver（20 頁）</text>
+    </g>
+  </svg>
+  <div class="take" style="margin-top:12px">Connector 是「<b>引擎與資料之間唯一的合約</b>」：引擎只會 metadata／split／page 三種問法；效能差異全部來自 connector 對這三個介面的實作品質。</div>
+</section>
+
+<!-- ============ 31 ICEBERG READ PATH ============ -->
+<section class="slide" id="s31" aria-labelledby="s31t">
+  <p class="meta"><span class="num">31</span><span class="part">PART 5 · Connector ②</span></p>
+  <h2 class="h2" id="s31t">Iceberg 讀取堆疊：<strong>metadata 是地圖，檔案是領土——查詢先看地圖，只去該去的地方</strong></h2>
+  <svg viewBox="0 0 1720 380" style="width:100%;height:auto;margin-top:10px" role="img" aria-label="Iceberg 讀取路徑">
+    <defs><marker id="icA" markerWidth="11" markerHeight="11" refX="8" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#c0562e"/></marker></defs>
+    <g font-family="Noto Sans TC,sans-serif">
+      <rect x="40" y="24" width="380" height="120" rx="14" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="230" y="54" text-anchor="middle" font-size="17" font-weight="900" fill="#2c2418">Table metadata（JSON）</text>
+      <text x="230" y="80" text-anchor="middle" font-size="14.5" fill="#6f6350">schema、分區設定、snapshot 清單</text>
+      <text x="230" y="102" text-anchor="middle" font-size="14.5" fill="#6f6350">（最新版位置記在 HMS／catalog）</text>
+      <line x1="420" y1="84" x2="470" y2="84" stroke="#1f7a70" stroke-width="3" marker-end="url(#icA)"/>
+      <rect x="476" y="24" width="380" height="120" rx="14" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="666" y="54" text-anchor="middle" font-size="17" font-weight="900" fill="#2c2418">Snapshot → Manifest list</text>
+      <text x="666" y="80" text-anchor="middle" font-size="14.5" fill="#6f6350">這次快照包含哪些 manifest</text>
+      <text x="666" y="102" text-anchor="middle" font-size="14.5" fill="#6f6350">（= 一層「檔案索引」）</text>
+      <line x1="856" y1="84" x2="906" y2="84" stroke="#1f7a70" stroke-width="3" marker-end="url(#icA)"/>
+      <rect x="912" y="24" width="380" height="120" rx="14" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="1102" y="54" text-anchor="middle" font-size="17" font-weight="900" fill="#2c2418">Manifests</text>
+      <text x="1102" y="80" text-anchor="middle" font-size="14.5" fill="#6f6350">每個 data file 的紀錄：路徑、</text>
+      <text x="1102" y="102" text-anchor="middle" font-size="14.5" fill="#6f6350">分區值、欄位 min／max 統計</text>
+      <line x1="1292" y1="84" x2="1342" y2="84" stroke="#1f7a70" stroke-width="3" marker-end="url(#icA)"/>
+      <rect x="1348" y="24" width="332" height="120" rx="14" fill="#eef5ec" stroke="#4d7c4f55"/>
+      <text x="1514" y="54" text-anchor="middle" font-size="17" font-weight="900" fill="#2f5a31">Data files（Parquet）</text>
+      <text x="1514" y="80" text-anchor="middle" font-size="14.5" fill="#4a5a3f">真正要讀的資料，在物件儲存</text>
+      <text x="1514" y="102" text-anchor="middle" font-size="14.5" fill="#4a5a3f">（S3／MinIO）</text>
+    </g>
+    <rect x="40" y="168" width="1640" height="130" rx="16" fill="#eef6f1" stroke="#1f7a7055"/>
+    <text x="70" y="198" font-size="17.5" font-weight="900" fill="#14554e" font-family="Noto Sans TC,sans-serif">每一層都能「剪枝」——Q 的 WHERE orderdate ∈ 2025 一路往下省</text>
+    <g font-family="Noto Sans TC,sans-serif" font-size="15.5">
+      <rect x="70" y="212" width="390" height="74" rx="11" fill="#fdfaf2" stroke="#1f7a7044"/>
+      <text x="265" y="236" text-anchor="middle" font-weight="800" fill="#14554e">① 分區剪枝（partition pruning）</text>
+      <text x="265" y="260" text-anchor="middle" fill="#6f6350">orderdate 按月分區 → manifest list 只挑 2025 的 12 個月</text>
+      <rect x="480" y="212" width="390" height="74" rx="11" fill="#fdfaf2" stroke="#1f7a7044"/>
+      <text x="675" y="236" text-anchor="middle" font-weight="800" fill="#14554e">② metadata 統計剪枝</text>
+      <text x="675" y="260" text-anchor="middle" fill="#6f6350">manifest 內 min／max → 跳過不含目標值的檔案</text>
+      <rect x="890" y="212" width="390" height="74" rx="11" fill="#fdfaf2" stroke="#1f7a7044"/>
+      <text x="1085" y="236" text-anchor="middle" font-weight="800" fill="#14554e">③ Projection（只讀要的欄）</text>
+      <text x="1085" y="260" text-anchor="middle" fill="#6f6350">Parquet column chunk 只載 custkey／orderdate…</text>
+      <rect x="1300" y="212" width="360" height="74" rx="11" fill="#fdfaf2" stroke="#1f7a7044"/>
+      <text x="1480" y="236" text-anchor="middle" font-weight="800" fill="#14554e">④ row-group 剪枝（＋DF）</text>
+      <text x="1480" y="260" text-anchor="middle" fill="#6f6350">讀檔時再用統計／動態過濾跳 row group</text>
+    </g>
+    <rect x="40" y="312" width="1640" height="56" rx="14" fill="#f9f1e0" stroke="#a87f2255"/>
+    <text x="860" y="333" text-anchor="middle" font-size="16.5" font-weight="800" fill="#7a5a12" font-family="Noto Sans TC,sans-serif">對比 Hive connector（官方文件）：Hive 的 HMS 只記「分區位置」，查詢要先列分區、再列目錄下的檔、再讀每檔 metadata——Iceberg 的 manifest 直接是檔案索引，所以 metadata 層快很多</text>
+    <text x="860" y="359" text-anchor="middle" font-size="14.5" fill="#6f6350" font-family="Noto Sans TC,sans-serif">（自家是 Iceberg 1.5.2 ——這正是 lakehouse 的效能來源之一）</text>
+  </svg>
+  <div class="take" style="margin-top:10px">同一條查詢快不快，常早在「讀檔之前」就決定了：<b>分區鍵有沒有對上 filter、投影有沒有只選要的欄、檔案大小健不健康</b>——這三件事決定實際 IO 量。</div>
+</section>
+
+<!-- ============ 32 SPLITS ============ -->
+<section class="slide" id="s32" aria-labelledby="s32t">
+  <p class="meta"><span class="num">32</span><span class="part">PART 5 · Connector ③</span></p>
+  <h2 class="h2" id="s32t">Split 是平行度的貨幣：<strong>太多太小＝管理費爆表；太少太大＝工人閒置</strong></h2>
+  <svg viewBox="0 0 1720 330" style="width:100%;height:auto;margin-top:12px" role="img" aria-label="split 數量與平行度">
+    <defs><marker id="sp2A" markerWidth="11" markerHeight="11" refX="8" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#1f7a70"/></marker></defs>
+    <g font-family="Noto Sans TC,sans-serif">
+      <rect x="40" y="16" width="820" height="140" rx="16" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="450" y="46" text-anchor="middle" font-size="18" font-weight="900" fill="#2c2418">健康的表：split 數量 ≈ 平行度需求</text>
+      <rect x="70" y="62" width="120" height="44" rx="8" fill="#e0ecdc" stroke="#4d7c4f55"/><text x="130" y="88" text-anchor="middle" font-size="14.5" font-weight="800" fill="#2f5a31">split 1</text>
+      <rect x="210" y="62" width="120" height="44" rx="8" fill="#e0ecdc" stroke="#4d7c4f55"/><text x="270" y="88" text-anchor="middle" font-size="14.5" font-weight="800" fill="#2f5a31">split 2</text>
+      <rect x="350" y="62" width="120" height="44" rx="8" fill="#e0ecdc" stroke="#4d7c4f55"/><text x="410" y="88" text-anchor="middle" font-size="14.5" font-weight="800" fill="#2f5a31">split 3</text>
+      <rect x="490" y="62" width="120" height="44" rx="8" fill="#e0ecdc" stroke="#4d7c4f55"/><text x="550" y="88" text-anchor="middle" font-size="14.5" font-weight="800" fill="#2f5a31">…</text>
+      <rect x="630" y="62" width="200" height="44" rx="8" fill="#f9f1e0" stroke="#a87f2255"/><text x="730" y="88" text-anchor="middle" font-size="14.5" font-weight="800" fill="#7a5a12">每個 = 一顆 task 的工作</text>
+      <text x="450" y="140" text-anchor="middle" font-size="14.5" fill="#6f6350">一個 split 通常對應一個（或一段）data file；Iceberg 依 manifest 的檔案清單產生</text>
+      <rect x="900" y="16" width="780" height="140" rx="16" fill="#f3e0d3" stroke="#c0562e55"/>
+      <text x="1290" y="46" text-anchor="middle" font-size="18" font-weight="900" fill="#8a3b1d">不健康：成千上萬「小檔案」</text>
+      <rect x="930" y="62" width="86" height="44" rx="8" fill="#f4e0de" stroke="#b0413e44"/><text x="973" y="88" text-anchor="middle" font-size="13.5" font-weight="800" fill="#8a2f2d">小檔</text>
+      <rect x="1024" y="62" width="86" height="44" rx="8" fill="#f4e0de" stroke="#b0413e44"/><text x="1067" y="88" text-anchor="middle" font-size="13.5" font-weight="800" fill="#8a2f2d">小檔</text>
+      <text x="1118" y="72" fill="#8a2f2d" font-size="22" font-weight="900">× 10 萬</text>
+      <text x="1118" y="98" fill="#6f6350" font-size="13.5">（append-only 寫入太久沒 compact 就會這樣）</text>
+      <text x="1290" y="130" text-anchor="middle" font-size="14.5" fill="#6f6350">每檔都要開檔、讀 footer 統計、產生 split、被排程——</text>
+      <text x="1290" y="149" text-anchor="middle" font-size="14.5" font-weight="800" fill="#8a3b1d">metadata／排程開銷吃掉掃描本身</text>
+    </g>
+    <text x="450" y="200" text-anchor="middle" font-size="16" font-weight="900" fill="#14554e" font-family="Noto Sans TC,sans-serif">Iceberg 相關設定（467 文件）</text>
+    <g font-family="Noto Sans TC,sans-serif" font-size="15.5">
+      <rect x="60" y="216" width="520" height="62" rx="12" fill="#eef6f1" stroke="#1f7a7044"/>
+      <text x="320" y="242" text-anchor="middle" font-weight="800" fill="#14554e">iceberg.split-manager-threads</text>
+      <text x="320" y="266" text-anchor="middle" fill="#6f6350">產生 splits 的執行緒：預設 = coordinator CPU × 2</text>
+      <rect x="600" y="216" width="520" height="62" rx="12" fill="#eef6f1" stroke="#1f7a7044"/>
+      <text x="860" y="242" text-anchor="middle" font-weight="800" fill="#14554e">iceberg.metadata.parallelism</text>
+      <text x="860" y="266" text-anchor="middle" fill="#6f6350">讀 metadata（table loading）執行緒：預設 8</text>
+      <rect x="1140" y="216" width="540" height="62" rx="12" fill="#eef6f1" stroke="#1f7a7044"/>
+      <text x="1410" y="242" text-anchor="middle" font-weight="800" fill="#14554e">minimum-assigned-split-weight</text>
+      <text x="1410" y="266" text-anchor="middle" fill="#6f6350">小檔表的 split 權重下限（調低可改善小檔效能）</text>
+    </g>
+  </svg>
+  <div class="pband cur" style="margin-top:12px"><span class="pbl">資料工程師的動作</span>覺得「這張 Iceberg 表 scan 很慢」→ 先看檔案數與平均大小：<b>對分區做 compaction／rewrite data files</b>，比調任何引擎參數都有效。</div>
+  <div class="take">Split 是平行度的貨幣，而貨幣的「面額」由資料健康度決定：<b>檔案太大太少 → 平行不足；太多太小 → 開銷爆表</b>——target 是檔案大小跟讀取任務匹配（通常數十 MB 到數百 MB 級）。</div>
+</section>
+
+<!-- ============ 33 WRITES ============ -->
+<section class="slide" id="s33" aria-labelledby="s33t">
+  <p class="meta"><span class="num">33</span><span class="part">PART 5 · Connector ④</span></p>
+  <h2 class="h2" id="s33t">寫入也走同一套引擎——但「存資料」是 Iceberg 的事：<strong>commit = 換一張新的 snapshot</strong></h2>
+  <svg viewBox="0 0 1720 330" style="width:100%;height:auto;margin-top:12px" role="img" aria-label="INSERT 寫入路徑">
+    <defs><marker id="wrA" markerWidth="11" markerHeight="11" refX="8" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#c0562e"/></marker></defs>
+    <g font-family="Noto Sans TC,sans-serif">
+      <rect x="40" y="24" width="380" height="130" rx="16" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="230" y="56" text-anchor="middle" font-size="17.5" font-weight="900" fill="#2c2418">① 讀＋算（跟 SELECT 一樣）</text>
+      <text x="230" y="84" text-anchor="middle" font-size="14.5" fill="#6f6350">INSERT 的來源、JOIN 的維度表…</text>
+      <text x="230" y="106" text-anchor="middle" font-size="14.5" fill="#6f6350">照常由 worker 平行處理</text>
+      <line x1="420" y1="90" x2="500" y2="90" stroke="#c0562e" stroke-width="3.5" marker-end="url(#wrA)"/>
+      <rect x="506" y="24" width="430" height="130" rx="16" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="721" y="56" text-anchor="middle" font-size="17.5" font-weight="900" fill="#2c2418">② writer task 寫「新檔案」</text>
+      <text x="721" y="84" text-anchor="middle" font-size="14.5" fill="#6f6350">Parquet 檔寫到目標目錄（S3／MinIO）</text>
+      <text x="721" y="106" text-anchor="middle" font-size="14.5" fill="#6f6350"><b>只新增、不修改舊檔</b></text>
+      <line x1="936" y1="90" x2="1016" y2="90" stroke="#c0562e" stroke-width="3.5" marker-end="url(#wrA)"/>
+      <rect x="1022" y="24" width="430" height="130" rx="16" fill="#eef6f1" stroke="#1f7a7055"/>
+      <text x="1237" y="56" text-anchor="middle" font-size="17.5" font-weight="900" fill="#14554e">③ commit：換 snapshot</text>
+      <text x="1237" y="84" text-anchor="middle" font-size="14.5" fill="#3d5a53">coordinator 透過 connector metadata</text>
+      <text x="1237" y="106" text-anchor="middle" font-size="14.5" fill="#3d5a53">把 manifest list 指到新版本——<b>原子切換</b></text>
+      <line x1="1452" y1="90" x2="1532" y2="90" stroke="#c0562e" stroke-width="3.5" marker-end="url(#wrA)"/>
+      <rect x="1538" y="24" width="150" height="130" rx="16" fill="#eef5ec" stroke="#4d7c4f55"/>
+      <text x="1613" y="64" text-anchor="middle" font-size="15.5" font-weight="900" fill="#2f5a31">✓ 查得到</text>
+      <text x="1613" y="90" text-anchor="middle" font-size="13.5" fill="#4a5a3f">後續查詢</text>
+      <text x="1613" y="108" text-anchor="middle" font-size="13.5" fill="#4a5a3f">自動看到</text>
+      <text x="1613" y="126" text-anchor="middle" font-size="13.5" fill="#4a5a3f">新 snapshot</text>
+    </g>
+    <rect x="40" y="176" width="1640" height="136" rx="16" fill="#f9f1e0" stroke="#a87f2255"/>
+    <text x="70" y="206" font-size="17.5" font-weight="900" fill="#7a5a12" font-family="Noto Sans TC,sans-serif">對資料工程師的三個含義</text>
+    <g font-family="Noto Sans TC,sans-serif" font-size="15.5">
+      <rect x="70" y="220" width="520" height="80" rx="11" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="330" y="246" text-anchor="middle" font-weight="800" fill="#2c2418">① 為什麼寫入是「新增」不是「覆蓋」</text>
+      <text x="330" y="272" text-anchor="middle" fill="#6f6350">小筆頻繁寫入 → 檔案越切越碎 → 第 32 頁的小檔問題</text>
+      <text x="330" y="294" text-anchor="middle" fill="#6f6350">→ 需要 compaction 合併</text>
+      <rect x="610" y="220" width="520" height="80" rx="11" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="870" y="246" text-anchor="middle" font-weight="800" fill="#2c2418">② 為什麼 commit 前失敗不會留半套</text>
+      <text x="870" y="272" text-anchor="middle" fill="#6f6350">snapshot 沒切換 = 資料沒「上架」；</text>
+      <text x="870" y="294" text-anchor="middle" fill="#6f6350">孤兒檔案由 Iceberg 清理機制處理</text>
+      <rect x="1150" y="220" width="510" height="80" rx="11" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="1405" y="246" text-anchor="middle" font-weight="800" fill="#2c2418">③ 引擎保持無狀態</text>
+      <text x="1405" y="272" text-anchor="middle" fill="#6f6350">transaction 語意由 Iceberg catalog 保證；</text>
+      <text x="1405" y="294" text-anchor="middle" fill="#6f6350">467 的 Iceberg 讀寫都支援 fault-tolerant（28 頁）</text>
+    </g>
+  </svg>
+  <div class="take" style="margin-top:12px">「Trino 寫資料」其實是：<b>Trino 算好新檔案、叫 Iceberg 換一張 snapshot</b>——這解釋了為何資料立即可見、為何舊檔不動、為何碎檔要靠 compaction。</div>
+</section>
+
+<!-- ============ 34 DIVIDER PART 6 ============ -->
+<section class="slide divider" id="s34" aria-labelledby="s34t">
+  <span class="dnum">06</span>
+  <p class="dchap"><span class="dno">PART 6</span>把原理用回效能診斷</p>
+  <h2 id="s34t">慢查詢不是黑魔法：<strong>每個症狀都能對回一個機制</strong></h2>
+  <p class="dsub">到這裡你已經有了全部零件。這一章把它們組回一套<b>診斷順序</b>：先定位最貴的一層，再對照機制表，最後用 EXPLAIN ANALYZE 驗證。</p>
+  <div class="dmap">
+    <span class="dm on">01 · 端到端成本模型</span><span class="dm next">02 · 症狀 → 機制 → 動作</span><span class="dm">03 · EXPLAIN ANALYZE 讀法</span>
+  </div>
+  <div class="take" style="margin-top:34px">驗收點：<b>拿到一條慢查詢，你的第一步是什麼？為什麼「先看 EXPLAIN ANALYZE 第一行」是對的起手式？</b>（重看 35–37 頁）</div>
+</section>
+
+<!-- ============ 35 COST MODEL ============ -->
+<section class="slide" id="s35" aria-labelledby="s35t">
+  <p class="meta"><span class="num">35</span><span class="part">PART 6 · 效能診斷 ①</span></p>
+  <h2 class="h2" id="s35t">端到端成本分五層：<strong>優化 = 找出「目前最貴的一層」，不是亂加資源</strong></h2>
+  <svg viewBox="0 0 1720 420" style="width:100%;height:auto;margin-top:12px" role="img" aria-label="五層成本模型">
+    <defs><marker id="cmA" markerWidth="11" markerHeight="11" refX="8" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#c0562e"/></marker></defs>
+    <g font-family="Noto Sans TC,sans-serif">
+      <rect x="40" y="16" width="1640" height="52" rx="12" fill="#f9f1e0" stroke="#a87f2255"/>
+      <text x="860" y="49" text-anchor="middle" font-size="17.5" font-weight="900" fill="#7a5a12">① 想（coordinator）Analyze＋Planning＋CBO＋切 splits</text>
+      <rect x="40" y="76" width="1640" height="52" rx="12" fill="#eef5ec" stroke="#4d7c4f55"/>
+      <text x="860" y="109" text-anchor="middle" font-size="17.5" font-weight="900" fill="#2f5a31">② 讀（connector）metadata＋IO：分區剪枝／projection／row-group 決定 bytes</text>
+      <rect x="40" y="136" width="1640" height="52" rx="12" fill="#eef6f1" stroke="#1f7a7055"/>
+      <text x="860" y="169" text-anchor="middle" font-size="17.5" font-weight="900" fill="#14554e">③ 傳（exchange）shuffle bytes：broadcast 複製、partitioned 打散、skew</text>
+      <rect x="40" y="196" width="1640" height="52" rx="12" fill="#f3e0d3" stroke="#c0562e55"/>
+      <text x="860" y="229" text-anchor="middle" font-size="17.5" font-weight="900" fill="#8a3b1d">④ 算（operator）join／aggregation／sort 的 CPU＋記憶體（可能 spill）</text>
+      <rect x="40" y="256" width="1640" height="52" rx="12" fill="#e9e2d2" stroke="#d8cdb8"/>
+      <text x="860" y="289" text-anchor="middle" font-size="17.5" font-weight="900" fill="#4a3a26">⑤ 收（輸出）最後 stage 排序限量、串流回 client</text>
+    </g>
+    <g font-family="Noto Sans TC,sans-serif" font-size="15.5">
+      <rect x="40" y="330" width="530" height="86" rx="13" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="305" y="356" text-anchor="middle" font-weight="900" fill="#14554e">怎麼知道哪層貴？</text>
+      <text x="305" y="380" text-anchor="middle" fill="#6f6350">EXPLAIN ANALYZE 第一行：Queued／Analysis／Planning／Execution</text>
+      <text x="305" y="402" text-anchor="middle" fill="#6f6350">＋ fragment／operator 的 CPU、Blocked、input bytes</text>
+      <rect x="600" y="330" width="540" height="86" rx="13" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="870" y="356" text-anchor="middle" font-weight="900" fill="#14554e">各層的槓桿（回指章節）</text>
+      <text x="870" y="380" text-anchor="middle" fill="#6f6350">想：語法／統計（14–15）｜讀：分區鍵＋檔案健康（31–32）</text>
+      <text x="870" y="402" text-anchor="middle" fill="#6f6350">傳：join 分布＋DF（16–17）｜算：記憶體／spill／平行度（23–26）</text>
+      <rect x="1170" y="330" width="510" height="86" rx="13" fill="#f3e0d3" stroke="#c0562e55"/>
+      <text x="1425" y="356" text-anchor="middle" font-weight="900" fill="#8a3b1d">最大的誤區</text>
+      <text x="1425" y="380" text-anchor="middle" fill="#6f6350">查詢慢就加 worker／加記憶體——</text>
+      <text x="1425" y="402" text-anchor="middle" fill="#6f6350">若貴在「讀」或「想」，加資源幫不了多少</text>
+    </g>
+  </svg>
+  <div class="pband cur" style="margin-top:14px"><span class="pbl">診斷口訣</span><b>先讀第一行分時間（Queued／Analysis／Planning／Execution）</b>，再往下找 Execution 內 CPU 最高或 Blocked 最久的 fragment／operator——每一層都有對應的修法，而不是整包重寫。</div>
+  <div class="take">優化的順序永遠是：<b>定位最貴的一層 → 對照機制 → 做最小改動 → 重測</b>。原理的價值就是讓你在動手前先知道「該動哪一層」。</div>
+</section>
+
+<!-- ============ 36 SYMPTOMS ============ -->
+<section class="slide" id="s36" aria-labelledby="s36t">
+  <p class="meta"><span class="num">36</span><span class="part">PART 6 · 效能診斷 ②</span></p>
+  <h2 class="h2" id="s36t">症狀 → 機制 → 動作：<strong>八個最常見的「看起來很怪」的現象</strong></h2>
+  <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+    <div class="srow"><div class="sn">同一條 SQL 忽快忽慢</div><div class="sm">資源被其他 query 搶；exchange <b>backpressure</b>（22 頁）讓最慢的 task 決定全場</div><div class="sa">看 Web UI 同時在跑什麼；把大查詢排離尖峰</div><div class="sl lv1">常見</div></div>
+    <div class="srow"><div class="sn">“exceeded per-node memory limit”</div><div class="sm">單 node 的 user／total memory 額度被踩（25 頁）——多半是 broadcast 或 group by 太肥</div><div class="sa">EXPLAIN ANALYZE 找吃記憶體 operator；縮 build／開 spill</div><div class="sl lv2">要處理</div></div>
+    <div class="srow"><div class="sn">出現 spill 後龜速</div><div class="sm">記憶體不夠，operator 在磁碟邊緣求生（26 頁）</div><div class="sa">治本：更早過濾／更小 broadcast／更多平行，不是調大 spill</div><div class="sl lv2">要處理</div></div>
+    <div class="srow"><div class="sn">join 超慢且記憶體爆</div><div class="sm">broadcast 了不該 broadcast 的大 build（超過 100MB cap 卻仍被選？統計誤判）；或 partitioned 卻大量 shuffle</div><div class="sa">EXPLAIN 看 Join 的 Distribution；檢查統計值新鮮度（15 頁）</div><div class="sl lv2">要處理</div></div>
+    <div class="srow"><div class="sn">join 大表 scan 全讀</div><div class="sm">dynamic filter 沒接上：build 側沒先過濾、條件不支援、或 connector 不吃（17 頁）</div><div class="sa">EXPLAIN 找 dynamicFilters=；改寫成「先過濾維度表」的 pattern</div><div class="sl lv2">要處理</div></div>
+    <div class="srow"><div class="sn">Iceberg 表 scan 慢但檔案不多</div><div class="sm">分區鍵與 filter 不匹配 → 分區剪枝失效；projection 讀了沒用的欄（31 頁）</div><div class="sa">確認 filter 在分區鍵上；SELECT 只列需要的欄</div><div class="sl lv1">常見</div></div>
+    <div class="srow"><div class="sn">小檔案幾十萬個</div><div class="sm">split 數爆炸：metadata＋排程開銷 > 掃描本身（32 頁）</div><div class="sa">對分區 compaction（rewrite data files）</div><div class="sl lv3">資料品質</div></div>
+    <div class="srow"><div class="sn">coordinator CPU 100%</div><div class="sm">大量小查詢：parse／analyze／metadata／排程全在 coordinator（11–12、23 頁）</div><div class="sa">限制 concurrency／資源組；短查詢與批次分叢集；加 coordinator 資源</div><div class="sl lv1">常見</div></div>
+  </div>
+  <div class="take" style="margin-top:10px">八個症狀八個機制——<b>沒有「Trino 就是慢」這種事，只有「還沒定位到那一層」</b>。</div>
+</section>
+
+<!-- ============ 37 EXPLAIN ANALYZE ============ -->
+<section class="slide" id="s37" aria-labelledby="s37t">
+  <p class="meta"><span class="num">37</span><span class="part">PART 6 · 效能診斷 ③</span></p>
+  <h2 class="h2" id="s37t">EXPLAIN ANALYZE 讀法：<strong>第一行分階段，往下找最貴的 operator——Blocked 是等待，CPU 才是計算</strong></h2>
+  <div class="code small" style="margin-top:12px">
+    <div class="chead"><span class="cdot"></span>官方文件範例（467 sql/explain-analyze，節錄）——先看這三行</div>
+    <pre>Queued: 374us, <b>Analysis: 190ms, Planning: 179ms, Execution: 3.06s</b>   <span class="cm">← 哪一階段最久？</span>
+Fragment 1 [HASH]
+  CPU: 22.58ms, Scheduled: 96.72ms, <b>Blocked: 46.21s</b> (Input: 23.06s, Output: 0ns)
+  Input: 1000 rows (37.11kB) …                                <span class="cm">← Blocked ≫ CPU = 在等（exchange／資源）</span>
+  └─ Aggregate[type = FINAL, keys = [clerk]]
+     CPU: 8.00ms (3.51%), Scheduled: 22.00ms (5.28%), Blocked: 0ns, Output: 1000 rows …
+     Input avg.: 15.63 rows, Input std.dev.: 24.36%            <span class="cm">← std.dev 大 = 資料傾斜</span></pre>
+  </div>
+  <div class="defs" style="margin-top:12px">
+    <div class="def"><div class="dt">第一步：第一行分階段</div><div class="dd"><b>Queued</b>＝排隊等資源｜<b>Analysis＋Planning</b>＝coordinator 在想（12–15 頁）｜<b>Execution</b>＝worker 在跑（19–23 頁）。Planning 佔比大 → 查「想」的那層；Execution 大 → 往下看 fragment</div></div>
+    <div class="def alt"><div class="dt">第二步：fragment 與 operator 三組數字</div><div class="dd"><b>CPU</b>＝真的在算（含括號內佔總時間百分比）｜<b>Scheduled</b>＝被排到但可能等資源｜<b>Blocked</b>＝卡在等待（下游 buffer、exchange、慢 worker）——<b>Blocked 高不是 operator 的錯，是它上游／下游的系統性問題</b></div></div>
+    <div class="def"><div class="dt">第三步：看資料形狀</div><div class="dd">每個 operator 的 Input rows／bytes 與 <b>avg.／std.dev.</b>：std.dev 大 = 各 task 量不均 = <b>skew</b>（傾斜的 key、不均的 split）；scan 的 bytes 大 = pushdown 沒吃滿（31 頁）</div></div>
+  </div>
+  <div class="pband cur" style="margin-top:12px"><span class="pbl">反射動作</span>看到「某 operator CPU 只佔 3% 卻讓 fragment 卡 46 秒」——<b>問題不在這個 operator，在它等什麼</b>：往上追 exchange、往下追 scan。</div>
+  <div class="take">EXPLAIN ANALYZE 是「原理的儀表板」：<b>每一欄都對應一個你已經懂的機制</b>——讀得懂它，就等於把這份教材用在了真實查詢上。</div>
+</section>
+
+<!-- ============ 38 GLOSSARY ============ -->
+<section class="slide" id="s38" aria-labelledby="s38t">
+  <p class="meta"><span class="num">38</span><span class="part">PART 7 · 驗收準備 ①</span></p>
+  <h2 class="h2" id="s38t">名詞速查：<strong>21 個關鍵字，一個蘿蔔一個坑</strong>（忘了就回來看這頁）</h2>
+  <div class="gloss" style="margin-top:16px">
+    <div class="gterm"><div class="gt">Coordinator</div><div class="gd">「大腦」：parse／plan／最佳化／切 splits／排程；<b>不碰資料</b>（07）</div></div>
+    <div class="gterm"><div class="gt">Worker</div><div class="gd">「肌肉」：執行 task、讀 connector、互相 exchange（07）</div></div>
+    <div class="gterm"><div class="gt">Connector / Catalog</div><div class="gd">翻譯層；catalog＝設定檔綁一個 connector 實例（08）</div></div>
+    <div class="gterm"><div class="gt">Split</div><div class="gd">資料集的一小段、最小工作單位；task 照 split 領工（20、32）</div></div>
+    <div class="gterm"><div class="gt">Stage</div><div class="gd">計畫的一段，coordinator 腦中的模型；stage 之間是 exchange（19）</div></div>
+    <div class="gterm"><div class="gt">Task</div><div class="gd">stage 在 worker 上的執行分身，「work horse」（20）</div></div>
+    <div class="gterm"><div class="gt">Driver</div><div class="gd">task 內的最小平行單位＝一串 operator 的流水線（20）</div></div>
+    <div class="gterm"><div class="gt">Operator</div><div class="gd">吃 page 吐 page 的工站：scan／filter／join／aggregate…（20）</div></div>
+    <div class="gterm"><div class="gt">Page / Block</div><div class="gd">資料流動單位：一包同列數、逐欄（Block）的 columnar 資料（21）</div></div>
+    <div class="gterm"><div class="gt">Exchange</div><div class="gd">stage 間的水管：LocalExchange（同 node）／Remote（跨 node，HTTP）；有 backpressure（22）</div></div>
+    <div class="gterm"><div class="gt">Broadcast join</div><div class="gd">小 build 複製到每台 node，零 shuffle；上限預設 100MB（16）</div></div>
+    <div class="gterm"><div class="gt">Partitioned join</div><div class="gd">兩邊照 key 打散再 join；無單點記憶體上限但有 shuffle（16）</div></div>
+    <div class="gterm"><div class="gt">CBO / RBO</div><div class="gd">成本最佳化（靠統計）／規則最佳化（靠規則）（14–15）</div></div>
+    <div class="gterm"><div class="gt">Dynamic filter</div><div class="gd">執行中把 join 條件變成 scan 端 filter；預設開啟（17）</div></div>
+    <div class="gterm"><div class="gt">Pushdown</div><div class="gd">引擎把 filter／投影／limit 推給 connector 處理（14、31）</div></div>
+    <div class="gterm"><div class="gt">User memory</div><div class="gd">可歸因於 query 的記憶體（hash table、sort）；有 per-node／總量額度（25）</div></div>
+    <div class="gterm"><div class="gt">Revocable memory</div><div class="gd">可被回收的記憶體；回收不來就 spill（25–26）</div></div>
+    <div class="gterm"><div class="gt">Spill</div><div class="gd">記憶體不足時把中間狀態寫磁碟續命；預設關閉（26）</div></div>
+    <div class="gterm"><div class="gt">retry-policy</div><div class="gd">NONE（預設）／QUERY（整條重跑）／TASK（只重跑失敗 task，要 spool）（28）</div></div>
+    <div class="gterm"><div class="gt">Spooling</div><div class="gd">TASK retry 時中繼 exchange 資料落外部儲存，供重跑使用（28）</div></div>
+    <div class="gterm"><div class="gt">EXPLAIN ANALYZE</div><div class="gd">真實執行＋統計：第一行分階段，往下看 CPU／Blocked／input（37）</div></div>
+  </div>
+</section>
+
+<!-- ============ 39 QUIZ 1 ============ -->
+<section class="slide" id="s39" aria-labelledby="s39t">
+  <p class="meta"><span class="num">39</span><span class="part">PART 7 · 驗收 ② · 測驗 1–10</span></p>
+  <h2 class="h2" id="s39t">自我測驗（1/2）：<strong>先遮住答案，錯的題號記下來回去翻頁</strong></h2>
+  <div class="quiz" style="margin-top:14px">
+    <div class="qcard"><div class="qn">Q1</div><div class="qt">Trino 與 RDBMS 最本質的差異是？</div><div class="qopts"><div class="qo"><b>A.</b> 支援的 SQL 語法不同</div><div class="qo"><b>B.</b> Trino 不擁有資料、沒有自有儲存，用 Connector 讀外部資料</div><div class="qo"><b>C.</b> Trino 不能寫入資料</div><div class="qo"><b>D.</b> Trino 是單機引擎</div></div></div>
+    <div class="qcard"><div class="qn">Q2</div><div class="qt">Coordinator 掛掉時（單 coordinator 叢集），執行中的查詢會？</div><div class="qopts"><div class="qo"><b>A.</b> 由其他 worker 自動接管繼續跑</div><div class="qo"><b>B.</b> 暫停，等 coordinator 回來</div><div class="qo"><b>C.</b> 全部中止</div><div class="qo"><b>D.</b> 只有 planning 中的會中止</div></div></div>
+    <div class="qcard"><div class="qn">Q3</div><div class="qt">「Split」的官方定義最接近？</div><div class="qopts"><div class="qo"><b>A.</b> 一個 SQL 語句</div><div class="qo"><b>B.</b> 一個 worker 節點</div><div class="qo"><b>C.</b> 資料集的一小段，task 處理它的最小工作單位</div><div class="qo"><b>D.</b> stage 之間傳輸的一包資料</div></div></div>
+    <div class="qcard"><div class="qn">Q4</div><div class="qt">EXPLAIN (TYPE DISTRIBUTED) 的 Fragment 標 [SOURCE] 代表？</div><div class="qopts"><div class="qo"><b>A.</b> 單節點收尾的 stage</div><div class="qo"><b>B.</b> 直接從 connector 讀資料的 stage</div><div class="qo"><b>C.</b> 只做排序的 stage</div><div class="qo"><b>D.</b> 失敗會 retry 的 stage</div></div></div>
+    <div class="qcard"><div class="qn">Q5</div><div class="qt">Page 的結構是？</div><div class="qopts"><div class="qo"><b>A.</b> 一整列一包（row-oriented）</div><div class="qo"><b>B.</b> 每個欄位一個 Block、同列數的 columnar 資料包</div><div class="qo"><b>C.</b> 一個檔案一包</div><div class="qo"><b>D.</b> 壓縮後的 Parquet 片段</div></div></div>
+    <div class="qcard"><div class="qn">Q6</div><div class="qt">Broadcast join 的限制是？</div><div class="qopts"><div class="qo"><b>A.</b> 只能 join 小於 1 萬列的資料</div><div class="qo"><b>B.</b> build 側（filter 後）要能放進每台 node 的記憶體</div><div class="qo"><b>C.</b> 兩邊都要先排序</div><div class="qo"><b>D.</b> 只能用在等值 join</div></div></div>
+    <div class="qcard"><div class="qn">Q7</div><div class="qt">467 文件裡 join.max-broadcast-table-size 預設是？</div><div class="qopts"><div class="qo"><b>A.</b> 25MB　<b>B.</b> 100MB　<b>C.</b> 1GB　<b>D.</b> 不設限</div></div></div>
+    <div class="qcard"><div class="qn">Q8</div><div class="qt">Dynamic filter 要生效，必要條件是？</div><div class="qopts"><div class="qo"><b>A.</b> 關掉 CBO</div><div class="qo"><b>B.</b> build 側先被 WHERE 過濾且夠窄，且 EXPLAIN 看得到 dynamicFilters</div><div class="qo"><b>C.</b> 表一定要分區</div><div class="qo"><b>D.</b> 用 broadcast join</div></div></div>
+    <div class="qcard"><div class="qn">Q9</div><div class="qt">“Query exceeded per-node total memory limit” 代表？</div><div class="qopts"><div class="qo"><b>A.</b> node 的 JVM 記憶體用完</div><div class="qo"><b>B.</b> 該 query 在某 node 的 user＋revocable 記憶體超過額度被殺</div><div class="qo"><b>C.</b> GC 太慢</div><div class="qo"><b>D.</b> 磁碟空間不足</div></div></div>
+    <div class="qcard"><div class="qn">Q10</div><div class="qt">spill-enabled 的預設值與效果是？</div><div class="qopts"><div class="qo"><b>A.</b> true：一定會寫磁碟</div><div class="qo"><b>B.</b> false：記憶體不足時 operator 直接把中間狀態寫磁碟續命（需開啟）</div><div class="qo"><b>C.</b> false：記憶體不足時自動 kill</div><div class="qo"><b>D.</b> true：加速 join</div></div></div>
+  </div>
+</section>
+
+<!-- ============ 40 QUIZ 2 ============ -->
+<section class="slide" id="s40" aria-labelledby="s40t">
+  <p class="meta"><span class="num">40</span><span class="part">PART 7 · 驗收 ③ · 測驗 11–20</span></p>
+  <h2 class="h2" id="s40t">自我測驗（2/2）：<strong>最後五題是「應用題」——把機制套回真實情境</strong></h2>
+  <div class="quiz" style="margin-top:14px">
+    <div class="qcard"><div class="qn">Q11</div><div class="qt">467 的 retry-policy 預設是？</div><div class="qopts"><div class="qo"><b>A.</b> NONE（故障不容忍）　<b>B.</b> QUERY　<b>C.</b> TASK　<b>D.</b> STAGE</div></div></div>
+    <div class="qcard"><div class="qn">Q12</div><div class="qt">TASK retry 能運作，靠的是？</div><div class="qopts"><div class="qo"><b>A.</b> 每個 task 自己記 checkpoint 到本地磁碟</div><div class="qo"><b>B.</b> 中繼 exchange 資料 spool 到外部儲存，失敗的 task 用別台 worker 重跑</div><div class="qo"><b>C.</b> 同步複製 worker 狀態</div><div class="qo"><b>D.</b> coordinator 代跑</div></div></div>
+    <div class="qcard"><div class="qn">Q13</div><div class="qt">Iceberg 表「小檔案太多」為什麼慢？</div><div class="qopts"><div class="qo"><b>A.</b> 檔案格式不支援平行讀</div><div class="qo"><b>B.</b> split 數爆炸，metadata／排程開銷超過掃描本身</div><div class="qo"><b>C.</b> 壓縮率下降</div><div class="qo"><b>D.</b> 沒差，Trino 會自動合併</div></div></div>
+    <div class="qcard"><div class="qn">Q14</div><div class="qt">Q 的 WHERE 只寫在 orders（事實表）上時，dynamic filter 通常幫不上忙，因為？</div><div class="qopts"><div class="qo"><b>A.</b> orders 沒有分區</div><div class="qo"><b>B.</b> DF 需要 build 側（維度表）先被過濾，才有「值得傳的 key 集合」</div><div class="qo"><b>C.</b> DF 只支援等值 join</div><div class="qo"><b>D.</b> DF 預設關閉</div></div></div>
+    <div class="qcard"><div class="qn">Q15</div><div class="qt">Iceberg 查詢省 IO 的順序（由最外層開始）是？</div><div class="qopts"><div class="qo"><b>A.</b> row-group 剪枝 → 分區剪枝 → projection</div><div class="qo"><b>B.</b> 分區剪枝 → metadata（min/max）剪枝 → projection → row-group 剪枝</div><div class="qo"><b>C.</b> projection → 分區剪枝 → row-group</div><div class="qo"><b>D.</b> 沒有順序，全部同時做</div></div></div>
+    <div class="qcard"><div class="qn">Q16</div><div class="qt">EXPLAIN ANALYZE 中某 fragment 的 Blocked 46s ≫ CPU 22ms，代表？</div><div class="qopts"><div class="qo"><b>A.</b> 這個 fragment 算得很辛苦</div><div class="qo"><b>B.</b> 它在等：exchange、慢 worker、或資源——問題在「等什麼」不在 operator</div><div class="qo"><b>C.</b> 程式 bug</div><div class="qo"><b>D.</b> spill 發生</div></div></div>
+    <div class="qcard"><div class="qn">Q17</div><div class="qt">大量小查詢讓 coordinator CPU 100%，主因是？</div><div class="qopts"><div class="qo"><b>A.</b> worker 太慢</div><div class="qo"><b>B.</b> parse／analyze／metadata 呼叫／切 stage／排程全在 coordinator</div><div class="qo"><b>C.</b> 磁碟 IO</div><div class="qo"><b>D.</b> dynamic filter 運算</div></div></div>
+    <div class="qcard"><div class="qn">Q18</div><div class="qt">GROUP BY 的 key 嚴重傾斜時，最可能看到？</div><div class="qopts"><div class="qo"><b>A.</b> 某個 task 的 input 量／記憶體遠高於其他 task（EXPLAIN ANALYZE 的 std.dev 大）</div><div class="qo"><b>B.</b> 查詢直接報語法錯</div><div class="qo"><b>C.</b> coordinator 重啟</div><div class="qo"><b>D.</b> 結果不正確</div></div></div>
+    <div class="qcard"><div class="qn">Q19</div><div class="qt">範例 Q 的三個 join 對象中，最可能被 broadcast 的是？</div><div class="qopts"><div class="qo"><b>A.</b> orders（1.5 億列）</div><div class="qo"><b>B.</b> customer（150 萬列）</div><div class="qo"><b>C.</b> nation（25 列）</div><div class="qo"><b>D.</b> 全部都會</div></div></div>
+    <div class="qcard"><div class="qn">Q20</div><div class="qt">「Query exceeded total memory limit of 20GB」最直接的原因？</div><div class="qopts"><div class="qo"><b>A.</b> 某台 node 記憶體不足</div><div class="qo"><b>B.</b> query 全 cluster 的 user memory 超過 query.max-memory（預設 20GB）</div><div class="qo"><b>C.</b> JVM heap 太小</div><div class="qo"><b>D.</b> 磁碟 spill 太多</div></div></div>
+  </div>
+</section>
+
+<!-- ============ 41 ANSWERS ============ -->
+<section class="slide" id="s41" aria-labelledby="s41t">
+  <p class="meta"><span class="num">41</span><span class="part">PART 7 · 驗收 ④ · 解答</span></p>
+  <h2 class="h2" id="s41t">解答與一句話解析：<strong>對完答案，錯的回去翻對應頁</strong></h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px">
+    <div>
+      <div class="ans ok"><div class="an">Q1</div><div class="at"><span class="aopt">B</span>　不擁有資料、Connector 讀外部資料——這是 Trino 一切的起點（09）</div></div>
+      <div class="ans ok"><div class="an">Q2</div><div class="at"><span class="aopt">C</span>　執行中查詢全部中止——查詢狀態在 coordinator（07）</div></div>
+      <div class="ans ok"><div class="an">Q3</div><div class="at"><span class="aopt">C</span>　資料集的一小段、task 的最小工作單位（20）</div></div>
+      <div class="ans ok"><div class="an">Q4</div><div class="at"><span class="aopt">B</span>　[SOURCE]＝直接讀 connector 的 stage（19）</div></div>
+      <div class="ans ok"><div class="an">Q5</div><div class="at"><span class="aopt">B</span>　每個欄位一個 Block、同列數的 columnar 包（21）</div></div>
+      <div class="ans ok"><div class="an">Q6</div><div class="at"><span class="aopt">B</span>　build 側要能放進每台 node 記憶體（16）</div></div>
+      <div class="ans ok"><div class="an">Q7</div><div class="at"><span class="aopt">B</span>　100MB——467 文件 CBO 頁的 cap（16）</div></div>
+      <div class="ans ok"><div class="an">Q8</div><div class="at"><span class="aopt">B</span>　build 先過濾且窄＋EXPLAIN 看得到 dynamicFilters（17）</div></div>
+      <div class="ans ok"><div class="an">Q9</div><div class="at"><span class="aopt">B</span>　該 query 在某 node 超 total（user＋revocable）額度（25）</div></div>
+      <div class="ans ok"><div class="an">Q10</div><div class="at"><span class="aopt">B</span>　預設 false；開啟後記憶體不足時寫磁碟續命、變慢但不死（26）</div></div>
+    </div>
+    <div>
+      <div class="ans ok"><div class="an">Q11</div><div class="at"><span class="aopt">A</span>　NONE——467 需管理者設定 QUERY／TASK 才啟用（28）</div></div>
+      <div class="ans ok"><div class="an">Q12</div><div class="at"><span class="aopt">B</span>　spool 到外部儲存＋只重跑失敗 task（28）</div></div>
+      <div class="ans ok"><div class="an">Q13</div><div class="at"><span class="aopt">B</span>　split 數爆炸＝管理費爆表（32）</div></div>
+      <div class="ans ok"><div class="an">Q14</div><div class="at"><span class="aopt">B</span>　DF 的價值在 build 側先過濾出小 key 集合（17）</div></div>
+      <div class="ans ok"><div class="an">Q15</div><div class="at"><span class="aopt">B</span>　分區 → metadata 統計 → projection → row-group（31）</div></div>
+      <div class="ans ok"><div class="an">Q16</div><div class="at"><span class="aopt">B</span>　Blocked＝等待；先問它在等什麼（37）</div></div>
+      <div class="ans ok"><div class="an">Q17</div><div class="at"><span class="aopt">B</span>　「想」都在 coordinator；高併發小查詢的典型瓶頸（11、23）</div></div>
+      <div class="ans ok"><div class="an">Q18</div><div class="at"><span class="aopt">A</span>　std.dev 大＝task 之間量不均＝skew（37）</div></div>
+      <div class="ans ok"><div class="an">Q19</div><div class="at"><span class="aopt">C</span>　nation 25 列一定 broadcast；orders 一定 partitioned；customer 看 CBO（16）</div></div>
+      <div class="ans ok"><div class="an">Q20</div><div class="at"><span class="aopt">B</span>　全 cluster user memory 超 query.max-memory（25）</div></div>
+    </div>
+  </div>
+  <div class="pband cur" style="margin-top:12px"><span class="pbl">計分</span>20 題：<b>≥17 題＝可出師</b>；13–16 題＝把錯題對應的頁重看一次；&lt;13 題＝建議整份順讀第二遍，重點在圖。</div>
+  <div class="take">測驗不是考試，是「<b>哪裡還沒連起來</b>」的偵測器——每一題都指向一份具體的頁面，回去看圖，不要背答案。</div>
+</section>
+
+<!-- ============ 42 RESOURCES / CLOSING ============ -->
+<section class="slide" id="s42" aria-labelledby="s42t">
+  <p class="meta"><span class="num">42</span><span class="part">PART 7 · 延伸與收尾</span></p>
+  <h2 class="h2" id="s42t">延伸閱讀與最後一張圖：<strong>不懂就查文件，文件就是這份教材的母體</strong></h2>
+  <div class="cols2" style="margin-top:14px">
+    <div class="card">
+      <h4 class="d">官方文件（對應 Trino 467）</h4>
+      <ul>
+        <li><b>Overview → Concepts</b>：stage／task／driver／split 官方定義（本教材 19–20 頁母體）</li>
+        <li><b>SQL → EXPLAIN／EXPLAIN ANALYZE</b>：兩種輸出的完整語法與範例</li>
+        <li><b>Admin → Dynamic filtering</b>：DF 的支援條件與 EXPLAIN 判讀</li>
+        <li><b>Admin → Spill／Fault-tolerant execution</b>：spill 與 retry 細節</li>
+        <li><b>Admin → Properties reference</b>：本文所有預設值（100MB、20GB、CPU×…）的原始出處</li>
+        <li><b>Connector → Iceberg</b>：metadata 結構、統計收集、分區轉換</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 class="a">想再深入的兩條路</h4>
+      <ul>
+        <li><b>書</b>：Trino: The Definitive Guide（O’Reilly，官方 docs 推薦）</li>
+        <li><b>論文</b>：Presto: SQL on Everything（原版架構論文，概念一致）</li>
+        <li><b>實戰</b>：拿一條自家慢查詢跑 EXPLAIN ANALYZE，用 37 頁三步驟走一遍——比讀十遍有效</li>
+      </ul>
+    </div>
+  </div>
+  <svg viewBox="0 0 1720 300" style="width:100%;height:auto;margin-top:12px" role="img" aria-label="最後回顧：一條 SQL 的旅程">
+    <defs><marker id="clA" markerWidth="11" markerHeight="11" refX="8" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#c0562e"/></marker></defs>
+    <g font-family="Noto Sans TC,sans-serif">
+      <rect x="40" y="14" width="1640" height="56" rx="14" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="860" y="49" text-anchor="middle" font-size="18.5" font-weight="900" fill="#2c2418">一條 SQL 的旅程（整份教材壓成一條線）</text>
+      <rect x="40" y="96" width="250" height="78" rx="13" fill="#eef6f1" stroke="#1f7a7055"/>
+      <text x="165" y="125" text-anchor="middle" font-size="16" font-weight="900" fill="#14554e">Coordinator「想」</text>
+      <text x="165" y="152" text-anchor="middle" font-size="13.5" fill="#6f6350">parse→analyze→CBO→切 splits</text>
+      <line x1="290" y1="135" x2="350" y2="135" stroke="#1f7a70" stroke-width="3" marker-end="url(#clA)"/>
+      <rect x="356" y="96" width="250" height="78" rx="13" fill="#f9f1e0" stroke="#a87f2255"/>
+      <text x="481" y="125" text-anchor="middle" font-size="16" font-weight="900" fill="#7a5a12">Connector「切」</text>
+      <text x="481" y="152" text-anchor="middle" font-size="13.5" fill="#6f6350">metadata→split 清單（剪枝後）</text>
+      <line x1="606" y1="135" x2="666" y2="135" stroke="#a87f22" stroke-width="3" marker-end="url(#clA)"/>
+      <rect x="672" y="96" width="340" height="78" rx="13" fill="#fdfaf2" stroke="#e4d9c2"/>
+      <text x="842" y="125" text-anchor="middle" font-size="16" font-weight="900" fill="#2c2418">Workers「跑」</text>
+      <text x="842" y="152" text-anchor="middle" font-size="13.5" fill="#6f6350">task→driver：讀 Parquet→過濾→join→聚合，page 流動</text>
+      <line x1="1012" y1="135" x2="1072" y2="135" stroke="#c0562e" stroke-width="3" marker-end="url(#clA)"/>
+      <rect x="1078" y="96" width="300" height="78" rx="13" fill="#f3e0d3" stroke="#c0562e55"/>
+      <text x="1228" y="125" text-anchor="middle" font-size="16" font-weight="900" fill="#8a3b1d">資源「管」</text>
+      <text x="1228" y="152" text-anchor="middle" font-size="13.5" fill="#6f6350">記憶體預算→spill→掛了 retry</text>
+      <line x1="1378" y1="135" x2="1438" y2="135" stroke="#c0562e" stroke-width="3" marker-end="url(#clA)"/>
+      <rect x="1444" y="96" width="236" height="78" rx="13" fill="#eef5ec" stroke="#4d7c4f55"/>
+      <text x="1562" y="125" text-anchor="middle" font-size="16" font-weight="900" fill="#2f5a31">結果「回」</text>
+      <text x="1562" y="152" text-anchor="middle" font-size="13.5" fill="#4a5a3f">coordinator 串流回 client</text>
+      <rect x="40" y="196" width="1640" height="88" rx="16" fill="#2c2418"/>
+      <text x="860" y="228" text-anchor="middle" font-size="21" font-weight="900" fill="#e9c778" font-family="Noto Serif TC,serif">看懂這條線上的每一站，你就擁有了「解釋任何 Trino 現象」的能力</text>
+      <text x="860" y="260" text-anchor="middle" font-size="16" fill="#d8cdb8">慢、爆記憶體、卡住、被殺——全部都是這條線上某一站出了狀況，而你知道去哪一站看。</text>
+    </g>
+  </svg>
+  <div class="take" style="margin-top:12px">教材到這裡結束。歡迎拿<b>真實案例</b>（EXPLAIN ANALYZE、錯誤訊息）來討論——把原理對回現實，才是 90 分以上那最後一哩。🚀</div>
+</section>
+
+<!-- ============ CHROME ============ -->
+<div class="progress"><div class="progress-bar" id="progressbar"></div></div>
+<div class="counter" id="counter">01 / 19</div>
+<div class="hint">⬅️➡️ 換頁 <span class="hsep">·</span> 🗺️ O 總覽 <span class="hsep">·</span> ⛶ F 全螢幕 <span class="hsep">·</span> ❓ 說明</div>
+<div class="nav">
+  <button class="navbtn" id="prevBtn" aria-label="上一頁">‹</button>
+  <button class="navbtn" id="nextBtn" aria-label="下一頁">›</button>
+</div>
+
+<div id="overview" aria-hidden="true">
+  <h2>總覽</h2>
+  <div class="ovgrid" id="ovgrid"></div>
+</div>
+<div id="help" aria-hidden="true">
+  <div class="help-title">操作說明 ✨</div>
+  <div class="help-grid">
+    <div class="hcard"><span class="hicon">⬅️➡️</span><span class="hkey"><kbd>←</kbd> <kbd>→</kbd></span><span class="hdesc">換頁</span></div>
+    <div class="hcard"><span class="hicon">🖱️</span><span class="hkey">點左右兩側</span><span class="hdesc">換頁</span></div>
+    <div class="hcard"><span class="hicon">📱</span><span class="hkey">左右滑動</span><span class="hdesc">換頁</span></div>
+    <div class="hcard"><span class="hicon">🗺️</span><span class="hkey"><kbd>O</kbd></span><span class="hdesc">總覽</span></div>
+    <div class="hcard"><span class="hicon">⛶</span><span class="hkey"><kbd>F</kbd></span><span class="hdesc">全螢幕</span></div>
+    <div class="hcard"><span class="hicon">🏠</span><span class="hkey"><kbd>Home</kbd></span><span class="hdesc">第一頁</span></div>
+    <div class="hcard"><span class="hicon">🏁</span><span class="hkey"><kbd>End</kbd></span><span class="hdesc">最後一頁</span></div>
+    <div class="hcard"><span class="hicon">❌</span><span class="hkey"><kbd>Esc</kbd></span><span class="hdesc">關閉</span></div>
+  </div>
+</div>
+
+</div><!-- /stage -->
+</div><!-- /viewport -->
+
+
+<script>
+
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  var current = 0;
+  var progress = document.getElementById('progressbar');
+  var counter = document.getElementById('counter');
+  var overview = document.getElementById('overview');
+  var help = document.getElementById('help');
+  var ovgrid = document.getElementById('ovgrid');
+
+  function show(n, updateHash){
+    if(n < 0) n = 0;
+    if(n > total - 1) n = total - 1;
+    current = n;
+    slides.forEach(function(s, i){ s.classList.toggle('is-active', i === n); });
+    if(progress) progress.style.width = ((n + 1) / total * 100) + '%';
+    if(counter) counter.textContent = String(n + 1).padStart(2,'0') + ' / ' + String(total).padStart(2,'0');
+    if(updateHash !== false){
+      try{ history.replaceState(null, '', '#s' + (n + 1)); }catch(e){}
+    }
+    if(overview) overview.classList.remove('open');
+    if(help) help.classList.remove('open');
+  }
+
+  function next(){ show(current + 1); }
+  function prev(){ show(current - 1); }
+
+  slides.forEach(function(s, i){
+    var t = s.querySelector('.h2');
+    var title = t ? t.textContent.trim() : ('第 ' + (i+1) + ' 頁');
+    var btn = document.createElement('button');
+    btn.className = 'ovbtn';
+    btn.innerHTML = '<div class="on">' + String(i+1).padStart(2,'0') + '</div><div class="ot">' + title + '</div>';
+    btn.addEventListener('click', function(){ show(i); });
+    ovgrid.appendChild(btn);
+  });
+
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && ((overview && overview.classList.contains('open')) || (help && help.classList.contains('open')))){
+      show(current, false); return;
+    }
+    switch(e.key){
+      case 'ArrowRight': case 'ArrowDown': case 'PageDown': case ' ': next(); e.preventDefault(); break;
+      case 'ArrowLeft': case 'ArrowUp': case 'PageUp': prev(); e.preventDefault(); break;
+      case 'Home': show(0); e.preventDefault(); break;
+      case 'End': show(total - 1); e.preventDefault(); break;
+      case 'o': case 'O': overview.classList.toggle('open'); e.preventDefault(); break;
+      case 'f': case 'F': {
+        var de = document.documentElement;
+        var req = de.requestFullscreen || de.webkitRequestFullscreen;
+        var exit = document.exitFullscreen || document.webkitExitFullscreen;
+        var isFs = document.fullscreenElement || document.webkitFullscreenElement;
+        if(req){
+          if(isFs){ if(exit){ exit.call(document); } }
+          else { var pr = req.call(de); if(pr && pr.catch){ pr.catch(function(){}); } }
+        }
+        e.preventDefault(); break;
+      }
+      case '?': help.classList.toggle('open'); e.preventDefault(); break;
+    }
+  });
+
+  document.querySelector('.stage').addEventListener('click', function(e){
+    if(overview && overview.classList.contains('open')) return;
+    var x = e.clientX / window.innerWidth;
+    if(x < 0.28){ prev(); }
+    else if(x > 0.72){ next(); }
+  });
+
+  var tx = null;
+  document.addEventListener('touchstart', function(e){ tx = e.changedTouches[0].clientX; }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    if(tx === null) return;
+    var dx = e.changedTouches[0].clientX - tx;
+    if(Math.abs(dx) > 60){ dx < 0 ? next() : prev(); }
+    tx = null;
+  }, {passive:true});
+
+  var nb = document.getElementById('nextBtn');
+  var pb = document.getElementById('prevBtn');
+  if(nb) nb.addEventListener('click', function(e){ e.stopPropagation(); next(); });
+  if(pb) pb.addEventListener('click', function(e){ e.stopPropagation(); prev(); });
+
+  window.addEventListener('hashchange', function(){
+    var m = location.hash.match(/^#s(\d+)$/);
+    if(m){ show(parseInt(m[1],10) - 1, false); }
+  });
+  var m0 = location.hash.match(/^#s(\d+)$/);
+  show(m0 ? parseInt(m0[1],10) - 1 : 0, false);
+})();
+
+</script>
+</body>
+</html>
