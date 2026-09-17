@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Agentic Workflow · 以 omp 為例</title>
+<style>
+:root{
+  --bg:#F6F4EF;
+  --paper:#FFFDFA;
+  --paper2:#F1EEE7;
+  --line:#E3DED3;
+  --line2:#CCC5B7;
+  --ink:#25221E;
+  --muted:#6E6760;
+  --accent:#A32A2A;
+  --accent-soft:#F5E7E4;
+  --blue:#3C5A6B;
+  --blue-soft:#E8EEF1;
+  --green:#4F7A5C;
+  --green-soft:#E9F0E8;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Noto Sans Mono",monospace;
+  --serif:"Songti TC","Noto Serif TC",ui-serif,Georgia,"PingFang TC",serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Noto Sans TC","PingFang TC",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{max-width:100%;overflow-x:hidden}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font:16px/1.72 var(--sans);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+body::before{
+  content:""; position:fixed; inset:0 0 auto 0; height:3px;
+  background:linear-gradient(90deg,var(--accent),#D9A79C 55%,var(--line2));
+  z-index:50;
+}
+.wrap{max-width:768px;margin:0 auto;padding:34px 20px 96px}
+
+/* ---------- header ---------- */
+.eyebrow{
+  font:600 11.5px/1 var(--mono); letter-spacing:.18em; text-transform:uppercase;
+  color:var(--accent);
+}
+h1{
+  font-family:var(--serif); font-weight:600;
+  font-size:clamp(27px,7.2vw,38px); line-height:1.22; letter-spacing:.01em;
+  margin:14px 0 10px;
+}
+.sub{color:var(--muted);font-size:14px;line-height:1.65;margin:0}
+.rule{height:1px;background:var(--line);margin:22px 0 0;border:0}
+
+/* ---------- typography ---------- */
+h2{
+  font-family:var(--serif); font-weight:600; font-size:20px; line-height:1.4;
+  margin:44px 0 14px; display:flex; align-items:baseline; gap:11px;
+  scroll-margin-top:18px;
+}
+h2 .num{
+  font:600 11px/1 var(--mono); letter-spacing:.06em; color:var(--accent);
+  border:1px solid var(--line2); border-radius:999px; padding:5px 8px;
+  background:var(--paper); flex:none;
+}
+h3{font-family:var(--serif);font-weight:600;font-size:16.5px;margin:24px 0 8px}
+h4{font-size:14.5px;margin:16px 0 6px;letter-spacing:.01em}
+p{margin:10px 0}
+b,strong{font-weight:700}
+ul,ol{margin:10px 0;padding-left:22px}
+li{margin:7px 0}
+small,.small{font-size:13px;color:var(--muted);line-height:1.65}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid #E0C4C0}
+a:hover{border-bottom-color:var(--accent)}
+hr{border:0;border-top:1px solid var(--line);margin:30px 0}
+
+/* ---------- blocks ---------- */
+.card{
+  background:var(--paper); border:1px solid var(--line); border-radius:14px;
+  padding:17px 18px; margin:13px 0;
+}
+.card.soft{background:var(--paper2);border-style:dashed}
+.card>:first-child{margin-top:0}
+.card>:last-child{margin-bottom:0}
+.lead{
+  background:linear-gradient(180deg,#FFFDFA,#F7F1EE);
+  border-color:#E0CFC9; padding:20px;
+}
+.lead .one{
+  font-family:var(--serif); font-size:17.5px; line-height:1.62; margin:0 0 14px;
+}
+.lead .two{background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:13px 15px;margin:0}
+.lead .two .row{display:flex;gap:11px;align-items:flex-start;margin:9px 0}
+.lead .two .row:first-child{margin-top:0}
+.lead .two .row:last-child{margin-bottom:0}
+.tag{
+  flex:none; font:600 11px/1 var(--mono); letter-spacing:.05em;
+  padding:6px 8px; border-radius:8px; background:var(--accent-soft);
+  color:var(--accent); border:1px solid #E7CFCB; min-width:42px; text-align:center;
+}
+.tag.b{background:var(--blue-soft);color:var(--blue);border-color:#D2DDE3}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+@media(max-width:560px){.grid{grid-template-columns:1fr}}
+.pill{
+  display:inline-block;font:600 11px/1.6 var(--mono);letter-spacing:.04em;
+  padding:3px 9px;border-radius:999px;border:1px solid var(--line2);
+  color:var(--muted);background:var(--paper);margin:0 5px 5px 0;
+}
+.pill.ok{color:#2C4A35;background:var(--green-soft);border-color:#CFDFD1}
+.pill.warn{color:#6B3A16;background:#F7EDE2;border-color:#E6D3BE}
+.pill.info{color:#2B4A5A;background:var(--blue-soft);border-color:#D2DDE3}
+.note{
+  border-left:3px solid var(--accent); background:#FBF3F1;
+  border-radius:0 11px 11px 0; padding:12px 15px; margin:14px 0; font-size:14.5px;
+}
+.note.blue{border-left-color:var(--blue);background:#F1F5F7}
+.note.grey{border-left-color:var(--line2);background:var(--paper2)}
+.note>:first-child{margin-top:0}.note>:last-child{margin-bottom:0}
+
+/* ---------- code ---------- */
+code{
+  font:13px/1.55 var(--mono); background:#EFEBE3; border:1px solid var(--line);
+  border-radius:5px; padding:1px 5px; overflow-wrap:anywhere;
+}
+pre{
+  background:#2A2723; color:#F1EDE6; border-radius:11px; padding:13px 15px;
+  margin:12px 0; overflow-x:auto; -webkit-overflow-scrolling:touch;
+  font:12.5px/1.7 var(--mono); max-width:100%;
+}
+pre code{
+  background:none;border:0;padding:0;color:inherit;
+  white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;font-size:12.5px;
+}
+pre .c{color:#A9A199}
+pre .k{color:#F0B8A8}
+
+/* ---------- flow ---------- */
+.flow{display:flex;flex-direction:column;gap:0;margin:14px 0}
+.node{
+  background:var(--paper); border:1px solid var(--line); border-radius:11px;
+  padding:11px 14px; font-size:14.5px; position:relative;
+  transition:background .25s,border-color .25s,box-shadow .25s,transform .25s;
+}
+.node .t{font-weight:600}
+.node .d{color:var(--muted);font-size:13px;margin-top:2px;line-height:1.55}
+.node .step{font:600 11px/1 var(--mono);color:var(--muted);float:right;letter-spacing:.06em}
+.node.on{
+  background:#FDF6F4;border-color:#DCB4AD;
+  box-shadow:0 2px 10px rgba(163,42,42,.09); transform:translateX(2px);
+}
+.node.on .step{color:var(--accent)}
+.hop{display:flex;justify-content:center;padding:5px 0;color:var(--line2);font-size:12px;line-height:1}
+.ctrls{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:12px}
+button{
+  font:600 12.5px/1 var(--sans); color:var(--ink); background:var(--paper);
+  border:1px solid var(--line2); border-radius:999px; padding:8px 14px; cursor:pointer;
+  transition:background .2s,border-color .2s,color .2s;
+}
+button:hover{background:var(--accent-soft);border-color:#DCB4AD;color:var(--accent)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mini{font-size:12.5px;color:var(--muted)}
+
+/* ---------- table ---------- */
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:14px 0;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:100%}
+th,td{text-align:left;padding:10px 11px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere}
+th{font:600 11.5px/1.4 var(--mono);letter-spacing:.05em;color:var(--muted);background:var(--paper2);white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:#FBF8F4}
+td.mono,.mono{font-family:var(--mono);font-size:12.5px}
+table.kv th{width:31%;white-space:normal}
+@media(max-width:560px){
+  table{font-size:12.8px}
+  th,td{padding:9px 8px}
+}
+details{border:1px solid var(--line);border-radius:11px;background:var(--paper);margin:9px 0;overflow:hidden}
+details[open]{border-color:var(--line2)}
+summary{
+  cursor:pointer;padding:12px 15px;font-size:14.5px;font-weight:600;list-style:none;
+  display:flex;gap:10px;align-items:flex-start;
+}
+summary::-webkit-details-marker{display:none}
+summary .q{color:var(--accent);font:600 12px/1.6 var(--mono);flex:none}
+details .body{padding:0 15px 14px;font-size:14.5px;color:#3A362F}
+details .body p{margin:8px 0}
+
+/* ---------- toc ---------- */
+.toc{
+  background:var(--paper);border:1px solid var(--line);border-radius:14px;
+  padding:15px 18px;margin:22px 0 4px;
+}
+.toc .h{font:600 11.5px/1 var(--mono);letter-spacing:.14em;color:var(--muted);margin-bottom:10px}
+.toc ol{margin:0;padding-left:0;list-style:none;columns:1}
+.toc li{margin:0;border-top:1px solid var(--line);}
+.toc li:first-child{border-top:0}
+.toc a{display:flex;gap:10px;align-items:baseline;padding:9px 0;color:var(--ink);border:0;font-size:14.5px}
+.toc a:hover{color:var(--accent)}
+.toc a .n{font:600 11px/1 var(--mono);color:var(--muted);flex:none;min-width:20px}
+.toc a:hover .n{color:var(--accent)}
+
+.reveal{opacity:0;transform:translateY(10px)}
+.reveal.in{opacity:1;transform:none;transition:opacity .55s ease,transform .55s ease}
+@media (prefers-reduced-motion:reduce){
+  .reveal,.reveal.in{opacity:1;transform:none;transition:none}
+  .node{transition:none}
+}
+.foot{
+  margin-top:52px;padding-top:18px;border-top:1px solid var(--line);
+  color:var(--muted);font-size:12.5px;line-height:1.75;
+}
+.foot b{color:#5A544C}
+@media(max-width:560px){
+  .pill,.tag,.toc a .n,.node .step,th{font-size:12px}
+  .wrap{padding:28px 16px 84px}
+  h2{font-size:18.5px;margin-top:38px;gap:9px}
+  h1{margin-top:12px}
+  .card{padding:15px 15px;border-radius:12px}
+  .lead{padding:17px}
+  .lead .one{font-size:16.5px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">Internal Note · Agentic Workflow</div>
+  <h1>Agentic Workflow<br />用 agent 把工作串成可重複跑的流程</h1>
+  <div class="sub">
+    以 <b>Oh My Pi（omp）</b> 當具體範例，講清楚三件事：<b>何時啟動</b>、<b>如何接到 agent</b>、<b>一輪做完之後怎麼接下一輪</b>。同樣的結構也適用於其他 coding agent。
+  </div>
+  <hr class="rule" />
+
+  <div class="card lead">
+    <p class="one">Agentic workflow 不是「模型一直想」。<br />它是：<b>有訊號進來 → 選一個 session → 跑一輪 agent loop → 把結果寫回去</b>，需要的話再跑下一輪。</p>
+    <div class="two">
+      <div class="row"><span class="tag">觸發</span><div>時間到了，還是事情發生了？</div></div>
+      <div class="row"><span class="tag b">接法</span><div>每次新開一支程式，還是留一個值班的？</div></div>
+    </div>
+    <p class="small" style="margin:14px 0 0">
+      你真正要設計的就只有這兩層。Queue、審批、多步驟狀態機，都是把這兩層包起來，<b>不是另一種引擎</b>。
+    </p>
+  </div>
+
+  <div class="toc">
+    <div class="h">目錄</div>
+    <ol>
+      <li><a href="#s1"><span class="n">01</span><span>先看一輪：agent loop 在做什麼</span></a></li>
+      <li><a href="#s2"><span class="n">02</span><span>第一層｜觸發：時間到了，還是事情發生了</span></a></li>
+      <li><a href="#s3"><span class="n">03</span><span>第二層｜接法 A / B / C（＋D）</span></a></li>
+      <li><a href="#s4"><span class="n">04</span><span>觸發 × 接法 組合表</span></a></li>
+      <li><a href="#s5"><span class="n">05</span><span>Session 在 workflow 裡活多久</span></a></li>
+      <li><a href="#s6"><span class="n">06</span><span>再往上包一層（仍然不是新的 loop）</span></a></li>
+      <li><a href="#s7"><span class="n">07</span><span>怎麼選</span></a></li>
+      <li><a href="#s8"><span class="n">08</span><span>常見誤解 · 專有名詞</span></a></li>
+    </ol>
+  </div>
+
+  <!-- ============ 01 ============ -->
+  <h2 id="s1"><span class="num">01</span>先看一輪：agent loop 在做什麼</h2>
+
+  <p>不管觸發怎麼來，agent 實際執行的單位都是「<b>一輪</b>」。一輪長這樣：</p>
+
+  <div class="flow" id="loop">
+    <div class="node" data-i="0"><span class="step">01</span><div class="t">收到一句指令</div><div class="d">例如「檢查未合併 PR 和 CI」</div></div>
+    <div class="hop">▼</div>
+    <div class="node" data-i="1"><span class="step">02</span><div class="t">模型想一想</div><div class="d">判斷要做什麼、要不要用工具</div></div>
+    <div class="hop">▼</div>
+    <div class="node" data-i="2"><span class="step">03</span><div class="t">需要就呼叫工具</div><div class="d">讀檔、跑指令、開子 agent……</div></div>
+    <div class="hop">▼</div>
+    <div class="node" data-i="3"><span class="step">04</span><div class="t">看工具結果再想</div><div class="d">不夠就再呼叫一次，直到這輪能收尾</div></div>
+    <div class="hop">▼</div>
+    <div class="node" data-i="4"><span class="step">05</span><div class="t">這輪結束（yield）</div><div class="d">停下來，等下一次指令</div></div>
+  </div>
+  <div class="ctrls">
+    <button id="replay" type="button">▶ 重播這一輪</button>
+    <span class="mini" id="loopcap">正在示範第 1 步</span>
+  </div>
+
+  <h3>同一輪，omp 有三種下法</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>介面</th><th>寫法</th></tr></thead>
+      <tbody>
+        <tr><td>CLI</td><td class="mono">omp -p "做 X"　（跑完就退出）</td></tr>
+        <tr><td>SDK</td><td class="mono">session.prompt("做 X")</td></tr>
+        <tr><td>RPC</td><td class="mono">{"type":"prompt","message":"做 X"}</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <b>三個容易搞錯的點</b>
+    <ul style="margin-bottom:0">
+      <li><b>idle 幾乎不燒 token</b>，只是行程還活著。</li>
+      <li>omp 的 <code>/loop</code> 是「同一句話自動再送」，比較像輪詢，不是 workflow 引擎。</li>
+      <li><b>常駐的是 process，不是 loop 24 小時空轉。</b></li>
+    </ul>
+  </div>
+
+  <!-- ============ 02 ============ -->
+  <h2 id="s2"><span class="num">02</span>第一層｜觸發：時間到了，還是事情發生了</h2>
+
+  <div class="grid">
+    <div class="card">
+      <span class="pill info">時間到了 · polling / cron</span>
+      <p>鬧鐘響了就跑 workflow 的下一步。</p>
+      <p class="small"><b>適合</b>：每晚掃依賴、每 15 分鐘看 CI、週一安全檢查。</p>
+      <pre><code><span class="c"># crontab：每 15 分鐘看一次 PR 與 CI</span>
+*/15 * * * * cd /repo &amp;&amp; omp -p \
+  "檢查未合併 PR 和 CI，有問題寫進報告"</code></pre>
+      <p class="small">終端機還開著時，omp 也有便宜版：</p>
+      <ul class="small" style="margin-top:0">
+        <li><code>/loop 5m 檢查 CI</code></li>
+        <li>社群排程套件（例如 <code>pi-schedule</code>）</li>
+      </ul>
+      <div class="note grey" style="font-size:13.5px;margin-bottom:0">
+        這兩個都要 <b>omp 視窗還開著</b>才會響，關終端機就停。真的要排程，還是 OS cron / systemd。
+      </div>
+    </div>
+
+    <div class="card">
+      <span class="pill info">事情發生了 · event-driven</span>
+      <p>門鈴響了才跑。</p>
+      <p class="small"><b>適合</b>：CI 紅了、有人推 code、webhook、檔案被改、使用者按按鈕。</p>
+      <div class="flow" style="margin:12px 0 0">
+        <div class="node"><div class="t">事件來源</div><div class="d">CI / GitHub webhook / 你的 API / 檔案變更</div></div>
+        <div class="hop">▼</div>
+        <div class="node"><div class="t">呼叫一輪 agent</div><div class="d">omp -p 或既有 session 的 prompt</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top:0">
+    <div class="card soft" style="margin-top:0">
+      <span class="pill ok">時間驅動的取捨</span>
+      <p class="small" style="margin-bottom:0"><b>優點</b>：簡單、人不在也會跑。<br /><b>缺點</b>：沒事件也跑，有事件也要等下一個整點。</p>
+    </div>
+    <div class="card soft" style="margin-top:0">
+      <span class="pill ok">事件驅動的取捨</span>
+      <p class="small" style="margin-bottom:0"><b>優點</b>：準、不空轉。<br /><b>缺點</b>：要有一個東西一直活著收事件（你的 API，或一支常駐的 omp）。</p>
+    </div>
+  </div>
+
+  <!-- ============ 03 ============ -->
+  <h2 id="s3"><span class="num">03</span>第二層｜接法：workflow 怎麼接到 omp</h2>
+
+  <p><b>觸發和接法是正交的</b>：cron 可以打常駐服務，webhook 也可以每次新開一支 omp。接法只有三種主要選擇，外加一種「人還坐在終端機前」。</p>
+
+  <div class="card">
+    <span class="pill">接法 A</span> <span class="pill">每次新開一支 · 短命 session</span>
+    <p>來一個工作項目，啟動 omp，做完退出。這是最薄的 workflow 步驟。</p>
+    <div class="flow">
+      <div class="node"><div class="t">cron / webhook</div></div>
+      <div class="hop">▼</div>
+      <div class="node"><div class="t mono">omp -p "任務"</div></div>
+      <div class="hop">▼</div>
+      <div class="node"><div class="t">做完結束</div></div>
+    </div>
+    <p class="small" style="margin-bottom:0">
+      <b>適合</b>：步驟彼此獨立、不需要記得上一輪在講什麼。<br />
+      <b>不適合</b>：同一條線要連續改到完。
+    </p>
+  </div>
+
+  <div class="card">
+    <span class="pill">接法 B</span> <span class="pill">把 omp 嵌進你的服務 · SDK</span>
+    <p>你的程式 <code>import @oh-my-pi/pi-coding-agent</code>，行程裡放一個 session。注意這是<b>完整 coding agent</b>，不是薄層的 <code>@oh-my-pi/pi-agent</code>。</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>API</th><th>在 workflow 裡的意思</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">session.prompt(…)</td><td>開新的一輪</td></tr>
+          <tr><td class="mono">session.followUp(…)</td><td>等這輪做完再做下一步</td></tr>
+          <tr><td class="mono">session.steer(…)</td><td>打斷正在做的，插入新指示</td></tr>
+          <tr><td class="mono">session.newSession()</td><td>清對話，開始下一件獨立工作</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="flow">
+      <div class="node"><div class="t">webhook / 使用者 / 排程</div></div>
+      <div class="hop">▼</div>
+      <div class="node"><div class="t">你的 API（建議 Bun）</div></div>
+      <div class="hop">▼</div>
+      <div class="node"><div class="t mono">createAgentSession()</div><div class="d">和 omp CLI 同一套引擎</div></div>
+      <div class="hop">▼</div>
+      <div class="node"><div class="t mono">prompt / newSession</div></div>
+    </div>
+    <p class="small" style="margin-bottom:0">
+      <b>適合</b>：服務本身是 TypeScript / Bun，想直接碰 session、自己加工具。<br />
+      <b>注意</b>：agent 卡死或記憶體爆掉，你的 API 可能一起死。需要 Bun ≥ 1.3.14。
+    </p>
+  </div>
+
+  <div class="card">
+    <span class="pill">接法 C</span> <span class="pill">旁邊放一個值班的 omp · RPC</span>
+    <p><b>RPC</b>（Remote Procedure Call）不是新的 agent 能力，只是用 JSON 對另一支程式下指令。</p>
+    <div class="flow">
+      <div class="node"><div class="t">你的 workflow / API（什麼語言都行）</div></div>
+      <div class="hop">▼ stdin 丟一行 JSON</div>
+      <div class="node"><div class="t mono">omp --mode rpc</div><div class="d">獨立子行程，門開著等人按鈴</div></div>
+      <div class="hop">▲ stdout 吐事件</div>
+      <div class="node"><div class="t">你收到的結果</div></div>
+    </div>
+    <pre><code><span class="c">// 你丟進去</span>
+{"id":"1","type":"prompt","message":"看 src/ 有哪些 TS 檔"}
+
+<span class="c">// 或把「下一件獨立工作」做成新 session</span>
+{"id":"2","type":"new_session"}
+{"id":"3","type":"follow_up","message":"改去查 staging"}</code></pre>
+    <div class="tw">
+      <table>
+        <thead><tr><th>指令</th><th>在 workflow 裡的意思</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">prompt</td><td>當新的 user 訊息，跑完整一輪</td></tr>
+          <tr><td class="mono">follow_up</td><td>這輪做完再跑</td></tr>
+          <tr><td class="mono">steer</td><td>打斷正在跑的</td></tr>
+          <tr><td class="mono">new_session</td><td>開新 session</td></tr>
+          <tr><td class="mono">abort</td><td>停當前這輪</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small" style="margin-bottom:0">
+      <b>適合</b>：API 不是 Bun、要隔離崩潰、或以後想換語言。<br />
+      同類協定還有 <b>ACP</b>（給編輯器 / IDE 當 host，對 agent 下 <code>session/prompt</code>）。
+    </p>
+  </div>
+
+  <div class="card soft">
+    <span class="pill warn">接法 D · 不算產品方案</span>
+    <p style="margin-bottom:0">人還坐在終端機前：omp 的 <code>/loop</code>、<code>/goal</code>、extension 裡 <code>sendUserMessage</code>。這是<b>開發時把 workflow 跑起來的便宜作法</b>，不是常駐產品方案。</p>
+  </div>
+
+  <!-- ============ 04 ============ -->
+  <h2 id="s4"><span class="num">04</span>觸發 × 接法 組合表</h2>
+  <div class="tw">
+    <table>
+      <thead><tr><th></th><th>時間到了</th><th>事件來了</th></tr></thead>
+      <tbody>
+        <tr><td><b>每次新 process</b></td><td class="mono">crontab → omp -p</td><td class="mono">webhook → spawn omp -p</td></tr>
+        <tr><td><b>SDK 嵌在服務裡</b></td><td class="mono">timer → prompt()</td><td class="mono">HTTP handler → prompt() / newSession()</td></tr>
+        <tr><td><b>RPC 子行程常駐</b></td><td class="mono">timer → stdin 丟 prompt</td><td class="mono">webhook → stdin 丟 prompt / new_session</td></tr>
+        <tr><td><b>TUI 開著</b></td><td class="mono">/loop 5m 或排程套件</td><td class="mono">extension 注入訊息</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ============ 05 ============ -->
+  <h2 id="s5"><span class="num">05</span>Session 在 workflow 裡活多久</h2>
+  <p>Agentic workflow 常踩的不是「會不會跑」，而是「<b>這一步該不該帶著上一輪的記憶</b>」。</p>
+  <div class="grid">
+    <div class="card" style="margin-top:0">
+      <span class="pill ok">同一條線做完</span>
+      <p class="small" style="margin-bottom:0">用 <code>prompt</code> / <code>followUp</code>，留在同一個 session。</p>
+    </div>
+    <div class="card" style="margin-top:0">
+      <span class="pill ok">每個事件互不污染</span>
+      <p class="small" style="margin-bottom:0">先 <code>newSession</code> 再 <code>prompt</code>，或乾脆每次 <code>omp -p</code>。</p>
+    </div>
+  </div>
+  <div class="note blue">
+    上下文太長：omp 可以 <b>compact</b>（摘要後繼續）或 <b>handoff</b>（開新 session 帶摘要）。這是<b>延命</b>，不是新的觸發方式。
+  </div>
+
+  <!-- ============ 06 ============ -->
+  <h2 id="s6"><span class="num">06</span>再往上包一層（仍然不是新的 loop）</h2>
+  <p>控制面就是前面那些。產品差異多半在包裝：</p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>模式</th><th>多了什麼</th><th>用 omp 時長怎樣</th></tr></thead>
+      <tbody>
+        <tr><td><b>Job queue</b></td><td>事件先排進 Redis / SQS，worker 一次領一件</td><td>每個 job 對一次 prompt 或一支 omp -p</td></tr>
+        <tr><td><b>Workflow 引擎</b></td><td>Temporal / Inngest 當狀態機</td><td>規劃、改碼、開 PR 各呼叫一次 omp</td></tr>
+        <tr><td><b>主從 agent</b></td><td>主 agent 拆工，子 agent 執行</td><td>omp 的 task 開 subagent，再彙整</td></tr>
+        <tr><td><b>人在迴圈裡</b></td><td>危險動作先停下來等人按 OK</td><td>tool approval、plan 確認</td></tr>
+        <tr><td><b>Batch / 評測</b></td><td>一堆步驟排著跑</td><td>迴圈打 omp -p 或 SDK prompt</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>完整一條 agentic workflow 通常是：</p>
+  <div class="flow">
+    <div class="node soft"><div class="t">觸發（時間 / 事件 / 人）</div></div>
+    <div class="hop">▼</div>
+    <div class="node"><div class="t">佇列或狀態機<span class="small">（可選）</span></div></div>
+    <div class="hop">▼</div>
+    <div class="node"><div class="t">選 session（沿用 or 新建）</div></div>
+    <div class="hop">▼</div>
+    <div class="node on"><div class="t">跑一輪 omp agent loop</div></div>
+    <div class="hop">▼</div>
+    <div class="node"><div class="t">工具、子 agent、審批</div></div>
+    <div class="hop">▼</div>
+    <div class="node"><div class="t">寫回結果（PR、資料庫、回覆使用者）</div></div>
+  </div>
+
+  <!-- ============ 07 ============ -->
+  <h2 id="s7"><span class="num">07</span>怎麼選</h2>
+  <div class="tw">
+    <table class="kv">
+      <thead><tr><th>如果你的情況是…</th><th>就用…</th></tr></thead>
+      <tbody>
+        <tr><td>任務單純、可獨立、人不在也要跑</td><td><b>cron + <code>omp -p</code></b></td></tr>
+        <tr><td>同一份 repo、偶發事件、要連續上下文</td><td><b>常駐 SDK 或 RPC</b>，idle 等</td></tr>
+        <tr><td>服務是 Bun / TS、想直接碰物件</td><td><b>SDK</b></td></tr>
+        <tr><td>服務是別的語言，或怕 agent 拖垮服務</td><td><b>RPC</b></td></tr>
+        <tr><td>只是自己盯著終端機掃 CI</td><td><code>/loop</code> 就好，先別寫服務</td></tr>
+        <tr><td>步驟多、要可重跑、要留下「進行到哪」</td><td><b>workflow 引擎包多次 prompt</b>，不要幻想單一 loop 跑三天</td></tr>
+        <tr><td>量變大</td><td>前面加 <b>queue</b>，後面 N 個 worker（每個 worker 一個 SDK session 或一支 RPC）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ============ 08 ============ -->
+  <h2 id="s8"><span class="num">08</span>常見誤解 · 專有名詞</h2>
+
+  <h3>五個常見誤解</h3>
+  <details>
+    <summary><span class="q">✕</span><span>「RPC 就是 loop 一直轉」</span></summary>
+    <div class="body"><p>錯。<b>常駐的是行程，沒指令就不跑模型。</b></p></div>
+  </details>
+  <details>
+    <summary><span class="q">✕</span><span>「event-driven 一定要 import library」</span></summary>
+    <div class="body"><p>錯。RPC、每次 <code>omp -p</code>、TUI extension 都可以收事件。</p></div>
+  </details>
+  <details>
+    <summary><span class="q">✕</span><span>「做 agentic workflow 必須自己寫 agent loop」</span></summary>
+    <div class="body"><p>錯。omp 的 <code>prompt()</code> / RPC <code>prompt</code> 已經會把這一輪跑完。</p></div>
+  </details>
+  <details>
+    <summary><span class="q">✕</span><span>「queue / Temporal 是另一種 agent」</span></summary>
+    <div class="body"><p>錯。它們只負責<b>何時再呼叫同一套 loop</b>。</p></div>
+  </details>
+  <details>
+    <summary><span class="q">✕</span><span>「一個 session 從頭跑到專案結束」</span></summary>
+    <div class="body"><p>通常不該。獨立工作要新 session，長線工作靠摘要或狀態機。</p></div>
+  </details>
+
+  <h3>專有名詞</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>詞</th><th>白話</th></tr></thead>
+      <tbody>
+        <tr><td><b>Agentic workflow</b></td><td>用 agent 當步驟執行器，把觸發、session、工具、結果串成流程</td></tr>
+        <tr><td><b>Agent loop</b></td><td>模型想 → 呼叫工具 → 再想，直到這輪停</td></tr>
+        <tr><td><b>Session</b></td><td>一串連續對話和工具紀錄</td></tr>
+        <tr><td><b>Yield</b></td><td>這一輪做完，停下來等下一次</td></tr>
+        <tr><td><b>omp</b></td><td>Oh My Pi，這裡當 coding agent 範例</td></tr>
+        <tr><td><b>SDK</b></td><td>把 omp 當函式庫 import 進你的程式</td></tr>
+        <tr><td><b>RPC</b></td><td>用 JSON 對另一支 omp 行程下指令</td></tr>
+        <tr><td><b>ACP</b></td><td>給編輯器 / IDE 用的同類協定</td></tr>
+        <tr><td><b>omp -p</b></td><td>無介面跑完一句話就退出</td></tr>
+        <tr><td><b>Subagent</b></td><td>主 agent 再開一條較小的 loop 去辦事</td></tr>
+        <tr><td><b>Polling</b></td><td>固定時間去看有沒有事</td></tr>
+        <tr><td><b>Event-driven</b></td><td>事情發生了才叫</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note" style="margin-top:26px">
+    <b>一句話帶走：</b>先決定<b>觸發</b>（時間 / 事件），再決定<b>接法</b>（新開一支 / 常駐 SDK / 常駐 RPC），最後決定<b>session 要不要延續</b>。其餘都是包裝。
+  </div>
+
+  <div class="foot">
+    <b>Agentic Workflow · 以 Oh My Pi（omp）為例</b><br />
+    內部教學用單頁說明 · 內容整理自與 Grok 的討論稿 · 2026-09-17
+  </div>
+</div>
+
+<script>
+(function(){
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* --- loop stepper --- */
+  var nodes = [].slice.call(document.querySelectorAll('#loop .node'));
+  var cap = document.getElementById('loopcap');
+  var replay = document.getElementById('replay');
+  var i = 0, timer = null;
+
+  function cap_(){ return '正在示範第 ' + (i+1) + ' 步'; }
+  function paint(){
+    nodes.forEach(function(n,k){ n.classList.toggle('on', k === i); });
+    if (cap) cap.textContent = cap_();
+  }
+  function stop(){ if(timer){ clearInterval(timer); timer = null; } }
+  function start(){
+    if (reduce || !nodes.length) { nodes.forEach(function(n){n.classList.add('on');}); if(cap) cap.textContent=''; return; }
+    stop(); paint();
+    timer = setInterval(function(){ i = (i+1) % nodes.length; paint(); }, 1500);
+  }
+  nodes.forEach(function(n,k){
+    n.addEventListener('click', function(){ stop(); i = k; paint(); if(cap) cap.textContent = '第 ' + (i+1) + ' 步（已停止自動播放）'; });
+    n.setAttribute('tabindex','0');
+    n.setAttribute('role','button');
+    n.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); n.click(); } });
+  });
+  if (replay) replay.addEventListener('click', function(){ i=0; start(); });
+  start();
+
+  /* --- reveal on scroll --- */
+  var targets = [].slice.call(document.querySelectorAll('h2, .card, .tw, .note, .flow, details'));
+  if (reduce || !('IntersectionObserver' in window)) {
+    targets.forEach(function(t){ t.classList.add('reveal','in'); });
+  } else {
+    targets.forEach(function(t){ t.classList.add('reveal'); });
+    var io = new IntersectionObserver(function(es){
+      es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.04 });
+    targets.forEach(function(t){ io.observe(t); });
+  }
+
+  /* --- pause ambient animation when tab hidden --- */
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden) stop(); else if (!reduce) start();
+  });
+})();
+</script>
+</body>
+</html>
