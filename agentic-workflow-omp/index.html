@@ -115,6 +115,14 @@ hr{border:0;border-top:1px solid var(--line);margin:30px 0}
 .note.blue{border-left-color:var(--blue);background:#F1F5F7}
 .note.grey{border-left-color:var(--line2);background:var(--paper2)}
 .note>:first-child{margin-top:0}.note>:last-child{margin-bottom:0}
+.pm{margin:12px 0 0;display:flex;flex-direction:column;gap:10px}
+.pm > div{border-top:1px solid var(--line);padding-top:9px}
+.pm .k{font:600 11.5px/1 var(--mono);letter-spacing:.06em;display:block;margin-bottom:6px}
+.pm .k.ok{color:var(--green)}
+.pm .k.no{color:#8A4A16}
+.pm .k.lim{color:var(--blue)}
+.pm ul{margin:0;padding-left:18px}
+.pm li{margin:3px 0;font-size:14.5px;line-height:1.55}
 
 /* ---------- code ---------- */
 code{
@@ -246,11 +254,12 @@ details .body p{margin:8px 0}
       <li><a href="#s1"><span class="n">01</span><span>先看一輪：agent loop 在做什麼</span></a></li>
       <li><a href="#s2"><span class="n">02</span><span>第一層｜觸發：時間到了，還是事情發生了</span></a></li>
       <li><a href="#s3"><span class="n">03</span><span>第二層｜接法 A / B / C（＋D）</span></a></li>
-      <li><a href="#s4"><span class="n">04</span><span>觸發 × 接法 組合表</span></a></li>
-      <li><a href="#s5"><span class="n">05</span><span>Session 在 workflow 裡活多久</span></a></li>
-      <li><a href="#s6"><span class="n">06</span><span>再往上包一層（仍然不是新的 loop）</span></a></li>
-      <li><a href="#s7"><span class="n">07</span><span>怎麼選</span></a></li>
-      <li><a href="#s8"><span class="n">08</span><span>常見誤解 · 專有名詞</span></a></li>
+      <li><a href="#s4"><span class="n">04</span><span>每一種方法的優缺點與限制</span></a></li>
+      <li><a href="#s5"><span class="n">05</span><span>觸發 × 接法 組合表</span></a></li>
+      <li><a href="#s6"><span class="n">06</span><span>Session 在 workflow 裡活多久</span></a></li>
+      <li><a href="#s7"><span class="n">07</span><span>再往上包一層（仍然不是新的 loop）</span></a></li>
+      <li><a href="#s8"><span class="n">08</span><span>怎麼選</span></a></li>
+      <li><a href="#s9"><span class="n">09</span><span>常見誤解 · 專有名詞</span></a></li>
     </ol>
   </div>
 
@@ -430,7 +439,236 @@ details .body p{margin:8px 0}
   </div>
 
   <!-- ============ 04 ============ -->
-  <h2 id="s4"><span class="num">04</span>觸發 × 接法 組合表</h2>
+  <h2 id="s4"><span class="num">04</span>每一種方法的優缺點與限制</h2>
+  <p>兩層本身先對照。上層包裝（queue、Temporal、審批）不另開一種 agent，只是何時再呼叫同一套 loop。</p>
+
+  <h3>觸發</h3>
+
+  <div class="card">
+    <span class="pill info">時間到了</span>
+    <p>鬧鐘響了就跑。實作是 OS cron / systemd，或終端機還開著時的 <code>/loop</code>。</p>
+    <div class="pm">
+      <div>
+        <span class="k ok">優點</span>
+        <ul>
+          <li>實作最薄：一條 crontab 就能跑。</li>
+          <li>人不在也會跑（用 OS 排程時）。</li>
+          <li>不需要 webhook、不需要常駐收件服務。</li>
+        </ul>
+      </div>
+      <div>
+        <span class="k no">缺點</span>
+        <ul>
+          <li>沒事件也跑，空轉燒時間與 token。</li>
+          <li>有事件也要等下一個整點，反應慢。</li>
+        </ul>
+      </div>
+      <div>
+        <span class="k lim">限制</span>
+        <ul>
+          <li><code>/loop</code>、社群排程套件都要 <b>omp 視窗還開著</b>；關終端機就停。</li>
+          <li>真要人不在也跑，只能靠 OS cron / systemd，不是 omp 自己。</li>
+          <li>cron 不管「上一輪還沒跑完」：間隔太短會重疊，要自己加鎖或拉長間隔。</li>
+          <li>不適合「按下按鈕立刻改」這類秒級反應。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="pill info">事情發生了</span>
+    <p>門鈴響了才跑。事件來自 CI、push、webhook、檔案變更、使用者按鈕。</p>
+    <div class="pm">
+      <div>
+        <span class="k ok">優點</span>
+        <ul>
+          <li>準：有事才跑，不空轉。</li>
+          <li>延遲低：事件到了就進下一輪。</li>
+        </ul>
+      </div>
+      <div>
+        <span class="k no">缺點</span>
+        <ul>
+          <li>必須有一個東西一直活著收事件（你的 API，或一支常駐 omp）。</li>
+          <li>漏事件、重送、同一事件打兩次，都要自己處理。</li>
+        </ul>
+      </div>
+      <div>
+        <span class="k lim">限制</span>
+        <ul>
+          <li>沒有事件來源（沒 webhook、沒監看）就用不了。</li>
+          <li>事件風暴會連打多輪；要並行或排隊，否則一支 agent 會卡住。</li>
+          <li>失敗重試、冪等（同一 webhook 不重複改碼）不是 omp 內建，要寫在你的 workflow。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <h3>接法</h3>
+
+  <div class="card">
+    <span class="pill">A</span> <span class="pill">每次新開一支 · <code>omp -p</code></span>
+    <p>來一個工作就啟動 omp，做完退出。行程不留。</p>
+    <div class="pm">
+      <div>
+        <span class="k ok">優點</span>
+        <ul>
+          <li>最薄：cron / webhook 直接 spawn，任何語言都行。</li>
+          <li>崩潰隔離：這支掛了，下一件工作是新行程。</li>
+          <li>無狀態，好重跑：失敗就再 spawn 一次。</li>
+        </ul>
+      </div>
+      <div>
+        <span class="k no">缺點</span>
+        <ul>
+          <li>沒有上一輪記憶。連續改同一條線會失憶。</li>
+          <li>每次冷啟動（進 repo、讀工具），比常駐 session 慢。</li>
+        </ul>
+      </div>
+      <div>
+        <span class="k lim">限制</span>
+        <ul>
+          <li>做完行程就死，不能 <code>followUp</code> / <code>steer</code>。</li>
+          <li>要留下結果，必須寫到檔案、PR、資料庫；不能靠對話紀錄。</li>
+          <li>長任務可能撞上 cron 下一輪，或被 OS 殺掉。</li>
+          <li>要並行 N 件，就是 N 個 process，記憶體跟著線性漲。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="pill">B</span> <span class="pill">SDK 嵌進服務</span>
+    <p>同一支 API 行程裡放 session。直接 <code>prompt</code> / <code>followUp</code> / <code>steer</code> / <code>newSession</code>。</p>
+    <div class="pm">
+      <div>
+        <span class="k ok">優點</span>
+        <ul>
+          <li>延遲最低：沒有跨行程 JSON。</li>
+          <li>能直接碰 session、自己加工具、接你的 log / auth。</li>
+          <li>同一條線連續做：followUp、steer 都在物件上。</li>
+        </ul>
+      </div>
+      <div>
+        <span class="k no">缺點</span>
+        <ul>
+          <li>agent 卡死或記憶體爆掉，<b>API 可能一起死</b>。</li>
+          <li>綁 TypeScript / Bun，換語言就要拆掉。</li>
+        </ul>
+      </div>
+      <div>
+        <span class="k lim">限制</span>
+        <ul>
+          <li>需要 Bun ≥ 1.3.14；套件是完整的 <code>@oh-my-pi/pi-coding-agent</code>，不是薄層 <code>pi-agent</code>。</li>
+          <li>服務重啟，記憶體裡的 session 全沒了（要延續得自己存）。</li>
+          <li>水平擴展時，同一個 session 黏在那一台；後面要加 queue 才能拆開。</li>
+          <li>多使用者同時進同一 session 會互相污染，要按工作切 <code>newSession</code>。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="pill">C</span> <span class="pill">值班 RPC · <code>omp --mode rpc</code></span>
+    <p>旁邊放一支獨立 omp，stdin 丟 JSON、stdout 收事件。能力與 SDK 同一套 loop，只是換輸送管。</p>
+    <div class="pm">
+      <div>
+        <span class="k ok">優點</span>
+        <ul>
+          <li>API 什麼語言都行。</li>
+          <li>崩潰隔離：omp 掛了，你的服務還在。</li>
+          <li>idle 幾乎不燒 token，只是行程活著等人按鈴。</li>
+        </ul>
+      </div>
+      <div>
+        <span class="k no">缺點</span>
+        <ul>
+          <li>多一層 IPC：要處理斷線、重啟、一行 JSON 解析。</li>
+          <li>除錯比 SDK 繞（問題在你這邊還是子行程）。</li>
+        </ul>
+      </div>
+      <div>
+        <span class="k lim">限制</span>
+        <ul>
+          <li>還是要有人保活這支子行程（systemd / 你的 supervisor）。</li>
+          <li>一支 RPC 同一時間通常只跑一輪；要並行就開多支。</li>
+          <li>大輸出、二進位、多行訊息要遵守「一行一個 JSON」；破格式就對不準。</li>
+          <li>RPC <b>不是</b>更強的 agent，也不能取代 queue / 狀態機。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card soft">
+    <span class="pill warn">D</span> <span class="pill warn">TUI 開著 · <code>/loop</code>、<code>/goal</code></span>
+    <p>人還坐在終端機前。開發時把流程跑起來用，不是產品。</p>
+    <div class="pm">
+      <div>
+        <span class="k ok">優點</span>
+        <ul>
+          <li>零基礎設施，打開 omp 就能試。</li>
+          <li>看得到模型在幹嘛，適合調 prompt。</li>
+        </ul>
+      </div>
+      <div>
+        <span class="k no">缺點</span>
+        <ul>
+          <li>人走、關視窗、筆電休眠，流程就停。</li>
+          <li>不能當值班服務，也難給同事當 API 用。</li>
+        </ul>
+      </div>
+      <div>
+        <span class="k lim">限制</span>
+        <ul>
+          <li>只在「這台機器、這個終端機還開著」時有效。</li>
+          <li>webhook 無法穩定打進來（除非 extension 且視窗仍在）。</li>
+          <li>不要把 <code>/loop</code> 當成 cron；它只是同一句話自動再送。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <h3>上層包裝（可選，不是新引擎）</h3>
+  <p class="small">這些只決定「何時再呼叫同一套 loop」。優點是控制面變強；限制是多一個系統要維運。</p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>包裝</th><th>優點</th><th>缺點 / 限制</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Job queue</b></td>
+          <td>削峰、可重試、可加 worker</td>
+          <td>要維 Redis / SQS；不幫你管 session 記憶。每個 job 對一次 prompt 或一支 <code>omp -p</code></td>
+        </tr>
+        <tr>
+          <td><b>Workflow 引擎</b></td>
+          <td>步驟可重跑、留下「進行到哪」</td>
+          <td>Temporal / Inngest 本身有學習與維運成本；不要幻想單一 loop 跑三天</td>
+        </tr>
+        <tr>
+          <td><b>主從 agent</b></td>
+          <td>拆工、主 agent 彙整</td>
+          <td>子 agent 也要配額與隔離；失敗要定義誰重試。omp 用 task 開 subagent</td>
+        </tr>
+        <tr>
+          <td><b>人在迴圈裡</b></td>
+          <td>危險動作先停，有人按 OK 才做</td>
+          <td>人沒按就卡住；不適合無人值班。靠 tool approval、plan 確認</td>
+        </tr>
+        <tr>
+          <td><b>Batch / 評測</b></td>
+          <td>一堆步驟排著跑，結果可對</td>
+          <td>花費與時間都線性；失敗要記錄哪一步。迴圈打 <code>omp -p</code> 或 SDK prompt</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <b>對照時只記三句：</b>時間驅動會空轉、事件驅動要有人收信；<code>omp -p</code> 沒有記憶但最穩；SDK 快但會跟 API 一起死；RPC 隔離崩潰但要保活子行程；<code>/loop</code> 只給人盯著終端機用。
+  </div>
+
+  <!-- ============ 05 ============ -->
+  <h2 id="s5"><span class="num">05</span>觸發 × 接法 組合表</h2>
   <div class="tw">
     <table>
       <thead><tr><th></th><th>時間到了</th><th>事件來了</th></tr></thead>
@@ -444,7 +682,7 @@ details .body p{margin:8px 0}
   </div>
 
   <!-- ============ 05 ============ -->
-  <h2 id="s5"><span class="num">05</span>Session 在 workflow 裡活多久</h2>
+  <h2 id="s6"><span class="num">06</span>Session 在 workflow 裡活多久</h2>
   <p>Agentic workflow 常踩的不是「會不會跑」，而是「<b>這一步該不該帶著上一輪的記憶</b>」。</p>
   <div class="grid">
     <div class="card" style="margin-top:0">
@@ -461,7 +699,7 @@ details .body p{margin:8px 0}
   </div>
 
   <!-- ============ 06 ============ -->
-  <h2 id="s6"><span class="num">06</span>再往上包一層（仍然不是新的 loop）</h2>
+  <h2 id="s7"><span class="num">07</span>再往上包一層（仍然不是新的 loop）</h2>
   <p>控制面就是前面那些。產品差異多半在包裝：</p>
   <div class="tw">
     <table>
@@ -491,7 +729,7 @@ details .body p{margin:8px 0}
   </div>
 
   <!-- ============ 07 ============ -->
-  <h2 id="s7"><span class="num">07</span>怎麼選</h2>
+  <h2 id="s8"><span class="num">08</span>怎麼選</h2>
   <div class="tw">
     <table class="kv">
       <thead><tr><th>如果你的情況是…</th><th>就用…</th></tr></thead>
@@ -508,7 +746,7 @@ details .body p{margin:8px 0}
   </div>
 
   <!-- ============ 08 ============ -->
-  <h2 id="s8"><span class="num">08</span>常見誤解 · 專有名詞</h2>
+  <h2 id="s9"><span class="num">09</span>常見誤解 · 專有名詞</h2>
 
   <h3>五個常見誤解</h3>
   <details>
