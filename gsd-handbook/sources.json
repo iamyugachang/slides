@@ -1,0 +1,15 @@
+[
+  {"id":"release","kind":"官方版本","title":"GSD Core v1.14.0 release","url":"https://github.com/open-gsd/gsd-core/releases/tag/v1.14.0","note":"GitHub latest release 查核；不等於 default branch 的最新開發狀態。","checked":"2026-09-22"},
+  {"id":"package","kind":"套件實測","title":"npm 1.14.0 package metadata","url":"https://registry.npmjs.org/@opengsd/gsd-core/1.14.0","note":"npm view 查核版本、engines：Node >=24.0.0、npm >=10.0.0；實際執行 installer --help 與隔離的完整 Codex local install。","checked":"2026-09-22"},
+  {"id":"commands","kind":"官方規格","title":"v1.14.0 Commands","url":"https://github.com/open-gsd/gsd-core/blob/v1.14.0/docs/COMMANDS.md","note":"流程、前置條件、產出與 flags；不同安裝方式的命名以當前 runtime 實際列出的技能為準。","checked":"2026-09-22"},
+  {"id":"install","kind":"官方規格","title":"v1.14.0 安裝與 runtime 差異","url":"https://github.com/open-gsd/gsd-core/blob/v1.14.0/docs/how-to/install-on-your-runtime.md","note":"必須用 installer 轉換 agent/skill 格式；部分 Node 門檻敘述落後於 package engines。","checked":"2026-09-22"},
+  {"id":"config","kind":"官方規格","title":"v1.14.0 Configuration","url":"https://github.com/open-gsd/gsd-core/blob/v1.14.0/docs/CONFIGURATION.md","note":"interactive、inherit、auto_advance、parallelization、人工驗證設定。","checked":"2026-09-22"},
+  {"id":"tutorial","kind":"官方教學","title":"Your first project","url":"https://github.com/open-gsd/gsd-core/blob/v1.14.0/docs/tutorials/your-first-project.md","note":"以官方核心迴圈作為教學骨架；本手冊的 Habit Quest 案例、數值與練習是另行設計。","checked":"2026-09-22"},
+  {"id":"context","kind":"官方設計","title":"Context engineering","url":"https://github.com/open-gsd/gsd-core/blob/v1.14.0/docs/explanation/context-engineering.md","note":"檔案狀態與新 context 的用途；無法保證模型永遠不失誤。","checked":"2026-09-22"},
+  {"id":"recovery","kind":"官方排錯","title":"Recover and troubleshoot","url":"https://github.com/open-gsd/gsd-core/blob/v1.14.0/docs/how-to/recover-and-troubleshoot.md","note":"命令未載入、模型不支援、恢復與驗證失敗的處理。","checked":"2026-09-22"},
+  {"id":"dispatch","kind":"專案 issue","title":"#851：Codex generic-agent schema 限制","url":"https://github.com/open-gsd/gsd-core/issues/851","note":"歷史 runtime 相容性案例，不表示每個最新版本仍有相同問題。","checked":"2026-09-22"},
+  {"id":"reddit-usage","kind":"社群個案","title":"GSD usage：訪談與逐階段 UAT","url":"https://www.reddit.com/r/ClaudeCode/comments/1qh24np/gsd_get_shit_done_usage/","note":"2026-01 討論，原文已開啟。使用者讚賞討論與人工驗證；版本與 GSD 分支未完整註明。","checked":"2026-09-22"},
+  {"id":"reddit-long","kind":"社群個案","title":"GSD and alternatives：長期專案與時間成本","url":"https://www.reddit.com/r/ClaudeCode/comments/1v3hz3b/gsd_and_alternatives/","note":"2026-07 起討論，原文已開啟。有人肯定規劃軌跡，也指出長執行與驗證成本；非基準測試。","checked":"2026-09-22"},
+  {"id":"reddit-overhead","kind":"社群個案","title":"GSD alternative?：流程與 token 負擔","url":"https://www.reddit.com/r/ClaudeCode/comments/1t29zp2/gsd_alternative/","note":"2026-05 討論，原文已開啟。有人回到較輕流程，也有人保留已驗證版本；無統一 token 數據。","checked":"2026-09-22"},
+  {"id":"pages","kind":"官方發佈","title":"GitHub Pages：建立靜態網站","url":"https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site","note":"Pages 可發佈靜態 HTML/CSS/JS，不提供一般後端服務；分支發佈可用 .nojekyll。","checked":"2026-09-22"}
+]
